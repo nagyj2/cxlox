@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "${default}",
+                "${workspaceFolder}/inc"
+            ],
+            "defines": [],
+            "macFrameworkPath": [],
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "macos-gcc-x86",
+            "configurationProvider": "ms-vscode.cmake-tools",
+            "compilerPath": "/usr/local/bin/gcc-11"
+        }
+    ],
+    "version": 4
+}
