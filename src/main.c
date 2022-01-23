@@ -11,23 +11,12 @@ int main(int argc, const char *argvp[]) {
 	Chunk chunk;
 	initChunk(&chunk);
 
-	int constant = addConstant(&chunk, 1.3);
-	writeChunk(&chunk, OP_CONSTANT, 1);
-	writeChunk(&chunk, constant, 1);
-
-	constant = addConstant(&chunk, 3.4);
-	writeChunk(&chunk, OP_CONSTANT, 1);
-	writeChunk(&chunk, constant, 1);
-
+	writeConstant(&chunk, 1.0, 1);
+	writeConstant(&chunk, 2.0, 1);
+	writeChunk(&chunk, OP_MULTIPLY, 1);
+	writeConstant(&chunk, 3.0, 1);
 	writeChunk(&chunk, OP_ADD, 1);
-
-	constant = addConstant(&chunk, 5.6);
-	writeChunk(&chunk, OP_CONSTANT, 1);
-	writeChunk(&chunk, constant, 1);
-
-	writeChunk(&chunk, OP_DIVIDE, 001);
-	writeChunk(&chunk, OP_NEGATE, 002);
-	writeChunk(&chunk, OP_RETURN, 003);
+	writeChunk(&chunk, OP_RETURN, 1);
 
 	// disassembleChunk(&chunk, "test chunk");
 	interpret(&chunk);
