@@ -8,7 +8,12 @@
 typedef enum {
 	OP_CONSTANT,		//* Opcode to introduce a constant into the constant pool.
 	OP_CONSTANT_LONG,	//* Introduces a constant which is indexed by a 24-bit number
-	OP_RETURN,			//* Opcode representing a function return.
+	OP_ADD,					//* OPCODE : Opcode to represent mathematical addition.
+	OP_SUBTRACT,		//* OPCODE : Opcode to represent mathematical subtraction.
+	OP_MULTIPLY,		//* OPCODE : Opcode to represent mathematical multiplication.
+	OP_DIVIDE,			//* OPCODE : Opcode to represent mathematical division.
+	OP_NEGATE,			//* OPCODE : Opcode to remove the top stack element and place a negated version.
+	OP_RETURN,			//* OPCODE : Opcode representing a function return.
 } OpCode;
 
 /** Structure to more efficiently track line numbers. Uses a dynamic array. */

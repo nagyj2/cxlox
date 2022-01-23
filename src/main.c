@@ -2,22 +2,36 @@
 
 #include "common.h"
 #include "chunk.h"
+#include "vm.h"
 #include "debug.h"
 
 int main(int argc, const char *argvp[]) {
+	initVM();
+	
 	Chunk chunk;
 	initChunk(&chunk);
 
-	for (int i = 0, j = 0; i < 280; i++) {
-		// int constant = addConstant(&chunk, 1.0 * i);
-		writeConstant(&chunk, 1.0 * i, j);
-		if (i % 10 == 0) {
-			j++;
-		}
-	}
-	writeChunk(&chunk, OP_RETURN, 28);
+	int constant = addConstant(&chunk, 1.3);
+	writeChunk(&chunk, OP_CONSTANT, 1);
+	writeChunk(&chunk, constant, 1);
 
-	disassembleChunk(&chunk, "test chunk");
+	constant = addConstant(&chunk, 3.4);
+	writeChunk(&chunk, OP_CONSTANT, 1);
+	writeChunk(&chunk, constant, 1);
+
+	writeChunk(&chunk, OP_ADD, 1);
+
+	constant = addConstant(&chunk, 5.6);
+	writeChunk(&chunk, OP_CONSTANT, 1);
+	writeChunk(&chunk, constant, 1);
+
+	writeChunk(&chunk, OP_DIVIDE, 001);
+	writeChunk(&chunk, OP_NEGATE, 002);
+	writeChunk(&chunk, OP_RETURN, 003);
+
+	// disassembleChunk(&chunk, "test chunk");
+	interpret(&chunk);
+	freeVM();
 	freeChunk(&chunk);
 
 	return 0;
