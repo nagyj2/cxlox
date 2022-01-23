@@ -6,8 +6,13 @@
 
 /** Define the Operation Codes which can exist in the bytecode. */
 typedef enum {
-	OP_CONSTANT,		//* Opcode to introduce a constant into the constant pool.
-	OP_RETURN,			//* Opcode representing a function return.
+	OP_CONSTANT,		//* OPCODE INDEX : Opcode to introduce a constant into the constant pool.
+	OP_ADD,					//* OPCODE : Opcode to represent mathematical addition.
+	OP_SUBTRACT,		//* OPCODE : Opcode to represent mathematical subtraction.
+	OP_MULTIPLY,		//* OPCODE : Opcode to represent mathematical multiplication.
+	OP_DIVIDE,			//* OPCODE : Opcode to represent mathematical division.
+	OP_NEGATE,			//* OPCODE : Opcode to remove the top stack element and place a negated version.
+	OP_RETURN,			//* OPCODE : Opcode representing a function return.
 } OpCode;
 
 /* Note that the entire AST structure from jlox has been recreated just by 3 dynamic arrays, the chunk, constant pool and source line numbers */
