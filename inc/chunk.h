@@ -7,8 +7,15 @@
 /** Define the Operation Codes which can exist in the bytecode. */
 typedef enum {
 	OP_CONSTANT,		//* Opcode to introduce a constant into the constant pool.
+	OP_CONSTANT_LONG,	//* Introduces a constant which is indexed by a 24-bit number
 	OP_RETURN,			//* Opcode representing a function return.
 } OpCode;
+
+/** Structure to more efficiently track line numbers. Uses a dynamic array. */
+typedef struct {
+	int offset;	//* Offset the line starts at in the chunk.
+	int line; 	//* Source line being represented. 
+} LineStart;
 
 /* Note that the entire AST structure from jlox has been recreated just by 3 dynamic arrays, the chunk, constant pool and source line numbers */
 
@@ -17,8 +24,10 @@ typedef struct {
 	int count;						//* Number of elements within the ValueArray.
 	int capacity; 				//* The maximum capacity of the ValueArray.
 	uint8_t *code; 				//* An array of bytes which represents bytecode.
-	int *lines; 					//* An array of integers to track where each instruction originated from in the source code.
 	ValueArray constants; //* A dynamic array of values which make up the constant pool.
+	int lineCount;				//* Number of lines being tracked.
+	int lineCapacity;			//* Maximum capacity for lines being tracked.
+	LineStart *lines;			//* Dynamic array of line counts. Decoupled from the chunk size because the number of elements in the chunk is greater than the number of lines.
 } Chunk;
 
 /** Create a new Chunk. Pointer input gets initialized. 
@@ -48,5 +57,21 @@ int addConstant(Chunk *chunk, Value value);
  * @param[out] chunk The chunk to be freed.
  */
 void freeChunk(Chunk *chunk);
+
+/** Retrieve the line location of an instruction in a chunk. Assumes line numbers monotonically increase.
+ * 
+ * @param[in] chunk The chunk to retrieve the line number from.
+ * @param[in] instruction An instruction offset to search for in the line number array.
+ * @return int The offset of the LineStart array which contains the line @p instruction is on.
+ */
+int getLine(Chunk *chunk, int instruction);
+
+/** Writes a new value to a chunk. If the number of constants is greater than 255, it will use OP_CONSTANT_LONG. Otherwise OP_CONSTANT.
+ * 
+ * @param[out] chunk The chunk to write to.
+ * @param[in] value The value to write
+ * @param[in] line The source line the value shows up on.
+ */
+void writeConstant(Chunk *chunk, Value value, int line);
 
 #endif /* clox_chunk_h */
