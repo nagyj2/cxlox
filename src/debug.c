@@ -28,13 +28,25 @@ static int constantInstruction(const char *name, Chunk *chunk, int offset) {
 	return offset + 2; // Return forward 2 spaces b/c opcode and index need to be skipped
 }
 
+/* Decodes an instruction which is followed by a long index. */
+static int constantLongInstruction(const char *name, Chunk *chunk, int offset) {
+	int constantIndex = (chunk->code[offset + 1]) |
+											(chunk->code[offset + 2] << 8) |
+											(chunk->code[offset + 3] << 16); // Reassemble number from the 3 parts
+	printf("%-16s %4d '", name, constantIndex);
+	printValue(chunk->constants.values[constantIndex]);
+	printf("'\n");
+
+	return offset + 4; // Return forward 4 bytes
+}
 
 int disassembleInstruction(Chunk *chunk, int offset) {
 	printf("%04d ", offset); // Display instruction offset
-	if (offset > 0 && chunk->lines[offset] == chunk->lines[offset - 1]) {
+	int line = getLine(chunk, offset); // B/c we now have a helper, we need to use that to get the proper line number
+	if (offset > 0 && line == getLine(chunk, offset - 1)) {
 		printf("   | ");
 	} else {
-		printf("%4d ", chunk->lines[offset]);
+		printf("%4d ", line);
 	}
 
 	uint8_t instruction = chunk->code[offset]; // Retrieve opcode
@@ -43,6 +55,8 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return simpleInstruction("OP_RETURN", offset);
 		case OP_CONSTANT:
 			return constantInstruction("OP_CONSTANT", chunk, offset);
+		case OP_CONSTANT_LONG:
+			return constantLongInstruction("OP_CONSTANT_LONG", chunk, offset);
 		default:
 			printf("Unknown opcode %d\n", instruction);
 			return offset + 1;
