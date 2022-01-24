@@ -263,8 +263,10 @@ static void unary() {
 // Declared after all function declarations so they can be placed into the table.
 /** Singleton representing the functions to call when a token is encountered when parsing an expression and the precidence level to parse for binary expressions. 
  * Literals are included in this table with the 'unary' slot representing the function to parse the literal.
+ * Precidence column is used for the infix precedence of the operator. If some prefix (or postfix) operators had different precidence levels, their precidences would
+ * also need to be stored.
  */
-ParseRule rules[] = {  /* UNARY      BINARY   PRECIDENCE */
+ParseRule rules[] = {  // PREFIX     INFIX    PRECIDENCE */
 	[TOKEN_LEFT_PAREN]    = {grouping, NULL,    PREC_NONE},
   [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,    PREC_NONE},
   [TOKEN_LEFT_CURLY]    = {NULL,     NULL,    PREC_NONE}, 
@@ -325,8 +327,8 @@ static void parsePrecidence(Precidence precidence) {
 	// Call whatever function was retrieved
 	prefixRule();
 
-	// While the precidence of the currently examined token is equal or lesser than the input precidence, parse it
-	// If it doesnt have a precidence, we are also done
+	// While the precidence of the currently examined token is equal or greater than the input precidence, parse it
+	// Loop relies on precidence being available and above the set precidence. If an unrecognized operator is found (has PREC_NONE in table), the function will end.
 	while (precidence <= getRule(parser.current.type)->precidence) {
 		advance(); // Get operator into parser.previous
 		ParseFn infixRule = getRule(parser.previous.type)->infix;
@@ -344,10 +346,11 @@ static ParseRule* getRule(TokenType type) {
 	return &rules[type];
 }
 
-/** Parses an expression which has a precidence level of assignment or higher.
+/** Parses an expression starting at the lowest available precidence.
  * 
  */
 static void expression() {
+	// Lowest precidence is assignment, so this expression call will parse the entire expression
 	parsePrecidence(PREC_ASSIGNMENT);
 }
 
