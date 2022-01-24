@@ -1,6 +1,7 @@
 #ifndef clox_scanner_h
 #define clox_scanner_h
 
+/* Represents all available types of tokens available the compiler. */
 typedef enum {
 	// Single-char tokens
 	TOKEN_LEFT_PAREN, TOKEN_RIGHT_PAREN,
@@ -25,9 +26,10 @@ typedef enum {
 
 	// Utility Tokens
 	TOKEN_ERROR, // The scanner itself cannot 'throw' an error, so a synthetic error token is required.
-	TOKEN_EOF
+	TOKEN_EOF // End of file.
 } TokenType;
 
+/* All information to represent a lexical token from the source code. Contains token type, source code line, start position and length. Lexeme points to source code allocation, so must be deleted before the original source code. */
 typedef struct {
 	TokenType type; 		//* The type of token being represented.
 	const char* start; 	//* The index of the char in the source which starts the token's lexeme.
@@ -35,13 +37,13 @@ typedef struct {
 	int line; 					//* The line the token appeared in.
 } Token;
 
-/** Initialize the scanner's state.
+/** Initialize the scanner's state, including the starting position, current position and line number. Resets the global scanner state.
  * 
  * @param[in] source The source code for the scanner to initialize with.
  */
 void initScanner(const char* source);
 
-/** Scans the currently set input source and returns the next token in that text stream.
+/** Scans the currently set input source and returns the next token in that text stream. Reads the global scanner state.
  * 
  * @return Token The token which was read.
  */

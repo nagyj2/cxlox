@@ -12,7 +12,8 @@ VM vm;
  * 
  */
 void resetStack() {
-	vm.stackTop = vm.stack; // Creates an empty stack
+	// Doesnt matter if stack elements are freed b/c they are still in v.stack's allocation AND vn.stackTop will just overwrite new values.
+	vm.stackTop = vm.stack;
 }
 
 void initVM() {
@@ -39,6 +40,7 @@ static InterpretResult run() {
 	// Read a constant from the bytecode by taking the index and then looking it up in the constant pool
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 	// Pop two elements from the stack, add them and then place the result back. Remember, left arg is placed first
+	// Uses a do loop to allow multiple lines AND a culminating semicolon
 #define BINARY_OP(op) \
 	do { \
 		double b = pop(); \

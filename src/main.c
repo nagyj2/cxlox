@@ -7,6 +7,11 @@
 #include "vm.h"
 #include "debug.h"
 
+/** Reads the text file contents and returns the raw character text.
+ * 
+ * @param[in] path 
+ * @return char pointer to the source code text.
+ */
 static char* readFile(const char* path) {
 	FILE* file = fopen(path, "rb"); // Open path in read binary mode
 	if (file == NULL) {
@@ -54,7 +59,7 @@ static void repl() {
 
 /** Runs a lox source file. Dynamically allocates memory.
  * 
- * @param[in] path 
+ * @param[in] path The path to the source file to be interpreted.
  */
 static void runFile(const char* path) {
 	char* source = readFile(path);

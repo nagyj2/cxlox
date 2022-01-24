@@ -3,7 +3,7 @@
 #include "debug.h"
 #include "value.h"
 
-void disassembleChunk(Chunk *chunk, const char *name) {
+void disassembleChunk(Chunk* chunk, const char* name) {
 	printf("== %s ==\n", name);
 
 	for (int offset = 0; offset < chunk->count; ) {
@@ -12,13 +12,24 @@ void disassembleChunk(Chunk *chunk, const char *name) {
 	}
 }
 
-/* Decodes an instruction which has no extra data. Opcode is the only data for this instruction. */
-static int simpleInstruction(const char *name, int offset) {
+/** Decodes an 8-byte instruction.
+ * 
+ * @param[in] name Name to give to the decoded instruction.
+ * @param[in] offset Offset position of this instruction opcode.
+ * @return int index of the next instruction's opcode.
+ */
+static int simpleInstruction(const char* name, int offset) {
 	printf("%s\n", name);
 	return offset + 1;
 }
 
-/* Decodes an instruction which is followed by an index to the constant pool. */
+/** Decodes an 8-byte instruction with an 8-byte operand.
+ * 
+ * @param[in] name Name to give the decoded instruction.
+ * @param[in] chunk Chunk to retrieve the operand from.
+ * @param[in] offset Offset position of this instruction opcode.
+ * @return int index of the next instruction's opcode.
+ */
 static int constantInstruction(const char *name, Chunk *chunk, int offset) {
 	uint8_t constantIndex = chunk->code[offset + 1];
 	printf("%-16s %4d '", name, constantIndex);

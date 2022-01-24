@@ -8,21 +8,23 @@
 
 /* State information of the VM. VM is a global singleton. */
 typedef struct {
-	Chunk *chunk;	//* Currently executing chunk.
-	uint8_t *ip;	//* Instruction pointer. Points to the NEXT EXECUTED instruction.
-	Value stack[STACK_MAX]; //* The entire stack.
-	Value *stackTop;				//* Pointer to the slot just PAST the top of the stack. T.f. stack == stackTop => empty stack.
+	Chunk* chunk;	//* Currently executing chunk.
+	uint8_t* ip;	//* Instruction pointer. Points to the NEXT EXECUTED instruction.
+	Value stack[STACK_MAX]; //* The entire argument stack.
+	Value* stackTop;				//* Pointer to the slot just PAST the top of the stack. 
+	// stack == stackTop = > empty stack.
 } VM;
 
-/* Result of an chunk's interpretation. */
+/* Result of the VM's interpretation. */
 typedef enum {
 	INTERPRET_OK,							//* VM completed interpretation successfully.
 	INTERPRET_COMPILE_ERROR,	//* VM encountered a compile-time error.
-	INTERPRET_RUNTIME_ERROR	//* VM encountered a runtime-error.
+	INTERPRET_RUNTIME_ERROR		//* VM encountered a runtime-error.
 } InterpretResult;
 
-/** Initialize state of the VM.
- * 
+/** Initialize state of the VM. 
+ * Includes resetting the stack.
+ *
  */
 void initVM();
 
@@ -31,14 +33,14 @@ void initVM();
  */
 void freeVM();
 
-/** Executes a chunk of bytecode.
+/** Performs interpretation of a input source text.
  * 
- * @param[in] source The surce code to compile and interpret.
- * @return InterpreterResult The result of the interpretation.
+ * @param[in] source The source code to compile and interpret.
+ * @return InterpreterResult representing the final state of the VM.
  */
 InterpretResult interpret(const char* source);
 
-/** Puts a value onto the top of the stack. Increments the size of the stack.
+/** Places a value onto the top of the stack. Increments the size of the stack.
  * 
  * @param[in] value The value to place.
  */

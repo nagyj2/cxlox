@@ -4,25 +4,31 @@
 #include "common.h"
 #include "scanner.h"
 
+/* Stores the state of the scanner. Scanner is a global singleton */
 typedef struct {
-	const char* start; 		//* Marks the beginning of the current lexeme.
-	const char* current; 	//* marks the current char being examined.
+	const char* start; 		//* The beginning position of the current lexeme.
+	const char* current; 	//* The current char being examined.
 	int line; 						//* The source line being read.
 } Scanner;
 
-// Like the VM, initialize a global scanner
+// Like the VM, initialize a global scanner to reduce number of function inputs. "Scanner's lexeme" refers to the characters between the start and current state positions.
 Scanner scanner;
 
 //~ Helper Functions
 
+/** Returns whether the scanner is at the end of the input character stream.
+ * 
+ * @return true if the scanner has finished with the character steam.
+ * @return false if there is at least one more character in the stream.
+ */
 static bool isAtEnd() {
 	return *scanner.current == '\0';
 }
 
-/** Turns the currently pointed to position in the scanner into a token and returns it.
+/** Turns the currently pointed to position in the scanner into a token and returns it. Source lexeme is the characters between the scanner's start position and current position.
  * 
  * @param[in] type The type to assign to the token.
- * @return Token The token representing the current source lexeme.
+ * @return Token representing the current source lexeme.
  */
 static Token makeToken(TokenType type) {
 	Token token;
@@ -33,10 +39,10 @@ static Token makeToken(TokenType type) {
 	return token;
 }
 
-/** Create an error token with a lexeme matching the input message.
+/** Create an error token with a lexeme matching the input message. Used to indicate an error in the scanning process.
  * 
- * @param[in] message The message the token will point to.
- * @return Token An error token representing the error.
+ * @param[in] message The message the token will point to. Must be a constant string.
+ * @return Token representing the error encountered.
  */
 static Token errorToken(const char* message) {
 	Token token;
@@ -47,20 +53,20 @@ static Token errorToken(const char* message) {
 	return token;
 }
 
-/** Scan the next character in the source code and return it.
+/** Advance the scanner forward one token and return the character positioned there. Updated the global scanner state.
  * 
- * @return char The next character in the source code.
+ * @return char which followed the current character.
  */
 static char advance() {
 	scanner.current++;
 	return scanner.current[-1];
 }
 
-/** Return whether the current char matches the input char.
+/** Return whether the current character matches the input character. If it does, consume it. Updates the global scanner state.
  * 
- * @param[in] expected 
- * @return true If the current char is the expected char. Will also consume the char.
- * @return false If the current char is not the expected char.
+ * @param[in] expected The character to test against.
+ * @return true if the current character is the expected character. Will also consume the character.
+ * @return false if the current character is not the expected character.
  */
 static bool match(char expected) {
 	if (isAtEnd()) return false;
@@ -69,27 +75,28 @@ static bool match(char expected) {
 	return true;
 }
 
-/** Return the currently pointed to char.
+/** Return the currently pointed to character by the scanner.
  * 
- * @return char The current char being pointed to by the scanner.
+ * @return char being pointed to.
  */
 static char peek() {
 	return *scanner.current;
 }
 
-/** Returns the character after the current char.
- * 
- * @return char The character ahead of the the current char.
+/** Returns the character after the currently pointed to character.
+ *
+ * @return char following the current character being pointed to.
  */
 static char peekNext() {
 	if (isAtEnd()) return '\0';
 	return scanner.current[1];
 }
 
-/** Consume all whitespace characters and comments until a non-whitespace character is encountered.
- * 
+/** Consume all whitespace characters and comments until a non-whitespace/ non-comment character is encountered. 
+ * Updates the global scanner state.
  */
 static void skipWhitespace() {
+	// Go until default case is reached
 	for (;;) {
 		char c = peek();
 		switch (c) {
@@ -116,21 +123,21 @@ static void skipWhitespace() {
 	}
 }
 
-/** Returns whether the current char in the source code is a digit.
+/** Returns whether the input character is a digit.
  * 
- * @param[in] c The char to check.
- * @return true if the char is a digit.
- * @return false if the char is not a digit.
+ * @param[in] c The character to check.
+ * @return true if the character is a digit.
+ * @return false if the character is not a digit.
  */
 static bool isDigit(char c) {
 	return c >= '0' && c <= '9';
 }
 
-/** Returns whether the current char in the source code is a letter.
+/** Returns whether the input character is a letter.
  * 
- * @param[in] c The char to check.
- * @return true if the char is a letter.
- * @return false if the char is not a letter.
+ * @param[in] c The character to check.
+ * @return true if the character is a letter.
+ * @return false if the character is not a letter.
  */
 static bool isAlpha(char c) {
 	return  (c >= 'a' && c <= 'z') ||
@@ -138,14 +145,15 @@ static bool isAlpha(char c) {
 					 c == '_';
 }
 
-/** Returns the token type of an examined keyword or the IDENTIFIER token.
- * Compares scanner's current minus start position to the input keyword to determine if there is a match
+/** Returns the token type of an examined keyword or the IDENTIFIER token. 
+ * Compares scanner's current lexeme to the input keyword to determine if there is a match.
+ * If there is a match the token type representing the keyword is returned. Otherwise the IDENTIFIER token type is returned.
  *
- * @param[in] start The number of characters already compared at the string start.
+ * @param[in] start The number of characters already compared from the keyword.
  * @param[in] length The number of characters left to compare in the keyword.
- * @param[in] rest The keyword chaarcters left to compare themselves.
+ * @param[in] rest The keyword characters left to compare themselves.
  * @param[in] type The type of keyword to return if a match is found.
- * @return TokenType of the input keyword or IDENTIFIER.
+ * @return @p type TokenType if a match is found or IDENTIFIER.
  */
 static TokenType checkKeyword(int start, int length, const char* rest, TokenType type) {
 	if (scanner.current - scanner.start == start + length &&
@@ -156,7 +164,12 @@ static TokenType checkKeyword(int start, int length, const char* rest, TokenType
 	return TOKEN_IDENTIFIER;
 }
 
+/** Determines if the scanner's lexeme is a keyword and returns the appropriate token type or the IDENTIFIER token type.
+ * 
+ * @return TokenType if the corresponding keyword or identifier.
+ */
 static TokenType identifierType() {
+	// Split on the first character of the lexeme
 	switch (scanner.start[0]) {
 		case 'a': return checkKeyword(1, 2, "nd", TOKEN_AND);
 		case 'c': return checkKeyword(1, 4, "lass", TOKEN_CLASS);
@@ -190,13 +203,15 @@ static TokenType identifierType() {
 		case 'v': return checkKeyword(1, 2, "ar", TOKEN_VAR);
 		case 'w': return checkKeyword(1, 4, "hile", TOKEN_WHILE);
 	}
+	// If no matches were found, the identifier was scanned
 	return TOKEN_IDENTIFIER;
 }
 
-//~ Literal Functions
+//~ Literal Parsing Functions
 
-/** Parses a string and returns the corresponding string token. The token points to the position in the scanner source code memory where the lexeme is.
- * 
+/** Parses a string and returns a corresponding string token. The token points to the position in the scanner source code memory where the lexeme is.
+ * Updates the global scanner state.
+ *
  * @return Token representing the string.
  */
 static Token string() {
@@ -214,8 +229,9 @@ static Token string() {
 	return makeToken(TOKEN_STRING);
 }
 
-/** Parse a number with an optional decimal point and returns the corresponding number token. The token points to the position in the scanner source code memory where the lexeme is.
- * 
+/** Parse a decimal or integer number and returns a corresponding number token. The token points to the position in the scanner source code memory where the lexeme is. 
+ * Updates the global scanner state.
+ *
  * @return Token representing the number.
  */
 static Token number() {
@@ -234,7 +250,8 @@ static Token number() {
 }
 
 /** Parse an identifier (or keyword) and returns the corresponding token. The token points to the position in the scanner source code memory where the lexeme is.
- * 
+ * Updates the global scanner state.
+ *
  * @return Token representing the keyword or identifier.
  */
 static Token identifier() {
@@ -258,7 +275,7 @@ Token scanToken() {
 	if (isAtEnd())
 		return makeToken(TOKEN_EOF);
 
-	char c = advance();
+	char c = advance(); // Get first character
 
 	if (isAlpha(c))
 		return identifier();
