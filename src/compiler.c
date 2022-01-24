@@ -20,15 +20,17 @@ typedef struct {
 /* Enumerates the different precidence levels for expressions. Written in a way so each enum is 'greater' than the values which preceed it.*/
 typedef enum {
 	PREC_NONE,
-	PREC_ASSIGNMENT,	// =
-	PREC_OR,					// or
-	PREC_AND,					// and
-	PREC_EQUALITY,		// == !=
-	PREC_COMPARISON,	// < > <= >=
-	PREC_TERM,				// + -
-	PREC_FACTOR,			// * /
-	PREC_UNARY,				// - !
-	PREC_CALL,				// . ()
+	PREC_COMMA,				//> ,
+	PREC_ASSIGNMENT,	//> =
+	PREC_CONDITIONAL,	//> ?:
+	PREC_OR,					//> or
+	PREC_AND,					//> and
+	PREC_EQUALITY,		//> == !=
+	PREC_COMPARISON,	//> < > <= >=
+	PREC_TERM,				//> + -
+	PREC_FACTOR,			//> * /
+	PREC_UNARY,				//> - !
+	PREC_CALL,				//> . ()
 	PREC_PRIMARY
 } Precidence;
 
@@ -260,6 +262,34 @@ static void unary() {
 	}
 }
 
+//~ Extra Parsing
+
+/** Parses the rhs of a comma expression. Assumes the comma has already been consumed by parsePrecidence.
+ * 
+ */
+static void comma() {
+	// TokenType operatorType = parser.previous.type; // Always a comma token
+	
+	parsePrecidence(PREC_COMMA);
+
+	// Do something...
+}
+
+/** Parses a ternary statement. Assumes the condition and '?' has already been consumed by parse precidence.
+ * 
+ */
+static void ternary() {
+	TokenType operatorType = parser.previous.type;
+
+	parsePrecidence(PREC_CONDITIONAL + 1); 
+
+	consume(TOKEN_COLON, "Expect ':' after condition.");
+
+	parsePrecidence(PREC_ASSIGNMENT); // Same precidence so it is right associative
+
+	// Do something...
+}
+
 // Declared after all function declarations so they can be placed into the table.
 /** Singleton representing the functions to call when a token is encountered when parsing an expression and the precidence level to parse for binary expressions. 
  * Literals are included in this table with the 'unary' slot representing the function to parse the literal.
@@ -278,6 +308,9 @@ ParseRule rules[] = {  // PREFIX     INFIX    PRECIDENCE */
   [TOKEN_SEMICOLON]     = {NULL,     NULL,    PREC_NONE},
   [TOKEN_SLASH]         = {NULL,     binary,  PREC_FACTOR},
   [TOKEN_STAR]          = {NULL,     binary,  PREC_FACTOR},
+  [TOKEN_QUESTION]      = {NULL,     ternary, PREC_CONDITIONAL},	// For conditional ternary
+  [TOKEN_COLON]         = {NULL,     NULL,    PREC_NONE},					// To stop pratt parsing 
+	[TOKEN_COMMA]         = {NULL,     comma,   PREC_COMMA},				// For comma operator
   [TOKEN_BANG]          = {NULL,     NULL,    PREC_NONE},
   [TOKEN_BANG_EQUAL]    = {NULL,     NULL,    PREC_NONE},
   [TOKEN_EQUAL]         = {NULL,     NULL,    PREC_NONE},
@@ -346,12 +379,12 @@ static ParseRule* getRule(TokenType type) {
 	return &rules[type];
 }
 
-/** Parses an expression starting at the lowest available precidence.
+/** Parses an expression starting at the lowest available precidence.5
  * 
  */
 static void expression() {
 	// Lowest precidence is assignment, so this expression call will parse the entire expression
-	parsePrecidence(PREC_ASSIGNMENT);
+	parsePrecidence(PREC_COMMA); //! THIS MUST BE KEPT UP TO DATE WHEN NEW PRECIDENCE LEVELS ARE ADDED
 }
 
 //~ Compilation Functions
