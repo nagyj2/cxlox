@@ -33,10 +33,10 @@ void freeVM();
 
 /** Executes a chunk of bytecode.
  * 
- * @param[in] chunk The chunk to interpret.
+ * @param[in] source The surce code to compile and interpret.
  * @return InterpreterResult The result of the interpretation.
  */
-InterpretResult interpret(Chunk *chunk);
+InterpretResult interpret(const char* source);
 
 /** Puts a value onto the top of the stack. Increments the size of the stack.
  * 

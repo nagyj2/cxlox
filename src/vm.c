@@ -100,9 +100,8 @@ static InterpretResult run() {
 	
 }
 
-InterpretResult interpret(Chunk *chunk) {
-	vm.chunk = chunk; // Set the currently executing chunk
-	vm.ip = vm.chunk->code; // Set instruction pointer to the first instruction
-	return run();
+InterpretResult interpret(const char* source) {
+	compile(source);
+	return INTERPRET_OK;
 }
 
