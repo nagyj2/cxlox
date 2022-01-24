@@ -35,25 +35,25 @@ typedef struct {
 	LineStart *lines;			//* Dynamic array of line counts. Decoupled from the chunk size because the number of elements in the chunk is greater than the number of lines.
 } Chunk;
 
-/** Create a new Chunk. Pointer input gets initialized. 
+/** Initialize the contents of an unitialzied Chunk pointer.
  * 
- * @param[out] chunk The pointer to be initialized.
+ * @param[out] chunk Pointer to be initialized.
  */
 void initChunk(Chunk *chunk);
 
-/** Writes a new byte to a chunk. May enlarge @p chunk.
+/** Writes a new byte to the end of a chunk. May enlarge @p chunk's memory allocation.
  * 
  * @param[in,out] chunk The chunk to be written to.
- * @param[in] byte The raw byte to put at the end of the chunk.
+ * @param[in] byte The raw byte to place at the end of the chunk.
  * @param[in] line The source code line which generated the instruction.
  */
 void writeChunk(Chunk *chunk, uint8_t byte, int line);
 
-/** Add a new constant to a chunk's constant table.
+/** Append a new constant to a chunk's constant pool and return the constant pool index of the constant.
  * 
  * @param[in,out] chunk The chunk to place the constant in.
  * @param[in] value The constant to put into the constant pool.
- * @return int The index for the @p value in the constant pool.
+ * @return The constant pool index of '@p value' input.
  */
 int addConstant(Chunk *chunk, Value value);
 

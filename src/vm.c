@@ -2,6 +2,7 @@
 
 #include "common.h"
 #include "vm.h"
+#include "compiler.h"
 #include "debug.h"
 
 // Declare the VM in global scope. Prevents needing to pass it as an argument everywhere.
@@ -12,7 +13,8 @@ VM vm;
  * 
  */
 void resetStack() {
-	vm.stackTop = vm.stack; // Creates an empty stack
+	// Doesnt matter if stack elements are freed b/c they are still in v.stack's allocation AND vn.stackTop will just overwrite new values.
+	vm.stackTop = vm.stack;
 }
 
 void initVM() {
@@ -39,6 +41,7 @@ static InterpretResult run() {
 	// Read a constant from the bytecode by taking the index and then looking it up in the constant pool
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 	// Pop two elements from the stack, add them and then place the result back. Remember, left arg is placed first
+	// Uses a do loop to allow multiple lines AND a culminating semicolon
 #define BINARY_OP(op) \
 	do { \
 		double b = pop(); \
@@ -100,9 +103,25 @@ static InterpretResult run() {
 	
 }
 
-InterpretResult interpret(Chunk *chunk) {
-	vm.chunk = chunk; // Set the currently executing chunk
-	vm.ip = vm.chunk->code; // Set instruction pointer to the first instruction
-	return run();
+InterpretResult interpret(const char* source) {
+	// Create chunk to store source
+	Chunk chunk;
+	initChunk(&chunk);
+
+	// If the chunk did not compile, return the error
+	if (!compile(source, &chunk)) {
+		freeChunk(&chunk);
+		return INTERPRET_COMPILE_ERROR;
+	}
+
+	// Setup the VM's references to the chunk
+	vm.chunk = &chunk;
+	vm.ip = vm.chunk->code;
+
+	// Run the VM
+	InterpretResult result = run();
+
+	freeChunk(&chunk);
+	return result;
 }
 
