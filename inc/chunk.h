@@ -44,7 +44,7 @@ void writeChunk(Chunk *chunk, uint8_t byte, int line);
  * 
  * @param[in,out] chunk The chunk to place the constant in.
  * @param[in] value The constant to put into the constant pool.
- * @return The constant pool index of @p value.
+ * @return The constant pool index of '@p value' input.
  */
 int addConstant(Chunk *chunk, Value value);
 

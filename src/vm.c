@@ -103,7 +103,24 @@ static InterpretResult run() {
 }
 
 InterpretResult interpret(const char* source) {
-	compile(source);
-	return INTERPRET_OK;
+	// Create chunk to store source
+	Chunk chunk;
+	initChunk(&chunk);
+
+	// If the chunk did not compile, return the error
+	if (!compile(source, &chunk)) {
+		freeChunk(&chunk);
+		return INTERPRET_COMPILE_ERROR;
+	}
+
+	// Setup the VM's references to the chunk
+	vm.chunk = &chunk;
+	vm.ip = vm.chunk->code;
+
+	// Run the VM
+	InterpretResult result = run();
+
+	freeChunk(&chunk);
+	return result;
 }
 
