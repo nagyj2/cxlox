@@ -203,26 +203,46 @@ static void expression();
 static ParseRule* getRule(TokenType type);
 static void parsePrecidence(Precidence precidence);
 
-/** Emits a constant value to the current chunk. Assumes the number token is in the parser.previous position.
- * 
+/** Emits a constant number value to the current chunk. 
+ *  @pre The number token is in the parser.previous position.
  */
 static void number() {
 	// Convert the lexeme from the last token to a number.
 	//? How is the end of the lexeme marked
 	double value = strtod(parser.previous.start, NULL);
-	emitConstant(value);
+	emitConstant(NUMBER_VAL(value));
 }
 
-/** Parses an expression which culminates in a right parentheses. Assumes the left parentheses has already been consumed.
- * 
+/** Emits a constant literal to the current chunk.
+ * @pre The literal token is in the parser.previous position.
+ *
+ */
+static void literal() {
+	switch (parser.previous.type) {
+		case TOKEN_FALSE:
+			emitByte(OP_FALSE);
+			break;
+		case TOKEN_TRUE:
+			emitByte(OP_TRUE);
+			break;
+		case TOKEN_NIL:
+			emitByte(OP_NIL);
+			break;
+		default:
+			return;
+	}
+}
+
+/** Parses an expression which culminates in a right parentheses.
+ * @pre The left parentheses has already been consumed.
  */
 static void grouping() {
 	expression();
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
 }
 
-/** Parses and emits a binary expression. Assumes the left operand has already been emitted and the operand has just been consumed.
- * 
+/** Parses and emits a binary expression.
+ * @pre The left operand has already been emitted and the operand has just been consumed.
  */
 static void binary() {
 	// Save type of operation
@@ -247,13 +267,31 @@ static void binary() {
 	 	case TOKEN_SLASH:
 			emitByte(OP_DIVIDE);
 			break;
+	 	case TOKEN_EQUAL_EQUAL:
+			emitByte(OP_EQUAL);
+			break;
+	 	case TOKEN_BANG_EQUAL:
+			emitBytes(OP_EQUAL, OP_NOT);
+			break;
+	 	case TOKEN_GREATER:
+			emitByte(OP_GREATER);
+			break;
+	 	case TOKEN_GREATER_EQUAL:
+			emitBytes(OP_LESSER, OP_NOT);
+			break;
+	 	case TOKEN_LESSER:
+			emitByte(OP_LESSER);
+			break;
+	 	case TOKEN_LESSER_EQUAL:
+			emitBytes(OP_GREATER, OP_NOT);
+			break;
 		default: // Impossible
 			return;
 	}
 }
 
-/** Parses a unary expression. Assumes the operator has already been consumed.
- * 
+/** Parses a unary expression.
+ * @pre The operator has already been consumed.
  */
 static void unary() {
 	TokenType operatorType = parser.previous.type;
@@ -265,6 +303,9 @@ static void unary() {
 	switch (operatorType) {
 		case TOKEN_MINUS:
 			emitByte(OP_NEGATE);
+			break;
+		case TOKEN_BANG:
+			emitByte(OP_NOT);
 			break;
 		default: // Impossible
 			return;
@@ -305,7 +346,7 @@ static void ternary() {
  * Precidence column is used for the infix precedence of the operator. If some prefix (or postfix) operators had different precidence levels, their precidences would
  * also need to be stored.
  */
-ParseRule rules[] = {  // PREFIX     INFIX    PRECIDENCE */
+ParseRule rules[] = {  // PREFIX     INFIX    PRECIDENCE (INFIX) */
 	[TOKEN_LEFT_PAREN]    = {grouping, NULL,    PREC_NONE},
   [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,    PREC_NONE},
   [TOKEN_LEFT_CURLY]    = {NULL,     NULL,    PREC_NONE}, 
@@ -322,29 +363,31 @@ ParseRule rules[] = {  // PREFIX     INFIX    PRECIDENCE */
 	[TOKEN_COMMA]         = {NULL,     comma,   PREC_COMMA},				// For comma operator
   [TOKEN_BANG]          = {NULL,     NULL,    PREC_NONE},
   [TOKEN_BANG_EQUAL]    = {NULL,     NULL,    PREC_NONE},
+  [TOKEN_BANG]          = {unary,    NULL,    PREC_NONE},
+  [TOKEN_BANG_EQUAL]    = {NULL,     binary,  PREC_EQUALITY},
   [TOKEN_EQUAL]         = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_EQUAL_EQUAL]   = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_GREATER]       = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_GREATER_EQUAL] = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_LESSER]        = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_LESSER_EQUAL]  = {NULL,     NULL,    PREC_NONE},
+  [TOKEN_EQUAL_EQUAL]   = {NULL,     binary,  PREC_EQUALITY},
+  [TOKEN_GREATER]       = {NULL,     binary,  PREC_COMPARISON},
+  [TOKEN_GREATER_EQUAL] = {NULL,     binary,  PREC_COMPARISON},
+  [TOKEN_LESSER]        = {NULL,     binary,  PREC_COMPARISON},
+  [TOKEN_LESSER_EQUAL]  = {NULL,     binary,  PREC_COMPARISON},
   [TOKEN_IDENTIFIER]    = {NULL,     NULL,    PREC_NONE},
   [TOKEN_STRING]        = {NULL,     NULL,    PREC_NONE},
   [TOKEN_NUMBER]        = {number,   NULL,    PREC_NONE}, // Literals also appear as an 'operator
   [TOKEN_AND]           = {NULL,     NULL,    PREC_NONE},
   [TOKEN_CLASS]         = {NULL,     NULL,    PREC_NONE},
   [TOKEN_ELSE]          = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_FALSE]         = {NULL,     NULL,    PREC_NONE},
+  [TOKEN_FALSE]         = {literal,  NULL,    PREC_NONE},
   [TOKEN_FOR]           = {NULL,     NULL,    PREC_NONE},
   [TOKEN_FUN]           = {NULL,     NULL,    PREC_NONE},
   [TOKEN_IF]            = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_NIL]           = {NULL,     NULL,    PREC_NONE},
+  [TOKEN_NIL]           = {literal,  NULL,    PREC_NONE},
   [TOKEN_OR]            = {NULL,     NULL,    PREC_NONE},
   [TOKEN_PRINT]         = {NULL,     NULL,    PREC_NONE},
   [TOKEN_RETURN]        = {NULL,     NULL,    PREC_NONE},
   [TOKEN_SUPER]         = {NULL,     NULL,    PREC_NONE},
   [TOKEN_THIS]          = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_TRUE]          = {NULL,     NULL,    PREC_NONE},
+  [TOKEN_TRUE]          = {literal,  NULL,    PREC_NONE},
   [TOKEN_VAR]           = {NULL,     NULL,    PREC_NONE},
   [TOKEN_WHILE]         = {NULL,     NULL,    PREC_NONE},
   [TOKEN_ERROR]         = {NULL,     NULL,    PREC_NONE},
