@@ -161,7 +161,7 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
  */
 static uint8_t makeConstant(Value value) {
 	int constant = addConstant(currentChunk(), value);
-	if (constant > UINT8_MAX) {
+	if (constant > UINT16_MAX) {
 		error("Too many constants in one chunk.");
 		return 0;
 	}
@@ -181,7 +181,16 @@ static void emitReturn() {
  * @param[in] value The value to write.
  */
 static void emitConstant(Value value) {
-	emitBytes(OP_CONSTANT, makeConstant(value));
+	int index = makeConstant(value);
+	if (index > ((2 << 24) - 1)) {
+		error("Too many constants in one chunk.");
+	} else if (index < UINT8_MAX) {
+		emitBytes(OP_CONSTANT, index);
+	} else {
+		// Emit opcode and then the 3 bytes of the index.
+		emitBytes(OP_CONSTANT_LONG, (uint8_t) (index & 0xff));
+		emitBytes((uint8_t) ((index >> 8) & 0xff), (uint8_t) ((index >> 16) & 0xff));
+	}
 }
 
 //~ Grammar Evaluation

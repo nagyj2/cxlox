@@ -40,6 +40,7 @@ static InterpretResult run() {
 #define READ_BYTE() (*vm.ip++)
 	// Read a constant from the bytecode by taking the index and then looking it up in the constant pool
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
+#define READ_CONSTANT_LONG() (vm.chunk->constants.values[(READ_BYTE()) | (READ_BYTE() << 8) | (READ_BYTE() << 16)])
 	// Pop two elements from the stack, add them and then place the result back. Remember, left arg is placed first
 	// Uses a do loop to allow multiple lines AND a culminating semicolon
 #define BINARY_OP(op) \
@@ -52,7 +53,7 @@ static InterpretResult run() {
 	for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
 		// Print the stack contents before disassembling the instruction
-		printf("           ");
+		printf("        ");
 		for (Value *slot = vm.stack; slot < vm.stackTop; slot++) {
 			printf("[ ");
 			printValue(*slot);
@@ -90,6 +91,11 @@ static InterpretResult run() {
 				printf("\n");
 				break;
 			}
+			case OP_CONSTANT_LONG: {
+				Value constant = READ_CONSTANT_LONG();
+				push(constant);
+				break;
+			}
 			case OP_NEGATE: {
 				push(-pop()); // Will need to be changes once Value gets more complex
 				break;
@@ -99,6 +105,7 @@ static InterpretResult run() {
 
 #undef READ_BYTE
 #undef READ_CONSTANT
+#undef READ_CONSTANT_LONG
 #undef BINARY_OP
 	
 }
