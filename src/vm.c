@@ -51,7 +51,7 @@ static InterpretResult run() {
 	for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
 		// Print the stack contents before disassembling the instruction
-		printf("           ");
+		printf("        ");
 		for (Value *slot = vm.stack; slot < vm.stackTop; slot++) {
 			printf("[ ");
 			printValue(*slot);
@@ -86,7 +86,6 @@ static InterpretResult run() {
 			case OP_CONSTANT: {
 				Value constant = READ_CONSTANT();
 				push(constant);
-				printf("\n");
 				break;
 			}
 			case OP_NEGATE: {
