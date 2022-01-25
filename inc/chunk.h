@@ -13,6 +13,13 @@ typedef enum {
 	OP_DIVIDE,			//* OPCODE : Opcode to represent mathematical division.
 	OP_NEGATE,			//* OPCODE : Opcode to remove the top stack element and place a negated version.
 	OP_RETURN,			//* OPCODE : Opcode representing a function return.
+	OP_NIL,					//* OPCODE : Opcode to produce a nil value on the stack.
+	OP_TRUE,				//* OPCODE : Opcode to produce a true value on the stack.
+	OP_FALSE,				//* OPCODE : Opcode to produce a false value on the stack.
+	OP_NOT,					//* OPCODE : Opcode to remove the top stack element and place a negated version.
+	OP_EQUAL,				//* OPCODE : Opcode to compute equality between the top two values on the stack.
+	OP_GREATER,			//* OPCODE : Opcode to compute greater than between the top two values on the stack.
+	OP_LESSER,				//* OPCODE : Opcode to compute lesser than between the top two values on the stack.
 } OpCode;
 
 /* Note that the entire AST structure from jlox has been recreated just by 3 dynamic arrays, the chunk, constant pool and source line numbers */

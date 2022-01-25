@@ -1,12 +1,16 @@
 #include <stdio.h>
+#include <stdarg.h>
 
 #include "common.h"
 #include "vm.h"
 #include "debug.h"
+#include "compiler.h" // Needed?
 
 // Declare the VM in global scope. Prevents needing to pass it as an argument everywhere.
 // By passing the VM as a pointer to functions, it is easier to have multiple VMs and pass them around in a host language.
 VM vm;
+
+//~ VM Initialization and Deinitialization
 
 /** Modifies the VM stack to be empty.
  * 
@@ -24,6 +28,32 @@ void freeVM() {
 	
 }
 
+//~ Error Reporting
+
+/** Prints an error message to stderr. Also resets the stack.
+ * 
+ * @param[in] format Format string to print to stderr.
+ * @param[in] ... The arguments to put into the format string.
+ */
+static void runtimeError(const char* format, ...) {
+	// Print the message to stderr
+	va_list args;
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+	fputs("\n", stderr);
+
+	// Display the line that caused the error
+	size_t instruction = vm.ip - vm.chunk->code - 1;
+	int line = vm.chunk->lines[instruction];
+	fprintf(stderr, "[line %d] in script\n", line);
+
+	// Reset the stack
+	resetStack();
+}
+
+//~ Stack Management
+
 void push(Value value) {
 	*vm.stackTop = value; // Dereference top and place a value there. Remember, stackTop points PAST the last element
 	vm.stackTop++; 				// Increment the size of the stack 
@@ -34,6 +64,30 @@ Value pop() {
 	return *vm.stackTop;
 }
 
+/** Returns the value at a given index from the top of the stack.
+ * @pre there is at least one element in the stack.
+ *
+ * @param[in] distance How far down the stack to look.
+ * @return Value at the given position from the top in the stack.
+ */
+static Value peek(int distance) {
+	return vm.stackTop[-1 - distance];
+}
+
+//~ Lox Semantics
+
+/** Returns whether the input value is falsey in lox.
+ * 
+ * @param[in] value Value to test.
+ * @return true if the value is truthy.
+ * @return false if the value is falsey.
+ */
+static bool isFalsey(Value value) {
+	return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value)); // Use shortcircuiting for bool conversion
+}
+
+//~ VM Execution
+
 static InterpretResult run() {
 	// Define returns the next byte while incrementing the counter
 #define READ_BYTE() (*vm.ip++)
@@ -41,11 +95,15 @@ static InterpretResult run() {
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 	// Pop two elements from the stack, add them and then place the result back. Remember, left arg is placed first
 	// Uses a do loop to allow multiple lines AND a culminating semicolon
-#define BINARY_OP(op) \
+#define BINARY_OP(valueType, op) \
 	do { \
-		double b = pop(); \
-		double a = pop(); \
-		push(a op b); \
+		if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
+			runtimeError("Operands must be numbers."); \
+			return INTERPRET_RUNTIME_ERROR; \
+		} \
+		double b = AS_NUMBER(pop()); \
+		double a = AS_NUMBER(pop()); \
+		push(valueType(a op b)); \
 	} while (false)
 
 	for (;;) {
@@ -63,19 +121,27 @@ static InterpretResult run() {
 		uint8_t instruction;
 		switch (instruction = READ_BYTE()) {
 			case OP_ADD: {
-				BINARY_OP(+);
+				BINARY_OP(NUMBER_VAL, +);
 				break;
 			}
 			case OP_SUBTRACT: {
-				BINARY_OP(-);
+				BINARY_OP(NUMBER_VAL, -);
 				break;
 			}
 			case OP_MULTIPLY: {
-				BINARY_OP(*);
+				BINARY_OP(NUMBER_VAL, *);
 				break;
 			}
 			case OP_DIVIDE: {
-				BINARY_OP(/);
+				BINARY_OP(NUMBER_VAL, /);
+				break;
+			}
+			case OP_GREATER: {
+				BINARY_OP(BOOL_VAL, >);
+				break;
+			}
+			case OP_LESSER: {
+				BINARY_OP(BOOL_VAL, <);
 				break;
 			}
 			case OP_RETURN: {
@@ -89,7 +155,34 @@ static InterpretResult run() {
 				break;
 			}
 			case OP_NEGATE: {
-				push(-pop()); // Will need to be changes once Value gets more complex
+				// Ensure stack is a number.
+				if (!IS_NUMBER(peek(0))) {
+					runtimeError("Operand must be a number.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				push(NUMBER_VAL(-AS_NUMBER(pop())));
+				break;
+			}
+			case OP_TRUE: {
+				push(BOOL_VAL(true));
+				break;
+			}
+			case OP_FALSE: {
+				push(BOOL_VAL(false));
+				break;
+			}
+			case OP_NIL: {
+				push(NIL_VAL);
+				break;
+			}
+			case OP_NOT: {
+				push(BOOL_VAL(isFalsey(pop())));
+				break;
+			}
+			case OP_EQUAL: {
+				Value b = pop();
+				Value a = pop();
+				push(BOOL_VAL(valuesEqual(a, b)));
 				break;
 			}
 		}
