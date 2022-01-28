@@ -27,6 +27,18 @@
 			"environment": [],
 			"externalConsole": false,
 			"MIMode": "lldb"
+		},
+		{
+			"name": "Run xLox Source",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/cxlox",
+			"args": ["sample.xlox"],
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}",
+			"environment": [],
+			"externalConsole": false,
+			"MIMode": "lldb"
 		}
 	]
 }
