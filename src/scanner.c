@@ -114,9 +114,11 @@ static void skipWhitespace() {
 					// Comment goes until the end of the line.
 					while (peek() != '\n' && !isAtEnd())
 						advance();
+					advance();
 				} else {
 					return;
 				}
+				break;
 			default:
 				return;
 		}
@@ -312,5 +314,6 @@ Token scanToken() {
 			return string();
 	}
 
-	return errorToken("Unexpected charaction.");
+	// printf("Unexpected character> '%c'\n", c);
+	return errorToken("Unexpected character.");
 }
