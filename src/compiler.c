@@ -4,6 +4,8 @@
 #include "common.h"
 #include "compiler.h"
 #include "scanner.h"
+#include "vm.h"
+#include "object.h"
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -131,6 +133,8 @@ static void consume(TokenType type, const char* message) {
 	errorAtCurrent(message);
 }
 
+
+
 //~ Bytecode Emission
 
 /** Appends a byte to the current chunk.
@@ -200,6 +204,16 @@ static void number() {
 	//? How is the end of the lexeme marked
 	double value = strtod(parser.previous.start, NULL);
 	emitConstant(NUMBER_VAL(value));
+}
+
+/** Emits a string constant copied from the input source. The string is stored in the constant pool as all Values are.
+ *
+ * @details
+ * The allocated Value is stored in the constant pool, but the actual char array behind the string is heap allocated by C. The constant pool value contains a pointer to 
+ * the heap allocated char array. The value in the constant pool is indexed in the same way as numerical and boolean constants.
+ */
+static void string() {
+	emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));
 }
 
 /** Emits a constant literal to the current chunk.
@@ -328,7 +342,7 @@ ParseRule rules[] = {  // PREFIX     INFIX    PRECIDENCE (INFIX) */
   [TOKEN_LESSER]        = {NULL,     binary,  PREC_COMPARISON},
   [TOKEN_LESSER_EQUAL]  = {NULL,     binary,  PREC_COMPARISON},
   [TOKEN_IDENTIFIER]    = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_STRING]        = {NULL,     NULL,    PREC_NONE},
+	[TOKEN_STRING]        = {string,   NULL,    PREC_NONE},
   [TOKEN_NUMBER]        = {number,   NULL,    PREC_NONE}, // Literals also appear as an 'operator
   [TOKEN_AND]           = {NULL,     NULL,    PREC_NONE},
   [TOKEN_CLASS]         = {NULL,     NULL,    PREC_NONE},
