@@ -17,7 +17,7 @@
 			"MIMode": "lldb"
 		},
 		{
-			"name": "Run Source File",
+			"name": "Run Lox Source",
 			"type": "cppdbg",
 			"request": "launch",
 			"program": "${workspaceFolder}/build/cxlox",
