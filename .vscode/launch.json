@@ -5,13 +5,25 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "(lldb) Run",
+			"name": "Run REPL",
 			"type": "cppdbg",
 			"request": "launch",
 			"program": "${workspaceFolder}/build/cxlox",
 			"args": [],
 			"stopAtEntry": false,
-			"cwd": "${fileDirname}",
+			"cwd": "${workspaceFolder}",
+			"environment": [],
+			"externalConsole": false,
+			"MIMode": "lldb"
+		},
+		{
+			"name": "Run Source File",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/cxlox",
+			"args": ["sample.lox"],
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}",
 			"environment": [],
 			"externalConsole": false,
 			"MIMode": "lldb"

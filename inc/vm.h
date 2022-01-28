@@ -12,8 +12,12 @@ typedef struct {
 	uint8_t* ip;	//* Instruction pointer. Points to the NEXT EXECUTED instruction.
 	Value stack[STACK_MAX]; //* The entire argument stack.
 	Value* stackTop;				//* Pointer to the slot just PAST the top of the stack. 
+	Obj* objects; 					//* A pointer to the first allocated object
 	// stack == stackTop = > empty stack.
 } VM;
+
+// Declare vm struct so other files can access it.
+extern VM vm;
 
 /* Result of the VM's interpretation. */
 typedef enum {

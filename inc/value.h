@@ -5,11 +5,15 @@
 
 #include "common.h"
 
+typedef struct Obj Obj;
+typedef struct ObjString ObjString;
+
 /* The data types which Value can take within the COMPILER (user types aren't included). */
 typedef enum {
 	VAL_BOOL,
 	VAL_NIL,
-	VAL_NUMBER
+	VAL_NUMBER,
+	VAL_OBJ,
 } ValueType;
 
 /* The type what lox uses to represent literals and values in bytecode. */
@@ -18,6 +22,7 @@ typedef struct {
 	union {
 		bool boolean; 	//* Value's Boolean value. Only valid when type is VAL_BOOL.
 		double number;	//* Value's double value. Only valid when type is VAL_NUMBER.
+		Obj* obj;				//* Pointer to a heap allocated value. Only valid when type is VAL_OBJ.
 	} as;							//* Value's union type.
 } Value;
 
@@ -25,15 +30,18 @@ typedef struct {
 #define BOOL_VAL(value) 	((Value){VAL_BOOL, {.boolean = value}})
 #define NIL_VAL 					((Value){VAL_NIL, {.number = 0}})
 #define NUMBER_VAL(value) ((Value){VAL_NUMBER, {.number = value}})
+#define OBJ_VAL(object) 	((Value){VAL_OBJ, {.obj = (Obj*) object}})
 
 // Convert a dynamically typed lox value to a statically typed C value. Only safe when the lox type is known.
 #define AS_BOOL(value) 		((value).as.boolean)
 #define AS_NUMBER(value) 	((value).as.number)
+#define AS_OBJ(value) 		((value).as.obj)
 
 // Checks whether a lox value has a specific type.
 #define IS_BOOL(value) 		((value).type == VAL_BOOL)
 #define IS_NIL(value) 		((value).type == VAL_NIL)
 #define IS_NUMBER(value) 	((value).type == VAL_NUMBER)
+#define IS_OBJ(value) 		((value).type == VAL_OBJ)
 
 /* Dynamic array to hold values. Used by chunks to store literals which appear in the bytecode. */
 typedef struct {

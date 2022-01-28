@@ -1,11 +1,14 @@
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 
 #include "common.h"
 #include "vm.h"
 #include "compiler.h"
 #include "debug.h"
 #include "compiler.h" // Needed?
+#include "object.h"
+#include "memory.h"
 
 // Declare the VM in global scope. Prevents needing to pass it as an argument everywhere.
 // By passing the VM as a pointer to functions, it is easier to have multiple VMs and pass them around in a host language.
@@ -23,10 +26,11 @@ void resetStack() {
 
 void initVM() {
 	resetStack();
+	vm.objects = NULL;
 }
 
 void freeVM() {
-	
+	freeObjects();
 }
 
 //~ Error Reporting
@@ -87,6 +91,20 @@ static bool isFalsey(Value value) {
 	return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value)); // Use shortcircuiting for bool conversion
 }
 
+static void concatenate() {
+	ObjString* b = AS_STRING(pop());
+	ObjString* a = AS_STRING(pop());
+
+	int length = a->length + b->length;
+	char* chars = ALLOCATE(char, length + 1);
+	memcpy(chars, a->chars, a->length);
+	memcpy(chars + a->length, b->chars, b->length);
+	chars[length] = '\0';
+
+	ObjString* result = takeString(chars, length);
+	push(OBJ_VAL(result));
+}
+
 //~ VM Execution
 
 static InterpretResult run() {
@@ -123,7 +141,16 @@ static InterpretResult run() {
 		uint8_t instruction;
 		switch (instruction = READ_BYTE()) {
 			case OP_ADD: {
-				BINARY_OP(NUMBER_VAL, +);
+				if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
+					concatenate();
+				} else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
+					double b = AS_NUMBER(pop());
+					double a = AS_NUMBER(pop());
+					push(NUMBER_VAL(a + b));
+				} else {
+					runtimeError("Operands must be two numbers or two strings.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
 				break;
 			}
 			case OP_SUBTRACT: {

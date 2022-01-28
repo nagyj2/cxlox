@@ -2,6 +2,15 @@
 #define clox_memory_h
 
 #include "common.h"
+#include "object.h"
+
+/** Allocate memory for a new number of objects. Wrapped reallocate call with proper arguments */
+#define ALLOCATE(type, count) \
+	(type*) reallocate(NULL, 0, sizeof(type) * (count))
+
+/** Free a pointer of a specific type. Wrapped reallocate call with proper arguments */
+#define FREE(type, pointer) \
+	reallocate(pointer, sizeof(type), 0)
 
 /* Grows the capacity of a dynamic array. Return 8 if input is lower than 8, else double the input. */
 #define GROW_CAPACITY(capacity) \
@@ -29,5 +38,12 @@
  * @return void* A pointer to the newly allocated memory.
  */
 void *reallocate(void *pointer, size_t oldSize, size_t newSize);
+
+/** Frees all allocated object memory.
+ * @details
+ * Iterates through the object list and frees the allocated memory. Called when the VM is freed.
+ *
+ */
+void freeObjects();
 
 #endif /* clox_memory_h */
