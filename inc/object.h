@@ -28,9 +28,10 @@ struct Obj {
 
 /* Lox, heap allocated string. */
 struct ObjString {
-	Obj obj;			//* State inherited from Obj. Allows safe casting and calling of its type.
-	int length;		//* Length of the string.
-	char* chars;	//* Pointer to the string's characters.
+	Obj obj;				//* State inherited from Obj. Allows safe casting and calling of its type.
+	int length;			//* Length of the string.
+	char* chars;		//* Pointer to the string's characters.
+	uint32_t hash;	//* Hash of the string.
 };
 
 /** Returns whether or not a value is an object of a specific type. 

@@ -2,6 +2,7 @@
 #define clox_vm_h
 
 #include "chunk.h"
+#include "table.h"
 #include "value.h"
 
 #define STACK_MAX 256
@@ -14,6 +15,7 @@ typedef struct {
 	Value* stackTop;				//* Pointer to the slot just PAST the top of the stack. 
 	Obj* objects; 					//* A pointer to the first allocated object
 	// stack == stackTop = > empty stack.
+	Table strings;					//* A table for string internment.
 } VM;
 
 // Declare vm struct so other files can access it.

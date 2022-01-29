@@ -26,10 +26,12 @@ void resetStack() {
 void initVM() {
 	resetStack();
 	vm.objects = NULL;
+	initTable(&vm.strings); // Initialize the string internment table.
 }
 
 void freeVM() {
 	freeObjects();
+	freeTable(&vm.strings);
 }
 
 //~ Error Reporting
