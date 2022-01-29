@@ -141,8 +141,14 @@ static InterpretResult run() {
 		uint8_t instruction;
 		switch (instruction = READ_BYTE()) {
 			case OP_ADD: {
-				if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
+				if (IS_STRING(peek(1)) || IS_STRING(peek(0))) {
+					ObjString* b = toObjString(pop()); // Convert to strings. Not neccesary for strings
+					ObjString* a = toObjString(pop());
+					push(OBJ_VAL(a)); // Push as string values to the stack in inverse order to popping
+					push(OBJ_VAL(b));
 					concatenate();
+				// } else if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
+				// 	concatenate();
 				} else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
 					double b = AS_NUMBER(pop());
 					double a = AS_NUMBER(pop());

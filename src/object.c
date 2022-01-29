@@ -1,3 +1,4 @@
+#include <stdlib.h> // snprintf
 #include <stdio.h>
 #include <string.h>
 
@@ -5,6 +6,9 @@
 #include "object.h"
 #include "value.h"
 #include "vm.h"
+
+// Maximum string length when converting a number to a string
+#define MAX_INT_STRLEN 50
 
 // Allocates a new object with the given object prototype. Allows to type as input instead of raw size to support additions to the struct easily.
 #define ALLOCATE_OBJ(type, objectType) \
@@ -44,7 +48,7 @@ static ObjString* allocateString(char* chars, int length) {
 }
 
 ObjString* takeString(char* chars, int length) {
-	// Create and return the new string with the input char array
+	// Create a new object and set the pointer to input char array
 	return allocateString(chars, length);
 }
 
@@ -64,5 +68,40 @@ void printObject(Value value) {
 		case OBJ_STRING:
 			printf("%s", AS_CSTRING(value));
 			break;
+	}
+}
+
+ObjString* toObjString(Value value) {
+	switch (value.type) {
+		case VAL_NUMBER: {
+			// todo: currently assumes largest required
+			char* buffer = malloc(sizeof(char) * MAX_INT_STRLEN); // allocate room for new text
+			// todo : memory leak?
+			int size = snprintf(buffer, MAX_INT_STRLEN, "%g", AS_NUMBER(value)); // copy over number text
+
+			return takeString(buffer, size);
+		}
+		case VAL_BOOL: {
+			if (AS_BOOL(value))
+				return takeString("true", 4);
+			else
+				return takeString("false", 5);
+		}
+		case VAL_NIL:
+			return takeString("nil", 3);
+		case VAL_OBJ: {
+			switch (OBJ_TYPE(value)) {
+				case OBJ_STRING:
+					return AS_STRING(value);
+				default: // Impossible
+					printf("Cannot convert to a string: %d\n'", OBJ_TYPE(value));
+					return takeString("??", 2);
+			}
+		}
+		default:
+			printf("Expected a string, but got ");
+			printValue(value);
+			printf("\n");
+			return NULL;
 	}
 }

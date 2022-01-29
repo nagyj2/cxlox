@@ -14,6 +14,8 @@
 #define AS_STRING(value)	((ObjString*) AS_OBJ(value))
 // Convert a lox string to a c char array. Returns the character array from ObjString.
 #define AS_CSTRING(value)	(((ObjString*) AS_OBJ(value))->chars)
+// Convert an arbitrary value to a lox string
+#define TO_STRING(value)	toString(value);
 
 /* Available types for lox objects. */
 typedef enum {
@@ -33,6 +35,8 @@ struct ObjString {
 	char* chars;	//* Pointer to the string's characters.
 };
 
+//~ Semantics
+
 /** Returns whether or not a value is an object of a specific type. 
  * Called from the macro IS_OBJ to prevent multiple executions of @p value argument.
  *
@@ -44,6 +48,15 @@ struct ObjString {
 static inline bool isObjType(Value value, ObjType type) {
 	return IS_OBJ(value) && AS_OBJ(value)->type == type;
 }
+
+/** Convert an arbitrary lox value to a lox string.
+ * 
+ * @param[in] value The value to convert.
+ * @return ObjString* pointer to a newly allocated lox string.
+ */
+ObjString* toObjString(Value value);
+
+//~ Helpers
 
 /** Create a new lox string value by 'taking ownership' of the input character array.
  * @details

@@ -43,6 +43,10 @@ typedef struct {
 #define IS_NUMBER(value) 	((value).type == VAL_NUMBER)
 #define IS_OBJ(value) 		((value).type == VAL_OBJ)
 
+#define TO_NUMBER(value)	(Value) toNumber(value);
+#define TO_BOOL(value)		(Value) toBoolean(value);
+
+
 /* Dynamic array to hold values. Used by chunks to store literals which appear in the bytecode. */
 typedef struct {
 	int count; 			//* Number of elements within the ValueArray.
@@ -85,5 +89,7 @@ void printValue(Value value);
  * @return false if the two outputs are not the same.
  */
 bool valuesEqual(Value a, Value b);
+
+
 
 #endif /* clox_value_h */
