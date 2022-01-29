@@ -14,8 +14,8 @@ enable_testing() # Adds a 'test' target
 
 include_directories(cxlox inc)
 
-set(INCLUDES inc/common.h inc/memory.h inc/chunk.h inc/debug.h inc/value.h inc/vm.h inc/compiler.h inc/scanner.h inc/object.h)
-set(SOURCES src/memory.c src/chunk.c src/debug.c src/value.c src/vm.c src/compiler.c src/scanner.c src/object.c)
+set(INCLUDES inc/common.h inc/memory.h inc/chunk.h inc/debug.h inc/value.h inc/vm.h inc/compiler.h inc/scanner.h inc/object.h inc/table.h)
+set(SOURCES src/memory.c src/chunk.c src/debug.c src/value.c src/vm.c src/compiler.c src/scanner.c src/object.c src/table.c)
 
 add_executable(cxlox
   src/main.c
