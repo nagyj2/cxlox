@@ -6,20 +6,25 @@
 
 /** Define the Operation Codes which can exist in the bytecode. */
 typedef enum {
-	OP_CONSTANT,		//* OPCODE INDEX : Opcode to introduce a constant into the constant pool.
-	OP_ADD,					//* OPCODE : Opcode to represent mathematical addition.
-	OP_SUBTRACT,		//* OPCODE : Opcode to represent mathematical subtraction.
-	OP_MULTIPLY,		//* OPCODE : Opcode to represent mathematical multiplication.
-	OP_DIVIDE,			//* OPCODE : Opcode to represent mathematical division.
-	OP_NEGATE,			//* OPCODE : Opcode to remove the top stack element and place a negated version.
-	OP_RETURN,			//* OPCODE : Opcode representing a function return.
-	OP_NIL,					//* OPCODE : Opcode to produce a nil value on the stack.
-	OP_TRUE,				//* OPCODE : Opcode to produce a true value on the stack.
-	OP_FALSE,				//* OPCODE : Opcode to produce a false value on the stack.
-	OP_NOT,					//* OPCODE : Opcode to remove the top stack element and place a negated version.
-	OP_EQUAL,				//* OPCODE : Opcode to compute equality between the top two values on the stack.
-	OP_GREATER,			//* OPCODE : Opcode to compute greater than between the top two values on the stack.
-	OP_LESSER,				//* OPCODE : Opcode to compute lesser than between the top two values on the stack.
+	OP_CONSTANT,				//* OPCODE INDEX : (SE+1) Introduces a constant into the constant pool.
+	OP_ADD,							//* OPCODE : (SE-1) Performs addition on the top 2 stack elements and pushes the result.
+	OP_SUBTRACT,				//* OPCODE : (SE-1) Performs subtraction on the top 2 stack elements and pushes the result.
+	OP_MULTIPLY,				//* OPCODE : (SE-1) Performs multiplication on the top 2 stack elements and pushes the result.
+	OP_DIVIDE,					//* OPCODE : (SE-1) Performs division on the top 2 stack elements and pushes the result.
+	OP_NEGATE,					//* OPCODE : (SE0) Negates the top element on the stack and pushes the result.
+	OP_RETURN,					//* OPCODE : (SE0) Returns from the current function.
+	OP_NIL,							//* OPCODE : (SE+1) Introduces a 'nil' constant into the constant pool.
+	OP_TRUE,						//* OPCODE : (SE+1) Introduces a 'true' constant into the constant pool.
+	OP_FALSE,						//* OPCODE : (SE+1) Introduces a 'false' constant into the constant pool.
+	OP_NOT,							//* OPCODE : (SE0) Inverts the truth value of the top element on the stack and pushes the result.
+	OP_EQUAL,						//* OPCODE : (SE-1) Checks equality on the top 2 stack elements and pushes the result.
+	OP_GREATER,					//* OPCODE : (SE-1) Checks if the top element is lesser than the 2nd highest element and pushes the result.
+	OP_LESSER,					//* OPCODE : (SE-1) Checks if the top element is greater than the 2nd highest element and pushes the result.
+	OP_PRINT,						//* OPCODE : (SE-1) Pops the top element of the stack and displays it to stdout.
+	OP_POP,							//* OPCODE : (SE-1) Pops the top element of the stack.
+	OP_DEFINE_GLOBAL,		//* OPCODE INDEX : (SE-1) Defines a global variable and assigns the top element to it.
+	OP_GET_GLOBAL,			//* OPCODE INDEX : (SE0) Retrieves a global variable by index and pushes its current value to the stack.
+	OP_SET_GLOBAL,			//* OPCODE INDEX : (SE0) Retrieves a global variable and places the top of the stack at the indexed variable.
 } OpCode;
 
 /* Note that the entire AST structure from jlox has been recreated just by 3 dynamic arrays, the chunk, constant pool and source line numbers */
