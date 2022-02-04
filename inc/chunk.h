@@ -10,9 +10,9 @@ typedef enum {
 	OP_DEFINE_GLOBAL_LONG,	//* OPCODE INDEX INDEX INDEX : (SE-1) Defines a global variable using 24 bit index and assigns the top element to it.
 	OP_GET_GLOBAL_LONG,			//* OPCODE INDEX INDEX INDEX : (SE0) Retrieves a global variable by 24 bit index and pushes its current value to the stack.
 	OP_SET_GLOBAL_LONG,			//* OPCODE INDEX INDEX INDEX : (SE0) Retrieves a global variable by 24 bit index and places the top of the stack at the indexed variable.
-	OP_CONDITIONAL,        	//* OPCODE : (SE-1) Pops 2 elements from the stack. If the 2nd element is truthy, the 1st element is placed on the stack. Otherwise a 'nil' is placed.
-	OP_OPTIONAL,						//* OPCODE : (SE-1) Pops 2 elements from the stack. If the 2nd element is 'nil', the 1st element is pushed. Otherwise the 2nd is pushed.
-	OP_POPN,						//* OPCODE NUMBER : (SE0) Pops n elements from the stack.
+	OP_CONDITIONAL,        	//* OPCODE : (SE-1) Pops 2 elements from the stack. If the 2nd element is truthy, the 1st element is pushed on the stack. Otherwise 'nil' is pushed.
+	OP_OPTIONAL,						//* OPCODE : (SE-1) Pops 2 elements from the stack. If the 2nd element is 'nil', the 1st element is pushed. Otherwise the 2nd element is pushed.
+	OP_POPN,								//* OPCODE NUMBER : (SE0) Pops n elements from the stack.
 	OP_CONSTANT,				//* OPCODE INDEX : (SE+1) Introduces a constant into the constant pool.
 	OP_ADD,							//* OPCODE : (SE-1) Performs addition on the top 2 stack elements and pushes the result.
 	OP_SUBTRACT,				//* OPCODE : (SE-1) Performs subtraction on the top 2 stack elements and pushes the result.
@@ -20,10 +20,10 @@ typedef enum {
 	OP_DIVIDE,					//* OPCODE : (SE-1) Performs division on the top 2 stack elements and pushes the result.
 	OP_NEGATE,					//* OPCODE : (SE0) Negates the top element on the stack and pushes the result.
 	OP_RETURN,					//* OPCODE : (SE0) Returns from the current function.
-	OP_NIL,							//* OPCODE : (SE+1) Introduces a 'nil' constant into the constant pool.
-	OP_TRUE,						//* OPCODE : (SE+1) Introduces a 'true' constant into the constant pool.
-	OP_FALSE,						//* OPCODE : (SE+1) Introduces a 'false' constant into the constant pool.
-	OP_NOT,							//* OPCODE : (SE0) Inverts the truth value of the top element on the stack and pushes the result.
+	OP_NIL,							//* OPCODE : (SE+1) Places a 'nil' at the top of the stack.
+	OP_TRUE,						//* OPCODE : (SE+1) Places a 'true' at the top of the stack.
+	OP_FALSE,						//* OPCODE : (SE+1) Places a 'false' at the top of the stack.
+	OP_NOT,							//* OPCODE : (SE0) Pops the top element, inverts the truthiness value and pushes the result.
 	OP_EQUAL,						//* OPCODE : (SE-1) Checks equality on the top 2 stack elements and pushes the result.
 	OP_GREATER,					//* OPCODE : (SE-1) Checks if the top element is lesser than the 2nd highest element and pushes the result.
 	OP_LESSER,					//* OPCODE : (SE-1) Checks if the top element is greater than the 2nd highest element and pushes the result.
