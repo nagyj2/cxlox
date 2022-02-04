@@ -137,6 +137,8 @@ static void skipWhitespace() {
 					// Comment goes until the end of the line.
 					while (peek() != '\n' && !isAtEnd())
 						advance();
+					if (peek() == '\n')
+						scanner.line++;
 					advance(); // Skip the newline
 				} else if (peekNext() == '*') {
 					skipBlockComment();

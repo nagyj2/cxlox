@@ -70,7 +70,9 @@ typedef struct {
 	int depth;			//* Depth of the scope in which the variable is declared from the global scope.
 } Local;
 
-/* State for the compiler. */
+/** State for the compiler.
+ * @note The size of locals should be the exact same size as the stack. If one changes, the other must as well.
+ */
 typedef struct {
 	Local locals[UINT8_COUNT]; 	//* Array of local variables. Length is fixed at 256 due to 8 bit indexes.
 	int localCount; 						//* Number of local variables currently in scope.
