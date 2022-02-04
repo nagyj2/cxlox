@@ -49,7 +49,7 @@ static Entry* findEntry(Entry* entries, int capacity, Value key) {
 				if (tombstone == NULL)
 					tombstone = entry;
 			}
-		} else if (entry->key == key) {
+		} else if (valuesEqual(entry->key, key)) {
 			// Found the entry
 			return entry;
 		}
