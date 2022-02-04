@@ -14,11 +14,11 @@ statement     := exprStmt
 exprStmt      := expr ";"
 printStmt     := "print" expr ";"
 expr          := comma
-comma				  := ternary ("," ternary)*
-ternary       := assignment "?" assignment ":" ternary
-               | assignment
+comma				  := optional ("," optional)*
 assignment    := IDENTIFIER "=" assignment
-               | equality
+               | optional
+optional      := conditional (":" optional)?
+conditional   := equality ("?" equality)
 equality      := comparison (("==" | "!=") comparison)*
 comparison    := addition (("<" | ">" | "<=" | ">=") addition)*
 addition      := multiply  (("+" | "-") multiply )*
@@ -37,6 +37,12 @@ STRING				:= "\"" (CHARACTER)* "\""
 IDENTIFIER    := [a-zA-Z_][a-zA-Z0-9_]*
 ```
 
+## Details
+
+- The ternary expression is simulated through 2 binary expressions, the conditional ("?") and the optional (":") operators.
+  - The conditional operator is evaluated first. If the left operand is truthy, the right operand is returned. Otherwise, nil is returned.
+  - The optional operator is evaluated second. If the left operand equal to nil, the right operand is returned. Otherwise, the first is returned.
+  - Inspired by [this blog post](https://dev.to/mortoray/we-dont-need-a-ternary-operator-309n)
 
 ## Build
 

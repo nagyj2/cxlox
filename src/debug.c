@@ -68,8 +68,10 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return constantLongInstruction("OP_GET_GLOBAL_LONG", chunk, offset);
 		case OP_SET_GLOBAL_LONG:
 			return constantLongInstruction("OP_SET_GLOBAL_LONG", chunk, offset);
-		case OP_TERNARY:
-			return simpleInstruction("OP_TERNARY", offset);
+		case OP_CONDITIONAL:
+			return simpleInstruction("OP_CONDITIONAL", offset);
+		case OP_OPTIONAL:
+			return simpleInstruction("OP_OPTIONAL", offset);
 		case OP_RETURN:
 			return simpleInstruction("OP_RETURN", offset);
 		case OP_ADD:

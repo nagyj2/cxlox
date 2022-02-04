@@ -10,7 +10,8 @@ typedef enum {
 	OP_DEFINE_GLOBAL_LONG,	//* OPCODE INDEX : (SE-1) Defines a global variable using 24 bit index and assigns the top element to it.
 	OP_GET_GLOBAL_LONG,			//* OPCODE INDEX : (SE0) Retrieves a global variable by 24 bit index and pushes its current value to the stack.
 	OP_SET_GLOBAL_LONG,			//* OPCODE INDEX : (SE0) Retrieves a global variable by 24 bit index and places the top of the stack at the indexed variable.
-	OP_TERNARY,        			//* OPCODE : (SE-2) Pops 3 elements from the stack and replaces the 2st if the 3rd is true and the 1st otherwise. 
+	OP_CONDITIONAL,        			//* OPCODE : (SE-2) Pops 3 elements from the stack and replaces the 2nd if the 3rd is true and the 1st otherwise. 
+	OP_OPTIONAL,						//* OPCODE : (SE-1) Pops 2 elements from the stack and if the 2nd falsey, it places 'nil' on the stack. Otherwise it places the 1st.
 	OP_CONSTANT,				//* OPCODE INDEX : (SE+1) Introduces a constant into the constant pool.
 	OP_ADD,							//* OPCODE : (SE-1) Performs addition on the top 2 stack elements and pushes the result.
 	OP_SUBTRACT,				//* OPCODE : (SE-1) Performs subtraction on the top 2 stack elements and pushes the result.

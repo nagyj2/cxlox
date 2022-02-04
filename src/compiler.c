@@ -29,7 +29,8 @@ typedef enum {
 	PREC_NONE,
 	PREC_COMMA,				//> ,
 	PREC_ASSIGNMENT,	//> =
-	PREC_CONDITIONAL,	//> ?:
+	PREC_OPTIONAL,		//> :
+	PREC_CONDITIONAL,	//> ?
 	PREC_OR,					//> or
 	PREC_AND,					//> and
 	PREC_EQUALITY,		//> == !=
@@ -455,21 +456,31 @@ static void comma(bool canAssign) {
 	// Do something...
 }
 
-/** Parses a ternary statement. Assumes the condition and '?' has already been consumed by parse precidence.
+/** Parses a conditional expression. Assumes the condition and '?' has already been consumed by parse precidence.
  * 
  */
-static void ternary(bool canAssign) {
+static void conditional(bool canAssign) {
 	TokenType operatorType = parser.previous.type;
 
 	parsePrecidence(PREC_CONDITIONAL + 1);
 
-	consume(TOKEN_COLON, "Expect ':' after condition.");
+	// consume(TOKEN_COLON, "Expect ':' after condition.");
 
-	parsePrecidence(PREC_ASSIGNMENT); // Same precidence so it is right associative
+	// parsePrecidence(PREC_ASSIGNMENT); // Same precidence so it is right associative
 
 	// Do something...
 	// emitBytes(OP_POP, OP_POP);
-	emitByte(OP_TERNARY);
+	emitByte(OP_CONDITIONAL);
+}
+
+/** Parses an optional statement. Assumes the test value and ':' has already been consumed by parse precidence.
+ * 
+ */
+static void optional(bool canAssign) {
+	TokenType operatorType = parser.previous.type;
+
+	parsePrecidence(PREC_OPTIONAL); // Same precidence so it is right associative
+	emitByte(OP_OPTIONAL);
 }
 
 /** Parses a variable.
@@ -486,52 +497,52 @@ static void variable(bool canAssign) {
  * Precidence column is used for the infix precedence of the operator. If some prefix (or postfix) operators had different precidence levels, their precidences would
  * also need to be stored.
  */
-ParseRule rules[] = {  // PREFIX     INFIX    PRECIDENCE (INFIX) */
-	[TOKEN_LEFT_PAREN]    = {grouping, NULL,    PREC_NONE},
-  [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_LEFT_CURLY]    = {NULL,     NULL,    PREC_NONE}, 
-  [TOKEN_RIGHT_CURLY]   = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_COMMA]         = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_DOT]           = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_MINUS]         = {unary,    binary,  PREC_TERM},
-  [TOKEN_PLUS]          = {NULL,     binary,  PREC_TERM},
-  [TOKEN_SEMICOLON]     = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_SLASH]         = {NULL,     binary,  PREC_FACTOR},
-  [TOKEN_STAR]          = {NULL,     binary,  PREC_FACTOR},
-  [TOKEN_QUESTION]      = {NULL,     ternary, PREC_CONDITIONAL},	// For conditional ternary
-  [TOKEN_COLON]         = {NULL,     NULL,    PREC_NONE},					// To stop pratt parsing 
-	[TOKEN_COMMA]         = {NULL,     comma,   PREC_COMMA},				// For comma operator
-  [TOKEN_BANG]          = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_BANG_EQUAL]    = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_BANG]          = {unary,    NULL,    PREC_NONE},
-  [TOKEN_BANG_EQUAL]    = {NULL,     binary,  PREC_EQUALITY},
-  [TOKEN_EQUAL]         = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_EQUAL_EQUAL]   = {NULL,     binary,  PREC_EQUALITY},
-  [TOKEN_GREATER]       = {NULL,     binary,  PREC_COMPARISON},
-  [TOKEN_GREATER_EQUAL] = {NULL,     binary,  PREC_COMPARISON},
-  [TOKEN_LESSER]        = {NULL,     binary,  PREC_COMPARISON},
-  [TOKEN_LESSER_EQUAL]  = {NULL,     binary,  PREC_COMPARISON},
-  [TOKEN_IDENTIFIER]    = {variable, NULL,    PREC_NONE},
-	[TOKEN_STRING]        = {string,   NULL,    PREC_NONE},
-  [TOKEN_NUMBER]        = {number,   NULL,    PREC_NONE}, // Literals also appear as an 'operator
-  [TOKEN_AND]           = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_CLASS]         = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_ELSE]          = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_FALSE]         = {literal,  NULL,    PREC_NONE},
-  [TOKEN_FOR]           = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_FUN]           = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_IF]            = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_NIL]           = {literal,  NULL,    PREC_NONE},
-  [TOKEN_OR]            = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_PRINT]         = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_RETURN]        = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_SUPER]         = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_THIS]          = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_TRUE]          = {literal,  NULL,    PREC_NONE},
-  [TOKEN_VAR]           = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_WHILE]         = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_ERROR]         = {NULL,     NULL,    PREC_NONE},
-  [TOKEN_EOF]           = {NULL,     NULL,    PREC_NONE},
+ParseRule rules[] = {  // PREFIX     INFIX    		PRECIDENCE (INFIX) */
+	[TOKEN_LEFT_PAREN]    = {grouping, NULL,    		PREC_NONE},
+  [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_LEFT_CURLY]    = {NULL,     NULL,    		PREC_NONE}, 
+  [TOKEN_RIGHT_CURLY]   = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_COMMA]         = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_DOT]           = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_MINUS]         = {unary,    binary,  		PREC_TERM},
+  [TOKEN_PLUS]          = {NULL,     binary,  		PREC_TERM},
+  [TOKEN_SEMICOLON]     = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_SLASH]         = {NULL,     binary,  		PREC_FACTOR},
+  [TOKEN_STAR]          = {NULL,     binary,  		PREC_FACTOR},
+  [TOKEN_QUESTION]      = {NULL,     conditional, PREC_CONDITIONAL},	// For conditional expressions
+  [TOKEN_COLON]         = {NULL,     optional,		PREC_OPTIONAL},			// For defaulted values 
+	[TOKEN_COMMA]         = {NULL,     comma,   		PREC_COMMA},				// For comma operator
+  [TOKEN_BANG]          = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_BANG_EQUAL]    = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_BANG]          = {unary,    NULL,    		PREC_NONE},
+  [TOKEN_BANG_EQUAL]    = {NULL,     binary,  		PREC_EQUALITY},
+  [TOKEN_EQUAL]         = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_EQUAL_EQUAL]   = {NULL,     binary,  		PREC_EQUALITY},
+  [TOKEN_GREATER]       = {NULL,     binary,  		PREC_COMPARISON},
+  [TOKEN_GREATER_EQUAL] = {NULL,     binary,  		PREC_COMPARISON},
+  [TOKEN_LESSER]        = {NULL,     binary,  		PREC_COMPARISON},
+  [TOKEN_LESSER_EQUAL]  = {NULL,     binary,  		PREC_COMPARISON},
+  [TOKEN_IDENTIFIER]    = {variable, NULL,    		PREC_NONE},
+	[TOKEN_STRING]        = {string,   NULL,    		PREC_NONE},
+  [TOKEN_NUMBER]        = {number,   NULL,    		PREC_NONE}, // Literals also appear as an 'operator
+  [TOKEN_AND]           = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_CLASS]         = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_ELSE]          = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_FALSE]         = {literal,  NULL,    		PREC_NONE},
+  [TOKEN_FOR]           = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_FUN]           = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_IF]            = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_NIL]           = {literal,  NULL,    		PREC_NONE},
+  [TOKEN_OR]            = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_PRINT]         = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_RETURN]        = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_SUPER]         = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_THIS]          = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_TRUE]          = {literal,  NULL,    		PREC_NONE},
+  [TOKEN_VAR]           = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_WHILE]         = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_ERROR]         = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_EOF]           = {NULL,     NULL,    		PREC_NONE},
 };
 
 /** Parses any expressions at the same precidence level or higher. 

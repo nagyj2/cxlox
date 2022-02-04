@@ -292,11 +292,16 @@ static InterpretResult run() {
 				}
 				break;
 			}	
-			case OP_TERNARY: {
+			case OP_CONDITIONAL: { // a ? b evaluates to b if a is truthy, otherwise it evaluates to nil
 				Value b = pop(); // False branch value
 				Value a = pop(); // True branch value
-				Value c = pop(); // Condition
-				push(isFalsey(c) ? b : a);
+				push(isFalsey(a) ? NIL_VAL : b);
+				break;
+			}							
+			case OP_OPTIONAL: { // a : b evaluates to a if a is not nil, otherwise it evaluates to b
+				Value b = pop(); // False branch value
+				Value a = pop(); // True branch value
+				push(valuesEqual(a, NIL_VAL) ? b : a);
 				break;
 			}
 		}
