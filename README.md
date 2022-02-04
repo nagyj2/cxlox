@@ -5,12 +5,33 @@ This is a C implementation of the xlox language. There are two banches, `main` a
 ## Grammar
 
 ```
-program     	:= declaration*
-declaration 	:= funDecl
-						   | varDecl
-						   | statement
+program       := declaration*
+declaration   := varDecl
+               | statement
+varDecl       := "var" IDENTIFIER ["=" expression] ";"
 statement     := exprStmt
                | printStmt
+exprStmt      := expr ";"
+printStmt     := "print" expr ";"
+expr          := assignment
+assignment    := IDENTIFIER "=" assignment
+               | equality
+equality      := comparison (("==" | "!=") comparison)*
+comparison    := addition (("<" | ">" | "<=" | ">=") addition)*
+addition      := multiply  (("+" | "-") multiply )*
+multiply 	    := unary (("*" | "/") unary)*
+unary         := ( "!" | "-") unary
+               | primary
+primary       := NUMBER
+               | STRING
+							 | IDENTIFIER
+							 | "true"
+							 | "false"
+							 | "nil"
+							 | "(" expr ")"
+NUMBER        := [0-9]+ ("." [0-9]+)?
+STRING				:= "\"" (CHARACTER)* "\""
+IDENTIFIER    := [a-zA-Z_][a-zA-Z0-9_]*
 ```
 
 
