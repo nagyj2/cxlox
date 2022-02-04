@@ -468,8 +468,8 @@ static void ternary(bool canAssign) {
 	parsePrecidence(PREC_ASSIGNMENT); // Same precidence so it is right associative
 
 	// Do something...
-	emitByte(OP_POP);
-	emitByte(OP_POP);
+	// emitBytes(OP_POP, OP_POP);
+	emitByte(OP_TERNARY);
 }
 
 /** Parses a variable.

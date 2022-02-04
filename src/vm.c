@@ -291,6 +291,13 @@ static InterpretResult run() {
 					return INTERPRET_RUNTIME_ERROR;
 				}
 				break;
+			}	
+			case OP_TERNARY: {
+				Value b = pop(); // False branch value
+				Value a = pop(); // True branch value
+				Value c = pop(); // Condition
+				push(isFalsey(c) ? b : a);
+				break;
 			}
 		}
 	}
