@@ -9,7 +9,7 @@
 
 /** A entry to a hashtable. Stores the key which accesses the variable and the value being stored. */
 typedef struct {
-	ObjString* key;	//* Key used to access the entry. Assumes that a string will always index the table.
+	Value key;			//* Key used to access the entry. Assumes that a string will always index the table.
 	Value value;		//* Value being stored.
 } Entry;
 
@@ -46,7 +46,7 @@ void freeTable(Table* table);
  * @return true If the insertion placed the value into the table.
  * @return false If the insertion did not actually insert an element.
  */
-bool tableSet(Table* table, ObjString* key, Value value);
+bool tableSet(Table* table, Value key, Value value);
 
 /** Retrieves a value from a given table by key.
  * @details
@@ -58,7 +58,7 @@ bool tableSet(Table* table, ObjString* key, Value value);
  * @return true if the key was found.
  * @return false if the key was not found.
  */
-bool tableGet(Table* table, ObjString* key, Value* value);
+bool tableGet(Table* table, Value key, Value* value);
 
 /** Deletes a value from a table by key.
  * @details
@@ -70,7 +70,7 @@ bool tableGet(Table* table, ObjString* key, Value* value);
  * @return true if the removal occured.
  * @return false if there was no actual removal.
  */
-bool tableDelete(Table* table, ObjString* key);
+bool tableDelete(Table* table, Value key);
 
 /** Copies over all contents of one table to another.
  * 

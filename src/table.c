@@ -33,16 +33,16 @@ void freeTable(Table* table) {
  * @param[in] key Pointer to the lox string object to search for.
  * @return Entry* pointer to the found entry, or NULL if not found. NULL means an empty slot was found.
  */
-static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
-	uint32_t index = key->hash % capacity;
+static Entry* findEntry(Entry* entries, int capacity, Value key) {
+	uint32_t index = hashValue(key) % capacity;
 	Entry* tombstone = NULL; // Store the last tombstone
 	for (;;) {
 		Entry* entry = &entries[index];
-		if (entry->key == NULL) {
+		if (IS_EMPTY(entry->key)) {
 			// Found an empty entry. Is truly empty or a tombstone?
 			if (IS_NIL(entry->value)) {
 				// Empty. If we passed a tombstone, return this entry. Otherwise, return the tombstone
-				// This allows overwriting and reusing tombstones
+				// This allows overwriting and reuse of tombstones
 				return tombstone == NULL ? entry : tombstone;
 			} else {
 				// Tombstone. Update the last tombstone
@@ -64,7 +64,7 @@ static void adjustCapacity(Table* table, int capacity) {
 	Entry* entries = ALLOCATE(Entry, capacity);
 	// Nullify the new memory locations to set them to a valid state
 	for (int i = 0; i < capacity; i++) {
-		entries[i].key = NULL;
+		entries[i].key = EMPTY_VAL; // EMPTY represents a truly blank entry
 		entries[i].value = NIL_VAL;
 	}
 
@@ -75,7 +75,7 @@ static void adjustCapacity(Table* table, int capacity) {
 		// See the entry in the old table
 		Entry* entry = &table->entries[i];
 		// If the entry is empty or tombstone, ignore it
-		if (entry->key == NULL)
+		if (IS_EMPTY(entry->key))
 			continue;
 
 		// Find the position in the new array and fill it
@@ -92,7 +92,7 @@ static void adjustCapacity(Table* table, int capacity) {
 	table->capacity = capacity;
 }
 
-bool tableSet(Table* table, ObjString* key, Value value) {
+bool tableSet(Table* table, Value key, Value value) {
 	// If the the table gets too full, increase capacity
 	if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
 		int capacity = GROW_CAPACITY(table->capacity); // Get the next size
@@ -103,7 +103,7 @@ bool tableSet(Table* table, ObjString* key, Value value) {
 	// Get entry from table
 	Entry* entry = findEntry(table->entries, table->capacity, key);
 	// Check if entry exists
-	bool isNewKey = entry->key == NULL;
+	bool isNewKey = IS_EMPTY(entry->key);
 	// If non-tombstone is returned, increment the count. Tombstones from deletions do not decrement the table count
 	if (isNewKey && IS_NIL(entry->value))
 		table->count++;
@@ -114,7 +114,7 @@ bool tableSet(Table* table, ObjString* key, Value value) {
 	return isNewKey;
 }
 
-bool tableGet(Table* table, ObjString* key, Value* value) {
+bool tableGet(Table* table, Value key, Value* value) {
 	// If there is nothing in the table, return false
 	// Also prevents insertion of a NULL array
 	if (table->count == 0)
@@ -123,7 +123,7 @@ bool tableGet(Table* table, ObjString* key, Value* value) {
 	// Find where the key is in the table (either present with some value, or empty; awaiting insertion)
 	Entry* entry = findEntry(table->entries, table->capacity, key);
 	// If the found slot is empty, return false
-	if (entry->key == NULL)
+	if (IS_NIL(entry->key)) // ! Why NIL and not EMPTY?
 		return false;
 
 	// Set output pointer to the found entry
@@ -131,18 +131,18 @@ bool tableGet(Table* table, ObjString* key, Value* value) {
 	return true;
 }
 
-bool tableDelete(Table* table, ObjString* key) {
+bool tableDelete(Table* table, Value key) {
 	// Shortcut if the table is empty
 	if (table->count == 0)
 		return false;
 
 	// Find the entry in the table and if it isn't there, return false
 	Entry* entry = findEntry(table->entries, table->capacity, key);
-	if (entry->key == NULL)
+	if (IS_EMPTY(entry->key)) // Remember, NIL is a valid key now, so we need to check for EMPTY
 		return false;
 
 	// Create tombstone in table
-	entry->key = NULL;
+	entry->key = EMPTY_VAL;
 	entry->value = BOOL_VAL(true);
 	return true;
 }
@@ -150,7 +150,7 @@ bool tableDelete(Table* table, ObjString* key) {
 void tableAddAll(Table* from, Table* to) {
 	for (int i = 0; i < from->capacity; i++) {
 		Entry* entry = &from->entries[i];
-		if (entry->key != NULL)
+		if (!IS_EMPTY(entry->key))
 			tableSet(to, entry->key, entry->value);
 		
 	}
@@ -165,15 +165,14 @@ ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t
 	for (;;) {
 		// Get the entry at the current index
 		Entry* entry = &table->entries[index];
-		if (entry->key == NULL) {
-			// Stop only if we find an empty non-tombstone entry
-			if (IS_NIL(entry->value))
-				return NULL;
-		} else if (entry->key->length == length
-							&& entry->key->hash == hash
-							&& memcmp(entry->key->chars, chars, length) == 0) {
+		if (IS_EMPTY(entry->key))
+			return NULL;
+		ObjString* string = AS_STRING(entry->key);
+		if (string->length == length
+				&& string->hash == hash
+				&& memcmp(string->chars, chars, length) == 0) {
 			// Found it
-			return entry->key;
+			return string;
 		}
 
 		index = (index + 1) % table->capacity;
