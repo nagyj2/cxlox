@@ -307,12 +307,19 @@ static void beginScope() {
  */
 static void endScope() {
 	current->scopeDepth--;
-	int oldLocals = current->localCount;
+	int oldLocals = 0;
 	while (current->localCount > 0
 		&& current->locals[current->localCount - 1].depth > current->scopeDepth) {
 		current->localCount--;
+		oldLocals++;
 	}
-	emitBytes(OP_POPN, (uint8_t) (oldLocals - current->localCount));
+	
+	if (oldLocals == 0)
+		return;
+	else if (oldLocals == 1)
+		emitByte(OP_POP);
+	else
+		emitBytes(OP_POPN, (uint8_t) oldLocals);
 }
 
 /** Declare the top most local variable available for use by removing the sentinel -1 depth.
