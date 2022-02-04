@@ -51,6 +51,12 @@ static int constantLongInstruction(const char *name, Chunk *chunk, int offset) {
 	return offset + 4; // Return forward 4 bytes
 }
 
+static int byteInstruction(const char* name, Chunk* chunk, int offset) {
+	uint8_t slot = chunk->code[offset + 1];
+	printf("%-24s %4d\n", name, slot);
+	return offset + 2;
+}
+
 int disassembleInstruction(Chunk *chunk, int offset) {
 	printf("%04d ", offset); // Display instruction offset
 	int line = getLine(chunk, offset); // B/c we now have a helper, we need to use that to get the proper line number
@@ -112,6 +118,10 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return constantInstruction("OP_GET_GLOBAL", chunk, offset);
 		case OP_SET_GLOBAL:
 			return constantInstruction("OP_SET_GLOBAL", chunk, offset);
+		case OP_GET_LOCAL:
+			return byteInstruction("OP_GET_LOCAL", chunk, offset);
+		case OP_SET_LOCAL:
+			return byteInstruction("OP_SET_LOCAL", chunk, offset);
 		default:
 			printf("Unknown opcode %d\n", instruction);
 			return offset + 1;

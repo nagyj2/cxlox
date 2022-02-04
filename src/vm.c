@@ -304,6 +304,16 @@ static InterpretResult run() {
 				push(valuesEqual(a, NIL_VAL) ? b : a);
 				break;
 			}
+			case OP_GET_LOCAL: {
+				uint8_t slot = READ_BYTE();
+				push(vm.stack[slot]);
+				break;
+			}			
+			case OP_SET_LOCAL: {
+				uint8_t slot = READ_BYTE();
+				vm.stack[slot] = peek(0); // redefines element already in the stack
+				break;
+			}
 		}
 	}
 

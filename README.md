@@ -11,14 +11,16 @@ declaration   := varDecl
 varDecl       := "var" IDENTIFIER ["=" expression] ";"
 statement     := exprStmt
                | printStmt
+							 | blockStmt
 exprStmt      := expr ";"
 printStmt     := "print" expr ";"
+blockStmt     := "{" declaration* "}"
 expr          := comma
 comma				  := optional ("," optional)*
 assignment    := IDENTIFIER "=" assignment
                | optional
 optional      := conditional (":" optional)?
-conditional   := equality ("?" equality)
+conditional   := equality ("?" equality)?
 equality      := comparison (("==" | "!=") comparison)*
 comparison    := addition (("<" | ">" | "<=" | ">=") addition)*
 addition      := multiply  (("+" | "-") multiply )*
