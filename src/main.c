@@ -75,8 +75,10 @@ int main(int argc, const char* argv[]) {
 	initVM();
 	
 	if (argc == 1) {
+		vm.isREPL = true;
 		repl();
 	} else if (argc == 2) {
+		vm.isREPL = false;
 		runFile(argv[1]);
 	} else {
 		fprintf(stderr, "Usage: clox [path]\n");

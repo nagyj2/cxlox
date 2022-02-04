@@ -589,6 +589,15 @@ static void expression() {
 
 // ~ Statements
 
+/** Parses a statement ending semicolon. If in REPL mode, the semicolon is optional.
+ * 
+ */
+static void REPLSemicolon() {
+	if (!vm.isREPL || !check(TOKEN_EOF)) {
+		consume(TOKEN_SEMICOLON, "Expected ';' after statement.");
+	}
+}
+
 /** Parses a print statement.
  * @details
  * Assumes that the 'print' keyword has already been consumed.
@@ -596,7 +605,7 @@ static void expression() {
  */
 static void printStatement() {
 	expression();
-	consume(TOKEN_SEMICOLON, "Expected ';' after value.");
+	REPLSemicolon(); // consume(TOKEN_SEMICOLON, "Expected ';' after value.");
 	emitByte(OP_PRINT);
 }
 
@@ -605,7 +614,7 @@ static void printStatement() {
  */
 static void expressionStatement() {
 	expression();
-	consume(TOKEN_SEMICOLON, "Expected ';' after value.");
+	REPLSemicolon(); // consume(TOKEN_SEMICOLON, "Expected ';' after value.");
 	emitByte(OP_POP);
 }
 
@@ -635,7 +644,7 @@ static void varDeclaration() {
 		emitByte(OP_NIL);
 	}
 
-	consume(TOKEN_SEMICOLON, "Expected ';' after variable declaration.");
+	REPLSemicolon(); // consume(TOKEN_SEMICOLON, "Expected ';' after variable declaration.");
 	defineVariable(global);
 }
 

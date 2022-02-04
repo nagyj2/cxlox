@@ -17,6 +17,7 @@ typedef struct {
 	// stack == stackTop = > empty stack.
 	Table strings;					//* A table for string internment.
 	Table globals;					//* A table for global variables.
+	bool isREPL;						//* Whether or not we are in REPL mode.
 } VM;
 
 // Declare vm struct so other files can access it.
