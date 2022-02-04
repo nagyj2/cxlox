@@ -92,6 +92,29 @@ static char peekNext() {
 	return scanner.current[1];
 }
 
+/** Parses a block comment. Assumes the '/*' has NOT been consumed.
+ * 
+ * @return true if the block comment was closed properly.
+ * @return false if the block comment is not closed.
+ */
+static bool skipBlockComment() {
+	advance(); // Consume the '/'
+	advance(); // Consume the '*'
+	int nesting = 1;
+	while (true) {
+		if (isAtEnd())
+			return false;
+		char c = advance();
+
+		if (c == '*' && match('/')) nesting--;
+		else if (c == '/' && match('*')) nesting++;
+
+		if (c == '\n') 		scanner.line++;
+		if (nesting == 0)	return true;
+	}
+}
+
+
 /** Consume all whitespace characters and comments until a non-whitespace/ non-comment character is encountered. 
  * Updates the global scanner state.
  */
@@ -114,7 +137,9 @@ static void skipWhitespace() {
 					// Comment goes until the end of the line.
 					while (peek() != '\n' && !isAtEnd())
 						advance();
-					advance();
+					advance(); // Skip the newline
+				} else if (peekNext() == '*') {
+					skipBlockComment();
 				} else {
 					return;
 				}
