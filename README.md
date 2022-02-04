@@ -4,6 +4,15 @@ This is a C implementation of the xlox language. There are two banches, `main` a
 
 ## Grammar
 
+```
+program     	:= declaration*
+declaration 	:= funDecl
+						   | varDecl
+						   | statement
+statement     := exprStmt
+               | printStmt
+```
+
 
 ## Build
 

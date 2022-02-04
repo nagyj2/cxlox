@@ -28,11 +28,13 @@ void initVM() {
 	resetStack();
 	vm.objects = NULL;
 	initTable(&vm.strings); // Initialize the string internment table.
+	initTable(&vm.globals);
 }
 
 void freeVM() {
 	freeObjects();
 	freeTable(&vm.strings);
+	freeTable(&vm.globals);
 }
 
 //~ Error Reporting
@@ -114,7 +116,12 @@ static InterpretResult run() {
 #define READ_BYTE() (*vm.ip++)
 	// Read a constant from the bytecode by taking the index and then looking it up in the constant pool
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
+	// Reads a constant which has a 24 bit address
 #define READ_CONSTANT_LONG() (vm.chunk->constants.values[(READ_BYTE()) | (READ_BYTE() << 8) | (READ_BYTE() << 16)])
+	// Read a constant from the bytecode and convert it to a string
+#define READ_STRING() AS_STRING(READ_CONSTANT())
+	// Read a constant from the bytecode and convert it to a string using a 24 bit address
+#define READ_STRING_LONG() AS_STRING(READ_CONSTANT_LONG())
 	// Pop two elements from the stack, add them and then place the result back. Remember, left arg is placed first
 	// Uses a do loop to allow multiple lines AND a culminating semicolon
 #define BINARY_OP(valueType, op) \
@@ -182,8 +189,7 @@ static InterpretResult run() {
 				break;
 			}
 			case OP_RETURN: {
-				printValue(pop());
-				printf("\n");
+				// Exit interpreter
 				return INTERPRET_OK;
 			}
 			case OP_CONSTANT: {
@@ -227,12 +233,73 @@ static InterpretResult run() {
 				push(BOOL_VAL(valuesEqual(a, b)));
 				break;
 			}
+			case OP_PRINT: {
+				printValue(pop());
+				printf("\n");
+				break;
+			}
+			case OP_POP: {
+				pop();
+				break;
+			}
+			case OP_DEFINE_GLOBAL: {
+				Value name = READ_CONSTANT();
+				tableSet(&vm.globals, name, peek(0)); // Place the value into the hash table BEFORE popping it so it doesnt get picked up by garbage collection
+				pop();
+				break;
+			}
+			case OP_GET_GLOBAL: {
+				Value name = READ_CONSTANT(); // Will always be a string
+				Value value;
+				if (!tableGet(&vm.globals, name, &value)) { // Unlike string internment, globals is simply indexed by strings.
+					runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				push(value);
+				break;
+			}
+			case OP_SET_GLOBAL: {
+				Value name = READ_CONSTANT(); // Tables use values, so just take the byte
+				if (tableSet(&vm.globals, name, peek(0))) { // If this was a new entry, the variable didnt exist
+					tableDelete(&vm.globals, name); // Roll back change (important for REPL)
+					runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				break;
+			}
+			case OP_DEFINE_GLOBAL_LONG: {
+				Value name = READ_CONSTANT_LONG();
+				tableSet(&vm.globals, name, peek(0)); // Place the value into the hash table BEFORE popping it so it doesnt get picked up by garbage collection
+				pop();
+				break;
+			}
+			case OP_GET_GLOBAL_LONG: {
+				Value name = READ_CONSTANT_LONG(); // Will always be a string
+				Value value;
+				if (!tableGet(&vm.globals, name, &value)) { // Unlike string internment, globals is simply indexed by strings.
+					runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				push(value);
+				break;
+			}
+			case OP_SET_GLOBAL_LONG: {
+				Value name = READ_CONSTANT_LONG(); // Tables use values, so just take the byte
+				if (tableSet(&vm.globals, name, peek(0))) { // If this was a new entry, the variable didnt exist
+					tableDelete(&vm.globals, name); // Roll back change (important for REPL)
+					runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				break;
+			}
 		}
 	}
 
 #undef READ_BYTE
 #undef READ_CONSTANT
 #undef READ_CONSTANT_LONG
+#undef READ_STRING
+#undef READ_STRING_LONG
 #undef BINARY_OP
 	
 }
