@@ -78,6 +78,8 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return simpleInstruction("OP_CONDITIONAL", offset);
 		case OP_OPTIONAL:
 			return simpleInstruction("OP_OPTIONAL", offset);
+		case OP_POPN:
+			return byteInstruction("OP_POPN", chunk, offset);
 		case OP_RETURN:
 			return simpleInstruction("OP_RETURN", offset);
 		case OP_ADD:

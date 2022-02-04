@@ -304,6 +304,14 @@ static InterpretResult run() {
 				push(valuesEqual(a, NIL_VAL) ? b : a);
 				break;
 			}
+			case OP_POPN: {
+				int n = (int) READ_BYTE();
+				while (n > 0) {
+					pop();
+					n--;
+				}
+				break;
+			}
 			case OP_GET_LOCAL: {
 				uint8_t slot = READ_BYTE();
 				push(vm.stack[slot]);
@@ -323,7 +331,6 @@ static InterpretResult run() {
 #undef READ_STRING
 #undef READ_STRING_LONG
 #undef BINARY_OP
-	
 }
 
 InterpretResult interpret(const char* source) {
