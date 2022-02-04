@@ -13,7 +13,10 @@ statement     := exprStmt
                | printStmt
 exprStmt      := expr ";"
 printStmt     := "print" expr ";"
-expr          := assignment
+expr          := comma
+comma				  := ternary ("," ternary)*
+ternary       := assignment "?" assignment ":" ternary
+               | assignment
 assignment    := IDENTIFIER "=" assignment
                | equality
 equality      := comparison (("==" | "!=") comparison)*
