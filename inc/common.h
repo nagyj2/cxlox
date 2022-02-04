@@ -11,4 +11,6 @@
 // Debug define to allow easier viewing of VM internals.
 #define DEBUG_TRACE_EXECUTION
 
+#define UINT8_COUNT (UINT8_MAX + 1)
+
 #endif /* clox_common_h */

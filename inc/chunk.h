@@ -23,8 +23,10 @@ typedef enum {
 	OP_PRINT,						//* OPCODE : (SE-1) Pops the top element of the stack and displays it to stdout.
 	OP_POP,							//* OPCODE : (SE-1) Pops the top element of the stack.
 	OP_DEFINE_GLOBAL,		//* OPCODE INDEX : (SE-1) Defines a global variable and assigns the top element to it.
-	OP_GET_GLOBAL,			//* OPCODE INDEX : (SE0) Retrieves a global variable by index and pushes its current value to the stack.
+	OP_GET_GLOBAL,			//* OPCODE INDEX : (SE+1) Retrieves a global variable by index and pushes its current value to the stack.
 	OP_SET_GLOBAL,			//* OPCODE INDEX : (SE0) Retrieves a global variable and places the top of the stack at the indexed variable.
+	OP_GET_LOCAL,				//* OPCODE INDEX : (SE+1) Retrieves a local variable by index from beneath the stack top and pushes it on top.
+	OP_SET_LOCAL,				//* OPCODE INDEX : (SE0) Retrieves a local variable by index and overwrites its value in the stack with the top element of the stack.
 } OpCode;
 
 /* Note that the entire AST structure from jlox has been recreated just by 3 dynamic arrays, the chunk, constant pool and source line numbers */

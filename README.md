@@ -11,8 +11,10 @@ declaration   := varDecl
 varDecl       := "var" IDENTIFIER ["=" expression] ";"
 statement     := exprStmt
                | printStmt
+							 | blockStmt
 exprStmt      := expr ";"
 printStmt     := "print" expr ";"
+blockStmt     := "{" declaration* "}"
 expr          := assignment
 assignment    := IDENTIFIER "=" assignment
                | equality
