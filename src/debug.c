@@ -32,7 +32,7 @@ static int simpleInstruction(const char* name, int offset) {
  */
 static int constantInstruction(const char *name, Chunk *chunk, int offset) {
 	uint8_t constantIndex = chunk->code[offset + 1];
-	printf("%-16s %4d '", name, constantIndex);
+	printf("%-24s %4d '", name, constantIndex);
 	printValue(chunk->constants.values[constantIndex]);
 	printf("'\n");
 
@@ -44,7 +44,7 @@ static int constantLongInstruction(const char *name, Chunk *chunk, int offset) {
 	int constantIndex = (chunk->code[offset + 1]) |
 											(chunk->code[offset + 2] << 8) |
 											(chunk->code[offset + 3] << 16); // Reassemble number from the 3 parts
-	printf("%-16s %4d '", name, constantIndex);
+	printf("%-24s %4d '", name, constantIndex);
 	printValue(chunk->constants.values[constantIndex]);
 	printf("'\n");
 
@@ -62,6 +62,12 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 
 	uint8_t instruction = chunk->code[offset]; // Retrieve opcode
 	switch (instruction) {
+		case OP_DEFINE_GLOBAL_LONG:
+			return constantLongInstruction("OP_DEFINE_GLOBAL_LONG", chunk, offset);
+		case OP_GET_GLOBAL_LONG:
+			return constantLongInstruction("OP_GET_GLOBAL_LONG", chunk, offset);
+		case OP_SET_GLOBAL_LONG:
+			return constantLongInstruction("OP_SET_GLOBAL_LONG", chunk, offset);
 		case OP_RETURN:
 			return simpleInstruction("OP_RETURN", offset);
 		case OP_ADD:
