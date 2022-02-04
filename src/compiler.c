@@ -12,8 +12,7 @@
 #endif
 
 // Point where long index constants are stored.
-#define CONST_TO_LONG_CONST 1
-// UINT8_MAX
+#define CONST_TO_LONG_CONST UINT8_MAX
 // Maximum number of constants in a chunk.
 #define MAX_CONSTANTS_PER_CHUNK ((2 << 24) - 1)
 
