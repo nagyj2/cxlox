@@ -23,7 +23,7 @@ whileStmt     := "while" "(" expr ")" statement
 forStmt       := "for" "(" (expr | varDecl)? ";" expr? ";" expr? ")" statement
 expr          := comma
 comma				  := optional ("," optional)*
-assignment    := IDENTIFIER "=" assignment
+assignment    := IDENTIFIER ("=" | "+=" | "-=" | "*=" | "/=") assignment
                | optional
 optional      := conditional (":" optional)?
 conditional   := equality ("?" equality)?

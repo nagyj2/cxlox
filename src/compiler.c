@@ -448,8 +448,26 @@ static int resolveLocal(Compiler* compiler, Token* name) {
 	return -1;
 }
 
+/** Emits bytes to save or load a indexed variable.
+ * @details
+ * If the index is over the maximum for for a single byte, the index is split into three bytes.
+ *
+ * @param[in] index The index of the variable.
+ * @param[in] opcode The opcode to perform on the variable.
+ */
+static void emitLocalIndexed(int index, uint8_t opcode) {
+	if (index > CONST_TO_LONG_CONST) {
+		emitBytes(opcode, (uint8_t) (index & 0xff));
+		emitBytes((uint8_t) ((index >> 8) & 0xff), (uint8_t) ((index >> 16) & 0xff));
+	}	else {
+		emitBytes(opcode, (uint8_t) index);
+	}
+}
+
 /** Emits 2 bytes to retrieve or set a global variable's value.
- * 
+ * @details
+ * Parses the 'assignment' production in the grammar.
+ *
  * @param[in] name The name of the variable to retrieve.
  */
 static void namedVariable(Token name, bool canAssign) {
@@ -471,19 +489,41 @@ static void namedVariable(Token name, bool canAssign) {
 		}
 	}
 
-	if (canAssign && match(TOKEN_EQUAL)) { // Check if it should be a setter right before we emit the opcode
-		expression();
-		if (index > CONST_TO_LONG_CONST) {
-			emitBytes(setOp, (uint8_t) (index & 0xff));
-			emitBytes((uint8_t) ((index >> 8) & 0xff), (uint8_t) ((index >> 16) & 0xff));
-		}	else
-			emitBytes(setOp, (uint8_t) index);
+	if (canAssign && (match(TOKEN_EQUAL) || match(TOKEN_MINUS_EQUAL) || match(TOKEN_PLUS_EQUAL) || match(TOKEN_STAR_EQUAL) || match(TOKEN_SLASH_EQUAL))) { // Check if it should be a setter right before we emit the opcode
+		TokenType operator = parser.previous.type;
+		switch (parser.previous.type) {
+			case TOKEN_MINUS_EQUAL: {
+				emitLocalIndexed(index, getOp);
+				expression();
+				emitByte(OP_SUBTRACT);
+				break;
+			}
+			case TOKEN_PLUS_EQUAL: {
+				emitLocalIndexed(index, getOp);
+				expression();
+				emitByte(OP_ADD);
+				break;
+			}
+			case TOKEN_STAR_EQUAL: {
+				emitLocalIndexed(index, getOp);
+				expression();
+				emitByte(OP_MULTIPLY);
+				break;
+			}
+			case TOKEN_SLASH_EQUAL: {
+				emitLocalIndexed(index, getOp);
+				expression();
+				emitByte(OP_DIVIDE);
+				break;
+			}
+			default:
+				expression();
+				break;
+		}
+		emitLocalIndexed(index, setOp);
+		
 	} else {
-		if (index > CONST_TO_LONG_CONST) {
-			emitBytes(getOp, (uint8_t) (index & 0xff));
-			emitBytes((uint8_t) ((index >> 8) & 0xff), (uint8_t) ((index >> 16) & 0xff));
-		} else
-			emitBytes(getOp, (uint8_t) index);
+		emitLocalIndexed(index, getOp);
 	}
 }
 
