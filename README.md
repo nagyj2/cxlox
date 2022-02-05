@@ -12,9 +12,15 @@ varDecl       := "var" IDENTIFIER ["=" expression] ";"
 statement     := exprStmt
                | printStmt
 							 | blockStmt
+							 | ifStmt
+							 | whileStmt
+							 | forStmt
 exprStmt      := expr ";"
 printStmt     := "print" expr ";"
 blockStmt     := "{" declaration* "}"
+ifStmt        := "if" "(" expr ")" statement ["else" statement]
+whileStmt     := "while" "(" expr ")" statement
+forStmt       := "for" "(" (expr | varDecl)? ";" expr? ";" expr? ")" statement
 expr          := comma
 comma				  := optional ("," optional)*
 assignment    := IDENTIFIER "=" assignment
