@@ -117,6 +117,8 @@ static InterpretResult run() {
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
 	// Read a constant from the bytecode and convert it to a string
 #define READ_STRING() AS_STRING(READ_CONSTANT())
+	// Read a 2 byte chunk of code
+#define READ_SHORT() (vm.ip += 2, (uint16_t)((vm.ip[-2] << 8) | vm.ip[-1]))
 	// Pop two elements from the stack, add them and then place the result back. Remember, left arg is placed first
 	// Uses a do loop to allow multiple lines AND a culminating semicolon
 #define BINARY_OP(valueType, op) \
@@ -166,15 +168,15 @@ static InterpretResult run() {
 				break;
 			}
 			case OP_DIVIDE: {
-				BINARY_OP(NUMBER_VAL, /);
+				BINARY_OP(NUMBER_VAL, / );
 				break;
 			}
 			case OP_GREATER: {
-				BINARY_OP(BOOL_VAL, >);
+				BINARY_OP(BOOL_VAL, > );
 				break;
 			}
 			case OP_LESSER: {
-				BINARY_OP(BOOL_VAL, <);
+				BINARY_OP(BOOL_VAL, < );
 				break;
 			}
 			case OP_RETURN: {
@@ -255,10 +257,26 @@ static InterpretResult run() {
 				uint8_t slot = READ_BYTE();
 				push(vm.stack[slot]);
 				break;
-			}			
+			}
 			case OP_SET_LOCAL: {
 				uint8_t slot = READ_BYTE();
 				vm.stack[slot] = peek(0); // redefines element already in the stack
+				break;
+			}
+			case OP_JUMP: {
+				uint16_t offset = READ_SHORT();
+				vm.ip += offset;
+				break;
+			}
+			case OP_JUMP_IF_FALSE: {
+				uint16_t offset = READ_SHORT();
+				if (isFalsey(peek(0)))
+					vm.ip += offset;
+				break;
+			}
+			case OP_LOOP: {
+				uint16_t offset = READ_SHORT();
+				vm.ip -= offset;
 				break;
 			}
 		}
@@ -267,6 +285,7 @@ static InterpretResult run() {
 #undef READ_BYTE
 #undef READ_CONSTANT
 #undef READ_STRING
+#undef READ_SHORT
 #undef BINARY_OP
 	
 }
