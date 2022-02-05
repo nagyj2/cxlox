@@ -59,13 +59,13 @@ static int byteInstruction(const char* name, Chunk* chunk, int offset) {
 
 static int jumpInstruction(const char* name, int sign, Chunk* chunk, int offset) {
 	uint16_t jump = (uint16_t) ((chunk->code[offset + 1] << 8) | chunk->code[offset + 2]);
-	printf("%-16s %4d -> %d\n", name, offset, offset + 3 + sign * jump); // Display this location and where it goes to
+	printf("%-24s %4d -> %d\n", name, offset, offset + 3 + sign * jump); // Display this location and where it goes to
 	return offset + 3;
 }
 
 static int shortInstruction(const char* name, Chunk* chunk, int offset) {
 	uint16_t slot = (uint16_t) ((chunk->code[offset + 1] << 8) | chunk->code[offset + 2]);
-	printf("%-16s %4d\n", name, slot);
+	printf("%-24s %4d\n", name, slot);
 	return offset + 3;
 }
 
