@@ -314,6 +314,15 @@ static InterpretResult run() {
 				}
 				break;
 			}
+			case OP_POPREPL: {
+				if (vm.isREPL) {
+					printValue(pop());
+					printf("\n");
+				} else {
+					pop();
+				}
+				break;
+			}
 			case OP_GET_LOCAL: {
 				uint8_t slot = READ_BYTE();
 				push(vm.stack[slot]);

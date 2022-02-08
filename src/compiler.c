@@ -898,11 +898,13 @@ static void expression() {
 
 /** Parses a statement ending semicolon. If in REPL mode, the semicolon is optional.
  * 
+ * @return true if a semicolon was found, false if not.
  */
-static void REPLSemicolon() {
+static bool REPLSemicolon() {
 	if (!vm.isREPL || !check(TOKEN_EOF)) {
 		consume(TOKEN_SEMICOLON, "Expected ';' after statement.");
 	}
+	return parser.previous.type == TOKEN_SEMICOLON;
 }
 
 /** Parses a block of statements.
@@ -933,7 +935,9 @@ static void printStatement() {
  */
 static void expressionStatement() {
 	expression();
-	REPLSemicolon(); // consume(TOKEN_SEMICOLON, "Expected ';' after value.");
+	if (!REPLSemicolon())
+		emitByte(OP_POPREPL);
+	else
 	emitByte(OP_POP);
 }
 
