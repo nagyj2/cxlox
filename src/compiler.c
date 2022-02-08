@@ -67,6 +67,7 @@ typedef struct {
  */
 typedef struct {
 	Token name;			//* Variable name.
+	bool constant;	//* Whether or not the variable is constant.
 	int depth;			//* Depth of the scope in which the variable is declared from the global scope.
 } Local;
 
@@ -478,6 +479,8 @@ static void namedVariable(Token name, bool canAssign) {
 	if (index != -1) {
 		getOp = OP_GET_LOCAL;
 		setOp = OP_SET_LOCAL;
+		if (current->locals[index].constant)
+			error("Cannot assign to a constant.");
 	} else {
 		index = identifierConstant(&name);
 		if (index > CONST_TO_LONG_CONST) {
@@ -532,7 +535,7 @@ static void namedVariable(Token name, bool canAssign) {
  * 
  * @param[in] name The name to assign to the local variable.
  */
-static void addLocal(Token name) {
+static void addLocal(Token name, bool isConstant) {
 	if (current->localCount == UINT8_COUNT) {
 		error("Too many local variables in function.");
 		return;
@@ -540,13 +543,14 @@ static void addLocal(Token name) {
 	
 	Local* local = &current->locals[current->localCount++];
 	local->name = name;
+	local->constant = isConstant;
 	local->depth = -1;
 }
 
 /** Converts the (simulated) top stack element into a local variable.
  * 
  */
-static void declareVariable() {
+static void declareVariable(bool isConstant) {
 	// Globals are placed into the constant pool, so we don't need to do anything special here
 	if (current->scopeDepth == 0) {
 		return;
@@ -565,7 +569,7 @@ static void declareVariable() {
 			error("Already a variable with this name in scope.");
 		}
 	}
-	addLocal(*name);
+	addLocal(*name, isConstant);
 }
 
 //~ Grammar Evaluation
@@ -573,15 +577,16 @@ static void declareVariable() {
 // For example, unary will parse `-a.b + c` like `-(a.b + c)` when it should be `-(a.b) + c` because of the call to expression().
 // Other structures are required to ensure each function only consumes what it should.
 
-/** Parses a variable and returns the index of the variable in the constant pool.
+/** Parses a variable, creates a local or global and then and returns the index of the variable in the constant pool or stack.
  * 
  * @param[in] errorMessage The message to show if the variable name is missing.
  * @return uint8_t index of the variable in the constant pool
  */
-static uint8_t parseVariable(const char* errorMessage) {
+static uint8_t parseVariable(const char* errorMessage, bool isConstant) {
 	consume(TOKEN_IDENTIFIER, errorMessage);
 
-	declareVariable();
+	// declare the var. If a local, the locals array must be updated. If a global, nothing needs to be done
+	declareVariable(isConstant);
 	// If local, var will be placed on stack, so dont give the global location
 	if (current->scopeDepth > 0)
 		return 0;
@@ -591,6 +596,7 @@ static uint8_t parseVariable(const char* errorMessage) {
 
 /** Emits a constant number value to the current chunk. 
  *  @pre The number token is in the parser.previous position.
+ * @param[in] canAssign unused.
  */
 static void number(bool canAssign) {
 	// Convert the lexeme from the last token to a number.
@@ -604,6 +610,7 @@ static void number(bool canAssign) {
  * @details
  * The allocated Value is stored in the constant pool, but the actual char array behind the string is heap allocated by C. The constant pool value contains a pointer to 
  * the heap allocated char array. The value in the constant pool is indexed in the same way as numerical and boolean constants.
+ * @param[in] canAssign unused.
  */
 static void string(bool canAssign) {
 	emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));
@@ -611,7 +618,7 @@ static void string(bool canAssign) {
 
 /** Emits a constant literal to the current chunk.
  * @pre The literal token is in the parser.previous position.
- *
+ * @param[in] canAssign unused.
  */
 static void literal(bool canAssign) {
 	switch (parser.previous.type) {
@@ -631,6 +638,7 @@ static void literal(bool canAssign) {
 
 /** Parses an expression which culminates in a right parentheses.
  * @pre The left parentheses has already been consumed.
+ * @param[in] canAssign unused.
  */
 static void grouping(bool canAssign) {
 	expression();
@@ -639,6 +647,7 @@ static void grouping(bool canAssign) {
 
 /** Parses and emits a binary expression.
  * @pre The left operand has already been emitted and the operand has just been consumed.
+ * @param[in] canAssign unused.
  */
 static void binary(bool canAssign) {
 	// Save type of operation
@@ -741,7 +750,7 @@ static void unary(bool canAssign) {
 //~ Extra Parsing
 
 /** Parses the rhs of a comma expression. Assumes the comma has already been consumed by parsePrecidence.
- * 
+ * @param[in] canAssign unused.
  */
 static void comma(bool canAssign) {
 	// TokenType operatorType = parser.previous.type; // Always a comma token
@@ -753,7 +762,7 @@ static void comma(bool canAssign) {
 }
 
 /** Parses a conditional expression. Assumes the condition and '?' has already been consumed by parse precidence.
- * 
+ * @param[in] canAssign unused.
  */
 static void conditional(bool canAssign) {
 	TokenType operatorType = parser.previous.type;
@@ -770,7 +779,7 @@ static void conditional(bool canAssign) {
 }
 
 /** Parses an optional statement. Assumes the test value and ':' has already been consumed by parse precidence.
- * 
+ * @param[in] canAssign unused.
  */
 static void optional(bool canAssign) {
 	TokenType operatorType = parser.previous.type;
@@ -782,6 +791,7 @@ static void optional(bool canAssign) {
 /** Parses a variable.
  * @details
  * Assumes the variable has already been consumed and is in `parser.previous`.
+ * @param[in] canAssign unused.
  */
 static void variable(bool canAssign) {
 	namedVariable(parser.previous, canAssign);
@@ -938,7 +948,7 @@ static void expressionStatement() {
 	if (!REPLSemicolon())
 		emitByte(OP_POPREPL);
 	else
-	emitByte(OP_POP);
+		emitByte(OP_POP);
 }
 
 /** Parses an if statement with optional else.
@@ -972,13 +982,36 @@ static void ifStatement() {
  *
  */
 static void varDeclaration() {
-	uint8_t global = parseVariable("Expecteded variable name.");
+	// If local, place on stack and update locals array
+	// If global, put identifier string on stack
+	uint8_t global = parseVariable("Expecteded variable name.", false);
 
 	// Check for initializer expression
 	if (match(TOKEN_EQUAL)) {
 		expression();
 	} else {
 		emitByte(OP_NIL);
+	}
+
+	REPLSemicolon(); // consume(TOKEN_SEMICOLON, "Expected ';' after variable declaration.");
+	// If local, do nothing
+	// If global, emit bytecode to store the value in the global table
+	defineVariable(global);
+}
+
+/** Parses a new variable declaration.
+ * @details
+ * Assumes that the 'var' keyword has already been consumed.
+ *
+ */
+static void letDeclaration() {
+	uint8_t global = parseVariable("Expecteded constant name.", true);
+
+	// Check for initializer expression
+	if (match(TOKEN_EQUAL)) {
+		expression();
+	} else {
+		error("Expected constant initializer.");
 	}
 
 	REPLSemicolon(); // consume(TOKEN_SEMICOLON, "Expected ';' after variable declaration.");
@@ -1085,6 +1118,8 @@ static void statement() {
 static void declaration() {
 	if (match(TOKEN_VAR)) {
 		varDeclaration();
+	} else if (match(TOKEN_LET)) {
+		letDeclaration();
 	} else {
 		statement();
 	}
