@@ -8,12 +8,14 @@
 typedef enum {
 	OP_CONSTANT_LONG,				//* OPCODE INDEX INDEX INDEX : (SE+1) Places a constant from the constant pool into the stack using a 24 bit address.
 	OP_DEFINE_GLOBAL_LONG,	//* OPCODE INDEX INDEX INDEX : (SE-1) Defines a global variable using 24 bit index and assigns the top element to it.
-	OP_GET_GLOBAL_LONG,			//* OPCODE INDEX INDEX INDEX : (SE0) Retrieves a global variable by 24 bit index and pushes its current value to the stack.
+	OP_GET_GLOBAL_LONG,			//* OPCODE INDEX INDEX INDEX : (SE+1) Retrieves a global variable by 24 bit index and pushes its current value to the stack.
 	OP_SET_GLOBAL_LONG,			//* OPCODE INDEX INDEX INDEX : (SE0) Retrieves a global variable by 24 bit index and places the top of the stack at the indexed variable.
 	OP_CONDITIONAL,        	//* OPCODE : (SE-1) Pops 2 elements from the stack. If the 2nd element is truthy, the 1st element is pushed on the stack. Otherwise 'nil' is pushed.
 	OP_OPTIONAL,						//* OPCODE : (SE-1) Pops 2 elements from the stack. If the 2nd element is 'nil', the 1st element is pushed. Otherwise the 2nd element is pushed.
 	OP_POPN,								//* OPCODE NUMBER : (SE0) Pops n elements from the stack.
 	OP_POPREPL,							//* OPCODE : (SE-1) Pops 1 element from the stack and if in REPL mode, it is printed.
+	OP_DEFINE_CONST,				//* OPCODE INDEX : (SE-1) Defines a global constant and assigns the top element to it.
+	OP_DEFINE_CONST_LONG,		//* OPCODE INDEX INDEX INDEX : (SE-1) Defines a global constant using 24 bit index and assigns the top element to it.
 	OP_CONSTANT,				//* OPCODE INDEX : (SE+1) Introduces a constant into the constant pool.
 	OP_ADD,							//* OPCODE : (SE-1) Performs addition on the top 2 stack elements and pushes the result.
 	OP_SUBTRACT,				//* OPCODE : (SE-1) Performs subtraction on the top 2 stack elements and pushes the result.

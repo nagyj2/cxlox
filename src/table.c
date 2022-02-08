@@ -123,7 +123,7 @@ bool tableGet(Table* table, Value key, Value* value) {
 	// Find where the key is in the table (either present with some value, or empty; awaiting insertion)
 	Entry* entry = findEntry(table->entries, table->capacity, key);
 	// If the found slot is empty, return false
-	if (IS_NIL(entry->key)) // ! Why NIL and not EMPTY?
+	if (IS_EMPTY(entry->key)) // ! Why NIL and not EMPTY?
 		return false;
 
 	// Set output pointer to the found entry

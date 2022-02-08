@@ -388,18 +388,27 @@ static void markInitialized() {
  * 
  * @param[in] global The index to the constant pool location of the global variable's name.
  */
-static void defineVariable(uint8_t global) {
+static void defineVariable(uint8_t global, bool isConstant) {
 	// If a local, don't put into constant pool
 	if (current->scopeDepth > 0) {
 		markInitialized();
 		return; // locals dont need any new bytes b/c their value is already on top of the stack
 	}
-	
-	if (global > CONST_TO_LONG_CONST) {
-		emitBytes(OP_DEFINE_GLOBAL_LONG, (uint8_t) (global & 0xff));
-		emitBytes((uint8_t) ((global >> 8) & 0xff), (uint8_t) ((global >> 16) & 0xff));
+
+	if (isConstant) {
+		if (global > CONST_TO_LONG_CONST) {
+			emitBytes(OP_DEFINE_CONST_LONG, (uint8_t) (global & 0xff));
+			emitBytes((uint8_t) ((global >> 8) & 0xff), (uint8_t) ((global >> 16) & 0xff));
+		} else {
+			emitBytes(OP_DEFINE_CONST, global);
+		}
 	} else {
-		emitBytes(OP_DEFINE_GLOBAL, global);
+		if (global > CONST_TO_LONG_CONST) {
+			emitBytes(OP_DEFINE_GLOBAL_LONG, (uint8_t) (global & 0xff));
+			emitBytes((uint8_t) ((global >> 8) & 0xff), (uint8_t) ((global >> 16) & 0xff));
+		} else {
+			emitBytes(OP_DEFINE_GLOBAL, global);
+		}
 	}
 }
 
@@ -996,7 +1005,7 @@ static void varDeclaration() {
 	REPLSemicolon(); // consume(TOKEN_SEMICOLON, "Expected ';' after variable declaration.");
 	// If local, do nothing
 	// If global, emit bytecode to store the value in the global table
-	defineVariable(global);
+	defineVariable(global, false);
 }
 
 /** Parses a new variable declaration.
@@ -1015,7 +1024,7 @@ static void letDeclaration() {
 	}
 
 	REPLSemicolon(); // consume(TOKEN_SEMICOLON, "Expected ';' after variable declaration.");
-	defineVariable(global);
+	defineVariable(global, true);
 }
 
 /** Parses an while statement.
