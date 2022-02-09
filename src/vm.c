@@ -351,6 +351,10 @@ static InterpretResult run() {
 				}
 				break;
 			}
+			case OP_DUP: {
+				push(peek(0));
+				break;
+			}
 			case OP_GET_LOCAL: {
 				uint8_t slot = READ_BYTE();
 				push(vm.stack[slot]);

@@ -18,6 +18,8 @@
 #define MAX_CONSTANTS_PER_CHUNK ((2 << 24) - 1)
 // Max number of breaks available in a chunk at any one time.
 #define MAX_BREAKS UINT8_MAX
+// Max number of cases available in a case statement
+#define MAX_CASES UINT8_MAX
 
 /* Singleton representing the currently parsing and previously parsed tokens. */
 typedef struct {
@@ -863,6 +865,9 @@ ParseRule rules[] = {  // PREFIX     INFIX    		PRECIDENCE (INFIX) */
   [TOKEN_TRUE]          = {literal,  NULL,    		PREC_NONE},
   [TOKEN_VAR]           = {NULL,     NULL,    		PREC_NONE},
   [TOKEN_WHILE]         = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_SWITCH]        = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_CASE]         	= {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_DEFAULT]       = {NULL,     NULL,    		PREC_NONE},
   [TOKEN_ERROR]         = {NULL,     NULL,    		PREC_NONE},
   [TOKEN_EOF]           = {NULL,     NULL,    		PREC_NONE},
 };
@@ -968,8 +973,7 @@ static void expressionStatement() {
 }
 
 /** Parses an if statement with optional else.
- * @details
- * Assumes the 'if' keyword has already been consumed.
+ * @pre Assumes the 'if' keyword has already been consumed.
  */
 static void ifStatement() {
 	consume(TOKEN_LEFT_PAREN, "Expected '(' after 'if'.");
@@ -993,9 +997,7 @@ static void ifStatement() {
 }
 
 /** Parses a new variable declaration.
- * @details
- * Assumes that the 'var' keyword has already been consumed.
- *
+ * @pre Assumes that the 'var' keyword has already been consumed.
  */
 static void varDeclaration() {
 	// If local, place on stack and update locals array
@@ -1016,9 +1018,7 @@ static void varDeclaration() {
 }
 
 /** Parses a new variable declaration.
- * @details
- * Assumes that the 'var' keyword has already been consumed.
- *
+ * @pre Assumes that the 'var' keyword has already been consumed.
  */
 static void letDeclaration() {
 	uint8_t global = parseVariable("Expecteded constant name.", true);
@@ -1035,8 +1035,7 @@ static void letDeclaration() {
 }
 
 /** Parses an while statement.
- * @details
- * Assumes the 'while' keyword has already been consumed.
+ * @pre Assumes the 'while' keyword has already been consumed.
  */
 static void whileStatement() {
 	int loopStart = currentChunk()->count; // Save the current byte offset for the loop start.
@@ -1064,9 +1063,8 @@ static void whileStatement() {
 	current->recentLoop = oldLoop; // Restore the previous 'loop scope'
 }
 
-/** Parsesd a for loop.
- * @details
- * Assumes the 'for' keyword has already been consumed.
+/** Parses a for loop.
+ * @pre Assumes the 'for' keyword has already been consumed.
  */
 static void forStatement() {
 	beginScope(); // Begin a new scope for the loop
@@ -1131,7 +1129,7 @@ static void forStatement() {
 }
 
 /** Parses a continue statement
- * 
+ * @pre The 'continue' keyword has already been consumed.
  */
 static void continueStatement() {
 	if (current->recentLoop == -1) {
@@ -1144,7 +1142,7 @@ static void continueStatement() {
 }
 
 /** Parses a continue statement
- * 
+ * @pre The 'break' keyword has already been consumed.
  */
 static void breakStatement() {
 	if (current->recentLoop == -1) {
@@ -1157,6 +1155,170 @@ static void breakStatement() {
 	}
 	current->recentBreak[current->numBreak++] = bodyJump;
 	REPLSemicolon();
+}
+
+/** Parses a switch case.
+ * @pre The 'case' keyword has already been consumed.
+ */
+static void switchCase() {
+	expression();
+}
+
+// /** Parses a switch statement
+//  * @pre The 'switch' keyword has already been consumed.
+//  */
+// static void switchStatement() {
+// 	consume(TOKEN_LEFT_PAREN, "Expected '(' after 'switch'.");
+// 	expression(); // Put condition on the stack. Note, this original stays until the end
+// 	consume(TOKEN_RIGHT_PAREN, "Expected ')' after expression.");
+// 	consume(TOKEN_LEFT_CURLY, "Expected '{'.");
+
+// #define BEFORE_CASE 0
+// #define BEFORE_DEFAULT 1
+// #define AFTER_DEFAULT 2
+
+// 	int state = 0; // 0 = before cases, 1 = before default, 2 = after default
+// 	// int caseStarts[MAX_CASES]; // positions for the start of each case
+// 	int caseEnds[MAX_CASES]; // positions for the ends of each case
+// 	int numCases = 0;
+// 	int previousCaseSkipTo = -1; // Where the previous case should skip to if there is no match
+
+// 	while (!match(TOKEN_RIGHT_CURLY) && !match(TOKEN_EOF)) {
+// 		if (match(TOKEN_CASE) || match(TOKEN_DEFAULT)) {
+// 			TokenType caseType = parser.previous.type;
+
+// 			if (state == AFTER_DEFAULT) {
+// 				error("Cannot have a case after a default case.");
+// 			}
+
+// 			if (state == BEFORE_DEFAULT) {
+// 				caseEnds[numCases++] = emitJump(OP_JUMP);
+
+// 				patchJump(previousCaseSkipTo);
+// 				emitByte(OP_POP); // Pop the previous case's result
+// 			}
+
+// 			if (caseType == TOKEN_CASE) {
+// 				state = BEFORE_DEFAULT;
+// 				emitByte(OP_DUP); // clone the condition
+// 				expression();
+
+// 				consume(TOKEN_COLON, "Expected ':' after case expression.");
+// 				emitByte(OP_EQUAL);
+
+// 				previousCaseSkipTo = emitJump(OP_JUMP_IF_FALSE);
+// 				emitByte(OP_POP); // Pop condition
+
+// 			} else {
+// 				state = AFTER_DEFAULT;
+// 				consume(TOKEN_COLON, "Expected ':' after default.");
+// 				previousCaseSkipTo = -1;
+// 			}
+// 		} else {
+// 			// If no match, its a statement inside a case
+// 			if (state == BEFORE_CASE) {
+// 				error("Expected 'case' or 'default'.");
+// 			}
+// 			statement();
+// 		}
+// 	}
+
+// 	// If we ended without a default, patch
+// 	if (state == BEFORE_DEFAULT) {
+// 		patchJump(previousCaseSkipTo);
+// 		emitByte(OP_POP);
+// 	}
+
+// 	// Patch all the case jumps
+// 	for (int i = 0; i < numCases; i++) {
+// 		patchJump(caseEnds[i]);
+// 	}
+
+// 	// Pop the original condition
+// 	emitByte(OP_POP);
+
+// #undef BEFORE_CASE
+// #undef BEFORE_DEFAULT
+// #undef AFTER_DEFAULT
+// }
+
+static void switchStatement() {
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'switch'.");
+  expression();
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after value.");
+	
+	consume(TOKEN_LEFT_CURLY, "Expect '{' before switch cases.");
+
+#define BEFORE_CASE 0
+#define BEFORE_DEFAULT 1
+#define AFTER_DEFAULT 2
+	
+	int state = 0; // 0: before all cases, 1: before default, 2: after default.
+  int caseEnds[MAX_CASES];
+  int caseCount = 0;
+  int previousCaseSkip = -1;
+
+  while (!match(TOKEN_RIGHT_CURLY) && !check(TOKEN_EOF)) {
+    if (match(TOKEN_CASE) || match(TOKEN_DEFAULT)) {
+      TokenType caseType = parser.previous.type;
+
+      if (state == AFTER_DEFAULT) {
+        error("Can't have another case or default after the default case.");
+      }
+
+      if (state == BEFORE_DEFAULT) {
+        // At the end of the previous case, jump over the others.
+        caseEnds[caseCount++] = emitJump(OP_JUMP);
+
+        // Patch its condition to jump to the next case (this one).
+        patchJump(previousCaseSkip);
+        emitByte(OP_POP);
+      }
+
+      if (caseType == TOKEN_CASE) {
+        state = BEFORE_DEFAULT;
+
+        // See if the case is equal to the value.
+        emitByte(OP_DUP);
+        parsePrecidence(PREC_OPTIONAL+1);
+
+        consume(TOKEN_COLON, "Expect ':' after case value.");
+
+        emitByte(OP_EQUAL);
+        previousCaseSkip = emitJump(OP_JUMP_IF_FALSE);
+
+        // Pop the comparison result.
+        emitByte(OP_POP);
+      } else {
+        state = AFTER_DEFAULT;
+        consume(TOKEN_COLON, "Expect ':' after default.");
+        previousCaseSkip = -1;
+      }
+    } else {
+      // Otherwise, it's a statement inside the current case.
+      if (state == BEFORE_CASE) {
+        error("Can't have statements before any case.");
+      }
+      statement();
+    }
+  }
+
+  // If we ended without a default case, patch its condition jump.
+  if (state == BEFORE_DEFAULT) {
+    patchJump(previousCaseSkip);
+    emitByte(OP_POP);
+  }
+
+  // Patch all the case jumps to the end.
+  for (int i = 0; i < caseCount; i++) {
+    patchJump(caseEnds[i]);
+  }
+
+	emitByte(OP_POP); // The switch value.
+
+#undef BEFORE_CASE 
+#undef BEFORE_DEFAULT 
+#undef AFTER_DEFAULT 
 }
 
 /** Parses a statement.
@@ -1179,6 +1341,8 @@ static void statement() {
 		continueStatement();
 	} else if (match(TOKEN_BREAK)) {
 		breakStatement();
+	} else if (match(TOKEN_SWITCH)) {
+		switchStatement();
 	} else {
 		expressionStatement();
 	}

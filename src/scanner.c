@@ -205,12 +205,14 @@ static TokenType identifierType() {
 		case 'c': {
 			if (scanner.current - scanner.start > 1) {
 				switch (scanner.start[1]) {
+					case 'a': return checkKeyword(2, 2, "se", TOKEN_CASE);
 					case 'l': return checkKeyword(2, 3, "ass", TOKEN_CLASS);
 					case 'o': return checkKeyword(2, 6, "ntinue", TOKEN_CONTINUE);
 				}
 			}
 			break;
 		}
+		case 'd': return checkKeyword(1, 6, "efault", TOKEN_DEFAULT);
 		case 'e': return checkKeyword(1, 3, "lse", TOKEN_ELSE);
 		case 'f': {
 			// Examine next char (if present) to know which words to search for.
@@ -229,7 +231,15 @@ static TokenType identifierType() {
 		case 'o': return checkKeyword(1, 1, "r", TOKEN_OR);
 		case 'p': return checkKeyword(1, 4, "rint", TOKEN_PRINT);
 		case 'r': return checkKeyword(1, 5, "eturn", TOKEN_RETURN);
-		case 's': return checkKeyword(1, 4, "uper", TOKEN_SUPER);
+		case 's': {
+			if (scanner.current - scanner.start > 1) {
+				switch (scanner.start[1]) {
+					case 'u': return checkKeyword(2, 3, "per", TOKEN_SUPER);
+					case 'w': return checkKeyword(2, 4, "itch", TOKEN_SWITCH);
+				}
+			}
+			break;
+		}
 		case 't': {
 			if (scanner.current - scanner.start > 1) {
 				switch (scanner.start[1]) {
@@ -255,6 +265,7 @@ static TokenType identifierType() {
  */
 static Token string() {
 	// This loop will put the entire string into the buffer between scanner start and current.
+	char escaped[] = "\\ntr\"";
 	while (peek() != '"' && !isAtEnd()) {
 		if (peek() == '\n')
 			scanner.line++;
