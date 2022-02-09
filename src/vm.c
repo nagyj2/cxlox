@@ -138,6 +138,14 @@ static InterpretResult run() {
 		double a = AS_NUMBER(pop()); \
 		push(valueType(a op b)); \
 	} while (false)
+	// Raise a runtime error if the seeked variable is a constant
+#define ERROR_IF_CONST(name) \
+	do { \
+		if (tableGet(&vm.constants, name, &name)) { \
+			runtimeError("Cannot redefine constant"); \
+			return INTERPRET_RUNTIME_ERROR; \
+		} \
+	} while (false)
 
 	for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
@@ -248,48 +256,36 @@ static InterpretResult run() {
 			}
 			case OP_DEFINE_GLOBAL: {
 				Value name = READ_CONSTANT();
-				if (tableGet(&vm.constants, name, &name)) {
-					runtimeError("Can't re-define a constant.");
-					return INTERPRET_RUNTIME_ERROR;
-				}
+				ERROR_IF_CONST(name);
 				tableSet(&vm.globals, name, peek(0)); // Place the value into the hash table BEFORE popping it so it doesnt get picked up by garbage collection
 				pop();
 				break;
 			}
 			case OP_DEFINE_GLOBAL_LONG: {
 				Value name = READ_CONSTANT_LONG();
-				if (tableGet(&vm.constants, name, &name)) {
-					runtimeError("Can't re-define a constant.");
-					return INTERPRET_RUNTIME_ERROR;
-				}
+				ERROR_IF_CONST(name);
 				tableSet(&vm.globals, name, peek(0)); // Place the value into the hash table BEFORE popping it so it doesnt get picked up by garbage collection
 				pop();
 				break;
 			}
 			case OP_DEFINE_CONST: {
 				Value name = READ_CONSTANT();
-				if (tableGet(&vm.constants, name, &name)) {
-					runtimeError("Can't re-define a constant.");
-					return INTERPRET_RUNTIME_ERROR;
-				}
+				ERROR_IF_CONST(name);
 				tableSet(&vm.constants, name, peek(0)); // Place the value into the hash table BEFORE popping it so it doesnt get picked up by garbage collection
 				pop();
 				break;
 			}
 			case OP_DEFINE_CONST_LONG: {
 				Value name = READ_CONSTANT_LONG();
-				if (tableGet(&vm.constants, name, &name)) {
-					runtimeError("Can't re-define a constant.");
-					return INTERPRET_RUNTIME_ERROR;
-				}
+				ERROR_IF_CONST(name);
 				tableSet(&vm.constants, name, peek(0)); // Place the value into the hash table BEFORE popping it so it doesnt get picked up by garbage collection
 				pop();
 				break;
 			}
 			case OP_GET_GLOBAL: {
 				Value name = READ_CONSTANT(); // Will always be a string
-				Value value;
-				if (!tableGet(&vm.globals, name, &value) && !tableGet(&vm.constants, name, &value)) { // Unlike string internment, globals is simply indexed by strings.
+				Value value; // Output value
+				if (!(tableGet(&vm.globals, name, &value) || tableGet(&vm.constants, name, &value))) { // Unlike string internment, globals is simply indexed by strings.
 					runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
 					return INTERPRET_RUNTIME_ERROR;
 				}
@@ -299,7 +295,7 @@ static InterpretResult run() {
 			case OP_GET_GLOBAL_LONG: {
 				Value name = READ_CONSTANT_LONG(); // Will always be a string
 				Value value;
-				if (!tableGet(&vm.globals, name, &value) && !tableGet(&vm.constants, name, &value)) { // Unlike string internment, globals is simply indexed by strings.
+				if (!(tableGet(&vm.globals, name, &value) || tableGet(&vm.constants, name, &value))) { // If neither return a value, error
 					runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
 					return INTERPRET_RUNTIME_ERROR;
 				}
@@ -307,12 +303,8 @@ static InterpretResult run() {
 				break;
 			}
 			case OP_SET_GLOBAL: {
-				Value name = READ_CONSTANT(); // Tables use values, so just take the byte
-				Value dummy;
-				if (tableGet(&vm.constants, name, &dummy)) {
-					runtimeError("Can't re-define a constant.");
-					return INTERPRET_RUNTIME_ERROR;
-				}
+				Value name = READ_CONSTANT();
+				ERROR_IF_CONST(name);
 				if (tableSet(&vm.globals, name, peek(0))) { // If this was a new entry, the variable didnt exist
 					tableDelete(&vm.globals, name); // Roll back change (important for REPL)
 					runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
@@ -321,12 +313,8 @@ static InterpretResult run() {
 				break;
 			}								
 			case OP_SET_GLOBAL_LONG: {
-				Value name = READ_CONSTANT_LONG(); // Tables use values, so just take the byte
-				Value dummy;
-				if (tableGet(&vm.constants, name, &dummy)) {
-					runtimeError("Can't re-define a constant.");
-					return INTERPRET_RUNTIME_ERROR;
-				}
+				Value name = READ_CONSTANT_LONG();
+				ERROR_IF_CONST(name);
 				if (tableSet(&vm.globals, name, peek(0))) { // If this was a new entry, the variable didnt exist
 					tableDelete(&vm.globals, name); // Roll back change (important for REPL)
 					runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
@@ -399,6 +387,7 @@ static InterpretResult run() {
 #undef READ_STRING_LONG
 #undef READ_SHORT
 #undef BINARY_OP
+#undef ERROR_IF_CONST
 }
 
 InterpretResult interpret(const char* source) {
