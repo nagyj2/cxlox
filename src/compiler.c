@@ -78,6 +78,7 @@ typedef struct {
 	Local locals[UINT8_COUNT]; 	//* Array of local variables. Length is fixed at 256 due to 8 bit indexes.
 	int localCount; 						//* Number of local variables currently in scope.
 	int scopeDepth; 						//* Depth of of the scope where the compiler currently is. How 'far' the scope is from the global scope.
+	int recentLoop;
 } Compiler;
 
 // Parser singleton.
@@ -346,6 +347,7 @@ static void emitConstant(Value value) {
 static void initCompiler(Compiler* compiler) {
 	compiler->localCount = 0;
 	compiler->scopeDepth = 0;
+	compiler->recentLoop = -1;
 	current = compiler;
 }
 
@@ -842,6 +844,7 @@ ParseRule rules[] = {  // PREFIX     INFIX    		PRECIDENCE (INFIX) */
   [TOKEN_NUMBER]        = {number,   NULL,    		PREC_NONE}, // Literals also appear as an 'operator
   [TOKEN_AND]           = {NULL,     and_,    		PREC_NONE},
   [TOKEN_CLASS]         = {NULL,     NULL,    		PREC_NONE},
+  [TOKEN_CONTINUE]      = {NULL,     NULL,    		PREC_NONE},
   [TOKEN_ELSE]          = {NULL,     NULL,    		PREC_NONE},
   [TOKEN_FALSE]         = {literal,  NULL,    		PREC_NONE},
   [TOKEN_FOR]           = {NULL,     NULL,    		PREC_NONE},
@@ -1033,6 +1036,8 @@ static void letDeclaration() {
  */
 static void whileStatement() {
 	int loopStart = currentChunk()->count; // Save the current byte offset for the loop start.
+	int oldLoop = current->recentLoop; // Save the position of the previous loop
+	current->recentLoop = loopStart; // Set the destination for any 'continue' statements.
 	consume(TOKEN_LEFT_PAREN, "Expected '(' after 'while'.");
 	expression();
 	consume(TOKEN_RIGHT_PAREN, "Expected ')' after condition.");
@@ -1044,6 +1049,7 @@ static void whileStatement() {
 
 	patchJump(exitJump);
 	emitByte(OP_POP); // Pop condition
+	current->recentLoop = oldLoop; // Restore the previous 'loop scope'
 }
 
 /** Parsesd a for loop.
@@ -1087,6 +1093,9 @@ static void forStatement() {
 		loopStart = incrementStart; // Body will now jump to the increment start
 		patchJump(bodyJump); // Jump here to execute the body
 	}
+	
+	int oldLoop = current->recentLoop; // Save the old loop position in case it is needed
+	current->recentLoop = loopStart; // loop set will be the condition or the increment if it exists
 
 	// Body and jump back to condition
 	statement();
@@ -1097,7 +1106,21 @@ static void forStatement() {
 		emitByte(OP_POP); // Pop condition
 	}
 
+	current->recentLoop = oldLoop;
 	endScope();
+}
+
+/** Parses a continue statement
+ * 
+ */
+static void continueStatement() {
+	if (current->recentLoop == -1) {
+		error("Cannot continue outside of a loop.");
+	}
+
+	// Unconditional jump back to top of the loop
+	emitLoop(current->recentLoop);
+	REPLSemicolon();
 }
 
 /** Parses a statement.
@@ -1116,6 +1139,8 @@ static void statement() {
 		whileStatement();
 	} else if (match(TOKEN_FOR)) {
 		forStatement();
+	} else if (match(TOKEN_CONTINUE)) {
+		continueStatement();
 	} else {
 		expressionStatement();
 	}
