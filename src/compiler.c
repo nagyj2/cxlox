@@ -16,6 +16,8 @@
 #define CONST_TO_LONG_CONST UINT8_MAX
 // Maximum number of constants in a chunk.
 #define MAX_CONSTANTS_PER_CHUNK ((2 << 24) - 1)
+// Max number of breaks available in a chunk at any one time.
+#define MAX_BREAKS UINT8_MAX
 
 /* Singleton representing the currently parsing and previously parsed tokens. */
 typedef struct {
@@ -75,12 +77,12 @@ typedef struct {
  * @note The size of locals should be the exact same size as the stack. If one changes, the other must as well.
  */
 typedef struct {
-	Local locals[UINT8_COUNT]; 	//* Array of local variables. Length is fixed at 256 due to 8 bit indexes.
-	int localCount; 						//* Number of local variables currently in scope.
-	int scopeDepth; 						//* Depth of of the scope where the compiler currently is. How 'far' the scope is from the global scope.
-	int recentLoop;							//* The most recent loop position
-	int recentBreak[10];				//* The most recent break position
-	int numBreak;								//* The number of break positions
+	Local locals[UINT8_COUNT]; 		//* Array of local variables. Length is fixed at 256 due to 8 bit indexes.
+	int localCount; 							//* Number of local variables currently in scope.
+	int scopeDepth; 							//* Depth of of the scope where the compiler currently is. How 'far' the scope is from the global scope.
+	int recentLoop;								//* The most recent loop position
+	int numBreak;									//* The number of break positions
+	int recentBreak[MAX_BREAKS];	//* The most recent break position
 } Compiler;
 
 // Parser singleton.
@@ -235,7 +237,6 @@ static bool match(TokenType type) {
 	advance();
 	return true;
 }
-
 
 
 //~ Bytecode Emission
@@ -1052,13 +1053,15 @@ static void whileStatement() {
 	emitLoop(loopStart); // Jump back to the start of the loop
 
 	patchJump(exitJump);
-	for (int i = 0; i < current->numBreak; i++) {
-		patchJump(current->recentBreak[i]);
+	emitByte(OP_POP); // Pop condition
+	
+	// Go for the different of the current number of breaks minus the number of old breaks (gives number of new ones)
+	// Patch here b/c nothing should be on the stack and want to avoid the OP_POP produced by the end of the loop
+	while (current->numBreak > oldBreak) {
+		// Index jumps from the back of the list
+		patchJump(current->recentBreak[--current->numBreak]);
 	}
 	current->recentLoop = oldLoop; // Restore the previous 'loop scope'
-	current->numBreak = oldBreak; // Restore the previous break count
-
-	emitByte(OP_POP); // Pop condition
 }
 
 /** Parsesd a for loop.
@@ -1116,12 +1119,14 @@ static void forStatement() {
 		emitByte(OP_POP); // Pop condition
 	}
 
-	for (int i = 0; i < current->numBreak; i++) {
-		patchJump(current->recentBreak[i]);
+	// Go for the different of the current number of breaks minus the number of old breaks (gives number of new ones)
+	// Patch here b/c nothing should be on the stack and want to avoid the OP_POP produced by the end of the loop
+	while (current->numBreak > oldBreak) {
+		// Index jumps from the back of the list
+		patchJump(current->recentBreak[--current->numBreak]);
 	}
-
-	current->recentLoop = oldLoop;
-	current->numBreak = oldBreak;
+	current->recentLoop = oldLoop; // Restore the previous 'loop scope'
+	
 	endScope();
 }
 
@@ -1147,8 +1152,8 @@ static void breakStatement() {
 	}
 
 	int bodyJump = emitJump(OP_JUMP);
-	if (current->numBreak >= 10) {
-		error("Cannot have more than 10 breaks in a loop.");
+	if (current->numBreak >= MAX_BREAKS) {
+		error("Cannot have more than 255 breaks in a loop.");
 	}
 	current->recentBreak[current->numBreak++] = bodyJump;
 	REPLSemicolon();
