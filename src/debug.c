@@ -95,7 +95,7 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 		case OP_POPREPL:
 			return simpleInstruction("OP_POPREPL", offset);
 		case OP_DUP:
-			return byteInstruction("OP_DUP", chunk, offset);
+			return simpleInstruction("OP_DUP", offset);
 		case OP_DEFINE_CONST:
 			return constantInstruction("OP_DEFINE_CONST", chunk, offset);
 		case OP_DEFINE_CONST_LONG:
