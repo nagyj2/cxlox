@@ -93,6 +93,8 @@ Parser parser;
 Compiler* current = NULL;
 // The chunk which is currently getting bytecode emitted to it.
 Chunk* compilingChunk;
+// Unamed var counter
+char unamedVarCounter = '0';
 
 // Forward declares to allow references.
 static void expression();
@@ -385,6 +387,11 @@ static void endScope() {
 		emitBytes(OP_POPN, (uint8_t) oldLocals);
 }
 
+static void prematureEndScope() {
+	endScope();
+	current->scopeDepth++;
+}
+
 /** Declare the top most local variable available for use by removing the sentinel -1 depth.
  * 
  */
@@ -453,7 +460,7 @@ static bool identifiersEqual(Token* a, Token* b) {
  * @return int representing the index of the variable in the locals array or a sentinel value of -1.
  */
 static int resolveLocal(Compiler* compiler, Token* name) {
-	for (int i=compiler->localCount - 1; i >= 0; i--) {
+	for (int i = compiler->localCount - 1; i >= 0; i--) {
 		Local* local = &compiler->locals[i];
 		if (identifiersEqual(name, &local->name)) {
 			if (local->depth == -1) {
@@ -547,6 +554,15 @@ static void namedVariable(Token name, bool canAssign) {
 	}
 }
 
+/** Patch all going-out-of-scope break statements
+ * @param[in] oldBreak The old number of break statements.
+ */
+static void patchBreaks(int oldBreak) {
+	while (current->numBreak > oldBreak) {
+		// Index jumps from the back of the list
+		patchJump(current->recentBreak[--current->numBreak]);
+	}
+}
 
 /** Retrieves the next available local variable slot and assigns a name and depth.
  * 
@@ -560,6 +576,29 @@ static void addLocal(Token name, bool isConstant) {
 	
 	Local* local = &current->locals[current->localCount++];
 	local->name = name;
+	local->constant = isConstant;
+	local->depth = -1;
+}
+
+/** Creates an unamed placeholder local variable. Used for when a stack element is created and must be maintained 
+ * without bothering other local calls.
+ * @details
+ * Uses a name which cannot be created by the user so the user cannot access it.
+ * @param[in] isConstant Whether the variable is constant or not. Has no effect because these constants cannot be named.
+ */
+static void addUnnamedLocal(bool isConstant) {
+	if (current->localCount == UINT8_COUNT) {
+		error("Too many local variables in function.");
+		return;
+	}
+	Token token;
+	token.type = TOKEN_IDENTIFIER;
+	token.start = "?" + unamedVarCounter; // todo: check if greater than 255
+	token.length = 2;
+	token.line = -1;
+	
+	Local* local = &current->locals[current->localCount++];
+	local->name = token;
 	local->constant = isConstant;
 	local->depth = -1;
 }
@@ -587,6 +626,14 @@ static void declareVariable(bool isConstant) {
 		}
 	}
 	addLocal(*name, isConstant);
+}
+
+static void declareUnnamedVariable(bool isConstant) {
+	// Globals are placed into the constant pool, so we don't need to do anything special here
+	if (current->scopeDepth == 0) {
+		return;
+	}
+	addUnnamedLocal(isConstant);
 }
 
 //~ Grammar Evaluation
@@ -1056,10 +1103,7 @@ static void whileStatement() {
 	
 	// Go for the different of the current number of breaks minus the number of old breaks (gives number of new ones)
 	// Patch here b/c nothing should be on the stack and want to avoid the OP_POP produced by the end of the loop
-	while (current->numBreak > oldBreak) {
-		// Index jumps from the back of the list
-		patchJump(current->recentBreak[--current->numBreak]);
-	}
+	patchBreaks(oldBreak);
 	current->recentLoop = oldLoop; // Restore the previous 'loop scope'
 }
 
@@ -1119,10 +1163,7 @@ static void forStatement() {
 
 	// Go for the different of the current number of breaks minus the number of old breaks (gives number of new ones)
 	// Patch here b/c nothing should be on the stack and want to avoid the OP_POP produced by the end of the loop
-	while (current->numBreak > oldBreak) {
-		// Index jumps from the back of the list
-		patchJump(current->recentBreak[--current->numBreak]);
-	}
+	patchBreaks(oldBreak);
 	current->recentLoop = oldLoop; // Restore the previous 'loop scope'
 	
 	endScope();
@@ -1149,6 +1190,7 @@ static void breakStatement() {
 		error("Cannot break outside of a loop.");
 	}
 
+	prematureEndScope();
 	int bodyJump = emitJump(OP_JUMP);
 	if (current->numBreak >= MAX_BREAKS) {
 		error("Cannot have more than 255 breaks in a loop.");
@@ -1157,96 +1199,15 @@ static void breakStatement() {
 	REPLSemicolon();
 }
 
-/** Parses a switch case.
- * @pre The 'case' keyword has already been consumed.
+/** Parses a switch statement and corresponding cases.
+ * @details
+ * Switch statements allow for fall through and break's.
  */
-static void switchCase() {
-	expression();
-}
-
-// /** Parses a switch statement
-//  * @pre The 'switch' keyword has already been consumed.
-//  */
-// static void switchStatement() {
-// 	consume(TOKEN_LEFT_PAREN, "Expected '(' after 'switch'.");
-// 	expression(); // Put condition on the stack. Note, this original stays until the end
-// 	consume(TOKEN_RIGHT_PAREN, "Expected ')' after expression.");
-// 	consume(TOKEN_LEFT_CURLY, "Expected '{'.");
-
-// #define BEFORE_CASE 0
-// #define BEFORE_DEFAULT 1
-// #define AFTER_DEFAULT 2
-
-// 	int state = 0; // 0 = before cases, 1 = before default, 2 = after default
-// 	// int caseStarts[MAX_CASES]; // positions for the start of each case
-// 	int caseEnds[MAX_CASES]; // positions for the ends of each case
-// 	int numCases = 0;
-// 	int previousCaseSkipTo = -1; // Where the previous case should skip to if there is no match
-
-// 	while (!match(TOKEN_RIGHT_CURLY) && !match(TOKEN_EOF)) {
-// 		if (match(TOKEN_CASE) || match(TOKEN_DEFAULT)) {
-// 			TokenType caseType = parser.previous.type;
-
-// 			if (state == AFTER_DEFAULT) {
-// 				error("Cannot have a case after a default case.");
-// 			}
-
-// 			if (state == BEFORE_DEFAULT) {
-// 				caseEnds[numCases++] = emitJump(OP_JUMP);
-
-// 				patchJump(previousCaseSkipTo);
-// 				emitByte(OP_POP); // Pop the previous case's result
-// 			}
-
-// 			if (caseType == TOKEN_CASE) {
-// 				state = BEFORE_DEFAULT;
-// 				emitByte(OP_DUP); // clone the condition
-// 				expression();
-
-// 				consume(TOKEN_COLON, "Expected ':' after case expression.");
-// 				emitByte(OP_EQUAL);
-
-// 				previousCaseSkipTo = emitJump(OP_JUMP_IF_FALSE);
-// 				emitByte(OP_POP); // Pop condition
-
-// 			} else {
-// 				state = AFTER_DEFAULT;
-// 				consume(TOKEN_COLON, "Expected ':' after default.");
-// 				previousCaseSkipTo = -1;
-// 			}
-// 		} else {
-// 			// If no match, its a statement inside a case
-// 			if (state == BEFORE_CASE) {
-// 				error("Expected 'case' or 'default'.");
-// 			}
-// 			statement();
-// 		}
-// 	}
-
-// 	// If we ended without a default, patch
-// 	if (state == BEFORE_DEFAULT) {
-// 		patchJump(previousCaseSkipTo);
-// 		emitByte(OP_POP);
-// 	}
-
-// 	// Patch all the case jumps
-// 	for (int i = 0; i < numCases; i++) {
-// 		patchJump(caseEnds[i]);
-// 	}
-
-// 	// Pop the original condition
-// 	emitByte(OP_POP);
-
-// #undef BEFORE_CASE
-// #undef BEFORE_DEFAULT
-// #undef AFTER_DEFAULT
-// }
-
 static void switchStatement() {
-  consume(TOKEN_LEFT_PAREN, "Expect '(' after 'switch'.");
-  expression();
+	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'switch'.");
+	expression();
+	declareUnnamedVariable(true);
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after value.");
-	
 	consume(TOKEN_LEFT_CURLY, "Expect '{' before switch cases.");
 
 #define BEFORE_CASE 0
@@ -1256,7 +1217,11 @@ static void switchStatement() {
 	int state = 0; // 0: before all cases, 1: before default, 2: after default.
   int caseEnds[MAX_CASES];
   int caseCount = 0;
-  int previousCaseSkip = -1;
+	int previousCaseSkip = -1;
+	int previousSkipForward = -1;
+	int oldBreak = current->numBreak;
+	int oldLoop = current->recentLoop;
+	current->recentLoop = currentChunk()->count;
 
   while (!match(TOKEN_RIGHT_CURLY) && !check(TOKEN_EOF)) {
     if (match(TOKEN_CASE) || match(TOKEN_DEFAULT)) {
@@ -1268,31 +1233,42 @@ static void switchStatement() {
 
       if (state == BEFORE_DEFAULT) {
         // At the end of the previous case, jump over the others.
-        caseEnds[caseCount++] = emitJump(OP_JUMP);
+				caseEnds[caseCount++] = emitJump(OP_JUMP);
 
         // Patch its condition to jump to the next case (this one).
         patchJump(previousCaseSkip);
         emitByte(OP_POP);
-      }
+			}
 
       if (caseType == TOKEN_CASE) {
-        state = BEFORE_DEFAULT;
-
         // See if the case is equal to the value.
         emitByte(OP_DUP);
-        parsePrecidence(PREC_OPTIONAL+1);
+        parsePrecidence(PREC_OPTIONAL+1); // Exclude ':' from parsing
+        emitByte(OP_EQUAL);
 
         consume(TOKEN_COLON, "Expect ':' after case value.");
 
-        emitByte(OP_EQUAL);
-        previousCaseSkip = emitJump(OP_JUMP_IF_FALSE);
-
-        // Pop the comparison result.
+				// Jump if the case doesn't match
+				previousCaseSkip = emitJump(OP_JUMP_IF_FALSE);
+				// Pop the comparison result.
         emitByte(OP_POP);
+
+				// Jump here if you came from elsewhere
+				if (state == BEFORE_DEFAULT)
+					patchJump(caseEnds[caseCount-1]);
+
+				// Change state after all checks are done
+				state = BEFORE_DEFAULT;
+
       } else {
-        state = AFTER_DEFAULT;
-        consume(TOKEN_COLON, "Expect ':' after default.");
-        previousCaseSkip = -1;
+				// If cases exist before, flow here
+				if (state == BEFORE_DEFAULT)
+					patchJump(caseEnds[caseCount-1]);
+				
+				consume(TOKEN_COLON, "Expect ':' after default.");
+				previousCaseSkip = -1;
+				
+				state = AFTER_DEFAULT;
       }
     } else {
       // Otherwise, it's a statement inside the current case.
@@ -1305,15 +1281,12 @@ static void switchStatement() {
 
   // If we ended without a default case, patch its condition jump.
   if (state == BEFORE_DEFAULT) {
+    // emitByte(OP_POP);
     patchJump(previousCaseSkip);
-    emitByte(OP_POP);
   }
 
-  // Patch all the case jumps to the end.
-  for (int i = 0; i < caseCount; i++) {
-    patchJump(caseEnds[i]);
-  }
-
+	patchBreaks(oldBreak);
+	current->recentLoop = oldLoop;
 	emitByte(OP_POP); // The switch value.
 
 #undef BEFORE_CASE 
@@ -1322,7 +1295,6 @@ static void switchStatement() {
 }
 
 /** Parses a statement.
- * 
  */
 static void statement() {
 	if (match(TOKEN_PRINT)) {
@@ -1342,7 +1314,9 @@ static void statement() {
 	} else if (match(TOKEN_BREAK)) {
 		breakStatement();
 	} else if (match(TOKEN_SWITCH)) {
+		beginScope();
 		switchStatement();
+		endScope();
 	} else {
 		expressionStatement();
 	}
