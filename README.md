@@ -7,8 +7,10 @@ This is a C implementation of the xlox language. There are two banches, `main` a
 ```
 program       := declaration*
 declaration   := varDecl
+               | letDecl
                | statement
 varDecl       := "var" IDENTIFIER ["=" expression] ";"
+letecl       := "let" IDENTIFIER "=" expression ";"
 statement     := exprStmt
                | printStmt
 							 | blockStmt
