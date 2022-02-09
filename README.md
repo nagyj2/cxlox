@@ -10,21 +10,25 @@ declaration   := varDecl
                | letDecl
                | statement
 varDecl       := "var" IDENTIFIER ["=" expression] ";"
-letecl       := "let" IDENTIFIER "=" expression ";"
+letDecl       := "let" IDENTIFIER "=" expression ";"
 statement     := exprStmt
                | printStmt
-							 | blockStmt
-							 | ifStmt
-							 | whileStmt
-							 | forStmt
+               | blockStmt
+               | ifStmt
+               | whileStmt
+               | forStmt
+               | breakStmt
+               | continueStmt
 exprStmt      := expr ";"
 printStmt     := "print" expr ";"
 blockStmt     := "{" declaration* "}"
 ifStmt        := "if" "(" expr ")" statement ["else" statement]
 whileStmt     := "while" "(" expr ")" statement
 forStmt       := "for" "(" (expr | varDecl)? ";" expr? ";" expr? ")" statement
+breakStmt     := "break" ";"
+continueStmt  := "continue" ";"
 expr          := comma
-comma				  := optional ("," optional)*
+comma         := optional ("," optional)*
 assignment    := IDENTIFIER ("=" | "+=" | "-=" | "*=" | "/=") assignment
                | optional
 optional      := conditional (":" optional)?
@@ -37,13 +41,13 @@ unary         := ( "!" | "-") unary
                | primary
 primary       := NUMBER
                | STRING
-							 | IDENTIFIER
-							 | "true"
-							 | "false"
-							 | "nil"
-							 | "(" expr ")"
+               | IDENTIFIER
+               | "true"
+               | "false"
+               | "nil"
+               | "(" expr ")"
 NUMBER        := [0-9]+ ("." [0-9]+)?
-STRING				:= "\"" (CHARACTER)* "\""
+STRING        := "\"" (CHARACTER)* "\""
 IDENTIFIER    := [a-zA-Z_][a-zA-Z0-9_]*
 ```
 

@@ -78,7 +78,9 @@ typedef struct {
 	Local locals[UINT8_COUNT]; 	//* Array of local variables. Length is fixed at 256 due to 8 bit indexes.
 	int localCount; 						//* Number of local variables currently in scope.
 	int scopeDepth; 						//* Depth of of the scope where the compiler currently is. How 'far' the scope is from the global scope.
-	int recentLoop;
+	int recentLoop;							//* The most recent loop position
+	int recentBreak[10];				//* The most recent break position
+	int numBreak;								//* The number of break positions
 } Compiler;
 
 // Parser singleton.
@@ -348,6 +350,7 @@ static void initCompiler(Compiler* compiler) {
 	compiler->localCount = 0;
 	compiler->scopeDepth = 0;
 	compiler->recentLoop = -1;
+	compiler->numBreak = 0;
 	current = compiler;
 }
 
@@ -1037,6 +1040,7 @@ static void letDeclaration() {
 static void whileStatement() {
 	int loopStart = currentChunk()->count; // Save the current byte offset for the loop start.
 	int oldLoop = current->recentLoop; // Save the position of the previous loop
+	int oldBreak = current->numBreak;
 	current->recentLoop = loopStart; // Set the destination for any 'continue' statements.
 	consume(TOKEN_LEFT_PAREN, "Expected '(' after 'while'.");
 	expression();
@@ -1048,8 +1052,13 @@ static void whileStatement() {
 	emitLoop(loopStart); // Jump back to the start of the loop
 
 	patchJump(exitJump);
-	emitByte(OP_POP); // Pop condition
+	for (int i = 0; i < current->numBreak; i++) {
+		patchJump(current->recentBreak[i]);
+	}
 	current->recentLoop = oldLoop; // Restore the previous 'loop scope'
+	current->numBreak = oldBreak; // Restore the previous break count
+
+	emitByte(OP_POP); // Pop condition
 }
 
 /** Parsesd a for loop.
@@ -1095,6 +1104,7 @@ static void forStatement() {
 	}
 	
 	int oldLoop = current->recentLoop; // Save the old loop position in case it is needed
+	int oldBreak = current->numBreak;
 	current->recentLoop = loopStart; // loop set will be the condition or the increment if it exists
 
 	// Body and jump back to condition
@@ -1106,7 +1116,12 @@ static void forStatement() {
 		emitByte(OP_POP); // Pop condition
 	}
 
+	for (int i = 0; i < current->numBreak; i++) {
+		patchJump(current->recentBreak[i]);
+	}
+
 	current->recentLoop = oldLoop;
+	current->numBreak = oldBreak;
 	endScope();
 }
 
@@ -1120,6 +1135,22 @@ static void continueStatement() {
 
 	// Unconditional jump back to top of the loop
 	emitLoop(current->recentLoop);
+	REPLSemicolon();
+}
+
+/** Parses a continue statement
+ * 
+ */
+static void breakStatement() {
+	if (current->recentLoop == -1) {
+		error("Cannot break outside of a loop.");
+	}
+
+	int bodyJump = emitJump(OP_JUMP);
+	if (current->numBreak >= 10) {
+		error("Cannot have more than 10 breaks in a loop.");
+	}
+	current->recentBreak[current->numBreak++] = bodyJump;
 	REPLSemicolon();
 }
 
@@ -1141,6 +1172,8 @@ static void statement() {
 		forStatement();
 	} else if (match(TOKEN_CONTINUE)) {
 		continueStatement();
+	} else if (match(TOKEN_BREAK)) {
+		breakStatement();
 	} else {
 		expressionStatement();
 	}
