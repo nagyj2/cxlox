@@ -29,7 +29,7 @@ forStmt       := "for" "(" (expr | varDecl)? ";" expr? ";" expr? ")" statement
 breakStmt     := "break" ";"
 continueStmt  := "continue" ";"
 switchStmt    := "switch" "(" expr ")" "{" switchCase* defaultCase? "}"
-switchCase    := "case" expr ":" statement*
+switchCase    := "case" conditional ":" statement*
 defaultCase   := "default" ":" statement*
 expr          := comma
 comma         := optional ("," optional)*
@@ -61,6 +61,13 @@ IDENTIFIER    := [a-zA-Z_][a-zA-Z0-9_]*
   - The conditional operator is evaluated first. If the left operand is truthy, the right operand is returned. Otherwise, nil is returned.
   - The optional operator is evaluated second. If the left operand equal to nil, the right operand is returned. Otherwise, the first is returned.
   - Inspired by [this blog post](https://dev.to/mortoray/we-dont-need-a-ternary-operator-309n)
+- Constants can be created using the `let` keyword.
+  - Prevents alterations to any globals or locals declared with the keyword.
+- Loops can use `break` and `continue` keywords to alter control flow.
+- Switch cases pass through one another, allowing multiple matches for one statement group.
+  - Can be prevented by use of `break` statement.
+  - To allow colons in the `case` syntax, the case matches start at the 'conditional' level.
+  - Default case, `default`, is available for when a match does not occur.
 
 ## Build
 
