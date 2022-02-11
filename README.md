@@ -7,9 +7,11 @@ This is a C implementation of the xlox language. There are two banches, `main` a
 ```
 program       := declaration*
 declaration   := varDecl
+               | funDecl
                | letDecl
                | statement
 varDecl       := "var" IDENTIFIER ["=" expression] ";"
+funDecl       := "fun" IDENTIFIER "(" [IDENTIFIER ("," IDENTIFIER)*] ")" "{" declaration* "}"
 letDecl       := "let" IDENTIFIER "=" expression ";"
 statement     := exprStmt
                | printStmt
@@ -17,6 +19,7 @@ statement     := exprStmt
                | ifStmt
                | whileStmt
                | forStmt
+               | returnStmt
                | breakStmt
                | continueStmt
                | switchStmt
@@ -26,6 +29,7 @@ blockStmt     := "{" declaration* "}"
 ifStmt        := "if" "(" expr ")" statement ["else" statement]
 whileStmt     := "while" "(" expr ")" statement
 forStmt       := "for" "(" (expr | varDecl)? ";" expr? ";" expr? ")" statement
+returnStmt    := "return" expr? ";"
 breakStmt     := "break" ";"
 continueStmt  := "continue" ";"
 switchStmt    := "switch" "(" expr ")" "{" switchCase* defaultCase? "}"
@@ -39,10 +43,11 @@ optional      := conditional (":" optional)?
 conditional   := equality ("?" equality)?
 equality      := comparison (("==" | "!=") comparison)*
 comparison    := addition (("<" | ">" | "<=" | ">=") addition)*
-addition      := multiply  (("+" | "-") multiply )*
+addition      := multiply  (("+" | "-") multiply)*
 multiply 	    := unary (("*" | "/") unary)*
 unary         := ( "!" | "-") unary
-               | primary
+               | call
+call          := primary ("(" [expr ("," expr)*)] ")")*
 primary       := NUMBER
                | STRING
                | IDENTIFIER
