@@ -159,7 +159,9 @@ static Value readStringNative(int argCount, Value* args) {
  */
 static Value readNumberNative(int argCount, Value* args) {
 	double input;
-	scanf("%lf", &input);
+	if (scanf("%lf", &input) != 1) {
+		return BOOL_VAL(false);
+	}
 	return NUMBER_VAL(input);
 }
 
