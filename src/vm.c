@@ -1,38 +1,18 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
-#include <time.h>
 
 #include "common.h"
 #include "vm.h"
 #include "compiler.h"
 #include "debug.h"
-#include "compiler.h" // Needed?
 #include "object.h"
 #include "memory.h"
+#include "stdlib.h"
 
 // Declare the VM in global scope. Prevents needing to pass it as an argument everywhere.
 // By passing the VM as a pointer to functions, it is easier to have multiple VMs and pass them around in a host language.
 VM vm;
-
-//~ Native Functions
-
-/** Simulate defining a function, but assign a native function value instead of a lox function.
- * 
- * @param[in] name The native function's name.
- * @param[in] function The function implementation.
- */
-static void defineNative(const char* name, NativeFn function, int arity) {
-	push(OBJ_VAL(copyString(name, (int) strlen(name))));
-	push(OBJ_VAL(newNative(function, arity)));
-	tableSet(&vm.globals, vm.stack[0], vm.stack[1]);
-	pop();
-	pop();
-}
-
-static Value clockNative(int argCount, Value* args) {
-	return NUMBER_VAL((double) clock() / CLOCKS_PER_SEC);
-}
 
 //~ VM Initialization and Deinitialization
 
@@ -52,7 +32,7 @@ void initVM() {
 	initTable(&vm.constants);
 
 	// Create all native functions
-	defineNative("clock", clockNative, 0);
+	loadStdlib();
 }
 
 void freeVM() {
