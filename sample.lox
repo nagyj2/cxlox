@@ -186,5 +186,33 @@ for (var i = 0; i < 10 and !flag; i = i + 1) {
 }
 print a == 4;
 
-print "Done";
+// Functions
 
+fun max(a,b) {
+	if (a > b) {
+		return a;
+	} else {
+		return b;
+	}
+}
+
+fun fib(n) {
+	if (n <= 1) {
+		return 1;
+	} else {
+		return fib(n-1) + fib(n-2);
+	}
+}
+
+fun continue(){
+	print max(8,2);
+	print fib(6);
+
+	// Native Functions
+
+
+	print clock();
+
+}
+
+continue();
