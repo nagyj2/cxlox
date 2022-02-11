@@ -344,6 +344,7 @@ Token scanToken() {
 		case '.': return makeToken(TOKEN_DOT);
 		case '?': return makeToken(TOKEN_QUESTION);
 		case ':': return makeToken(TOKEN_COLON);
+		case '|': return makeToken(TOKEN_PIPE);
 
 		// Multi-character tokens
 		case '-':

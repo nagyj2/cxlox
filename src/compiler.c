@@ -78,6 +78,7 @@ typedef struct {
 /** The type of code which is being compiled. */
 typedef enum {
 	TYPE_FUNCTION,	//* A function body is being compiled.
+	TYPE_LAMBDA,		//* A lambda function is being compiled.
 	TYPE_SCRIPT,		//* The top-level (global) code is being compiled.
 } FunctionType;
 
@@ -236,6 +237,10 @@ static bool check(TokenType type) {
 	return parser.current.type == type;
 }
 
+static bool checkNext(TokenType type) {
+	
+}
+
 /** Returns whether or not the current token matches the input type.
  * @details
  * If a match is encountered, the token is consumed.
@@ -251,7 +256,6 @@ static bool match(TokenType type) {
 	advance();
 	return true;
 }
-
 
 //~ Bytecode Emission
 
@@ -369,10 +373,19 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 	compiler->numBreak = 0;
 	current = compiler;
 
+	switch (type) {
+		case TYPE_FUNCTION:
+			current->function->name = copyString(parser.previous.start, parser.previous.length);
+			break;
+		case TYPE_LAMBDA:
+			current->function->name = copyString("lambda", 6);
+			break;
+		case TYPE_SCRIPT:
+			break;
+	}
 	// If not parsing the main script, assign the name to the previously parsed token
-	if (type != TYPE_SCRIPT) {
+	if (type == TYPE_FUNCTION) {
 		// Now that compilers can die, we need to copy the string so that the reference doesn't get nullified
-		current->function->name = copyString(parser.previous.start, parser.previous.length);
 	}
 
 	// Reserve a position in the stack for the compiler's use
@@ -427,6 +440,8 @@ static void endScope() {
 		emitBytes(OP_POPN, (uint8_t) oldLocals);
 }
 
+/** Triggers end of scope code but does not actually end the scope. Used for break statements.
+ */
 static void prematureEndScope() {
 	endScope();
 	current->scopeDepth++;
@@ -743,15 +758,6 @@ static void literal(bool canAssign) {
 	}
 }
 
-/** Parses an expression which culminates in a right parentheses.
- * @pre The left parentheses has already been consumed.
- * @param[in] canAssign unused.
- */
-static void grouping(bool canAssign) {
-	expression();
-	consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
-}
-
 /** Parses and emits a binary expression.
  * @pre The left operand has already been emitted and the operand has just been consumed.
  * @param[in] canAssign unused.
@@ -800,35 +806,6 @@ static void binary(bool canAssign) {
 		default: // Impossible
 			return;
 	}
-}
-
-/** Parses a number of arguments and returns the number of arguments parsed.
- * @details
- * Parsed arguments are left on the stack
- */
-static uint8_t argumentList() {
-	uint8_t argCount = 0;
-	if (!check(TOKEN_RIGHT_PAREN)) {
-		do {
-			// Disallow comma expressions
-			parsePrecidence(PREC_COMMA+1);
-			// expression();
-			argCount++;
-			if (argCount >= 255) { // b/c using uint8_t exclusively
-				error("Cannot have more than 255 arguments.");
-			}
-		} while (match(TOKEN_COMMA));
-	}
-	consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
-	return argCount;
-}
-
-/** Parses a function call and corresponding arguments.
- * @pre Assumes '(' has already been consumed.
- */
-static void call(bool canAssign) {
-	uint8_t argCount = argumentList(); // The number of elements on the stack to take as input
-	emitBytes(OP_CALL, argCount);
 }
 
 /** Parse a disjunction expression.
@@ -933,6 +910,27 @@ static void variable(bool canAssign) {
 	namedVariable(parser.previous, canAssign);
 }
 
+/** Parses a number of arguments and returns the number of arguments parsed.
+ * @details
+ * Parsed arguments are left on the stack
+ */
+static uint8_t argumentList() {
+	uint8_t argCount = 0;
+	if (!check(TOKEN_RIGHT_PAREN)) {
+		do {
+			// Disallow comma expressions
+			parsePrecidence(PREC_COMMA+1);
+			// expression();
+			argCount++;
+			if (argCount >= 255) { // b/c using uint8_t exclusively
+				error("Cannot have more than 255 arguments.");
+			}
+		} while (match(TOKEN_COMMA));
+	}
+	consume(TOKEN_RIGHT_PAREN, "Expected ')'.");
+	return argCount;
+}
+
 static void function(FunctionType type) {
 	Compiler compiler;
 	initCompiler(&compiler, type);
@@ -964,6 +962,58 @@ static void function(FunctionType type) {
 	emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
 }
 
+/** Parses an anonymous function.
+ * @pre Assumes the initial '|' has been parsed.
+ */
+static void lambda(bool canAssign) {
+	Compiler compiler;
+	initCompiler(&compiler, TYPE_LAMBDA);
+	beginScope();
+	bool constParams = false;
+
+	// Parse the parameter list
+	if (!check(TOKEN_PIPE)) {
+		do {
+			current->function->arity++;
+			if (current->function->arity > 255) {
+				error("Cannot have more than 255 parameters.");
+			}
+			uint8_t constant = parseVariable("Expect parameter name.", constParams);
+			defineVariable(constant, constParams); // Do not initialize. Initialization will occur when passing functions
+		} while (match(TOKEN_COMMA));
+	}
+	consume(TOKEN_PIPE, "Expect '|' after parameters.");
+	consume(TOKEN_LEFT_CURLY, "Expect '{' before lambda body.");
+
+	// Compile the function body
+	block();
+
+	// Finish compiling and create the function object constant
+	// Note: Because we end the compiler, there is no corresponding endScope(). Placing an endScope() would simply add more bytecode to pop locals with no benefit
+	ObjFunction* function = endCompiler();
+	// Emit the constant onto the stack
+	emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+}
+
+
+/** Parses an expression which culminates in a right parentheses.
+ * @pre The left parentheses has already been consumed.
+ * @param[in] canAssign unused.
+ */
+static void grouping(bool canAssign) {
+	expression();
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
+}
+
+/** Parses a function call and corresponding arguments.
+ * @pre Assumes '(' has already been consumed.
+ */
+static void call(bool canAssign) {
+	uint8_t argCount = argumentList(); // The number of elements on the stack to take as input
+	emitBytes(OP_CALL, argCount);
+}
+
+
 // Declared after all function declarations so they can be placed into the table.
 /** Singleton representing the functions to call when a token is encountered when parsing an expression and the precidence level to parse for binary expressions. 
  * Literals are included in this table with the 'unary' slot representing the function to parse the literal.
@@ -975,7 +1025,6 @@ ParseRule rules[] = {  // PREFIX     INFIX    		PRECIDENCE (INFIX) */
   [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,    		PREC_NONE},
   [TOKEN_LEFT_CURLY]    = {NULL,     NULL,    		PREC_NONE}, 
   [TOKEN_RIGHT_CURLY]   = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_COMMA]         = {NULL,     NULL,    		PREC_NONE},
   [TOKEN_DOT]           = {NULL,     NULL,    		PREC_NONE},
   [TOKEN_MINUS]         = {unary,    binary,  		PREC_TERM},
   [TOKEN_PLUS]          = {NULL,     binary,  		PREC_TERM},
@@ -984,8 +1033,9 @@ ParseRule rules[] = {  // PREFIX     INFIX    		PRECIDENCE (INFIX) */
   [TOKEN_STAR]          = {NULL,     binary,  		PREC_FACTOR},
   [TOKEN_QUESTION]      = {NULL,     conditional, PREC_CONDITIONAL},	// For conditional expressions
   [TOKEN_COLON]         = {NULL,     optional,		PREC_OPTIONAL},			// For defaulted values 
-	[TOKEN_COMMA]         = {NULL,     comma,   		PREC_COMMA},				// For comma operator
-  [TOKEN_BANG]          = {NULL,     NULL,    		PREC_NONE},
+	[TOKEN_COMMA] 				= {NULL,     comma,   		PREC_COMMA},				// For comma operator
+	[TOKEN_PIPE] 					= {lambda,   NULL,  			PREC_NONE},					// For lambda expressions
+	[TOKEN_BANG] 					= {NULL,     NULL,    		PREC_NONE},
   [TOKEN_BANG_EQUAL]    = {NULL,     NULL,    		PREC_NONE},
   [TOKEN_BANG]          = {unary,    NULL,    		PREC_NONE},
   [TOKEN_BANG_EQUAL]    = {NULL,     binary,  		PREC_EQUALITY},
@@ -1068,7 +1118,6 @@ static ParseRule* getRule(TokenType type) {
 }
 
 /** Parses an expression starting at the lowest available precidence.5
- * 
  */
 static void expression() {
 	// Lowest precidence is assignment, so this expression call will parse the entire expression
@@ -1112,7 +1161,6 @@ static void printStatement() {
 }
 
 /** Parses an expression statement.
- * 
  */
 static void expressionStatement() {
 	expression();
