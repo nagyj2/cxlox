@@ -175,7 +175,7 @@ static bool callValue(Value callee, int argCount) {
 			case OBJ_NATIVE: {
 				NativeFn native = AS_NATIVE(callee);
 				Value result = native(argCount, vm.stackTop - argCount);
-				vm.stackTop -= argCount - 1; // Reduce by # of args + callee reference
+				vm.stackTop -= argCount + 1; // Reduce by # of args + callee reference
 				push(result);
 				return true; // success
 			}
