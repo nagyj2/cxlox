@@ -348,7 +348,7 @@ Token scanToken() {
 
 		// Multi-character tokens
 		case '-':
-			return makeToken(match('=') ? TOKEN_MINUS_EQUAL : TOKEN_MINUS);
+			return makeToken(match('=') ? TOKEN_MINUS_EQUAL : match('>') ? TOKEN_MINUS_GREATER : TOKEN_MINUS);
 		case '+': 
 			return makeToken(match('=') ? TOKEN_PLUS_EQUAL : TOKEN_PLUS);
 		case '*': 

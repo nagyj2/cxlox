@@ -972,7 +972,7 @@ static void lambda(bool canAssign) {
 	bool constParams = false;
 
 	// Parse the parameter list
-	if (!check(TOKEN_PIPE)) {
+	if (!check(TOKEN_PIPE) || !check(TOKEN_MINUS_GREATER)) {
 		do {
 			current->function->arity++;
 			if (current->function->arity > 255) {
@@ -982,14 +982,22 @@ static void lambda(bool canAssign) {
 			defineVariable(constant, constParams); // Do not initialize. Initialization will occur when passing functions
 		} while (match(TOKEN_COMMA));
 	}
-	consume(TOKEN_PIPE, "Expect '|' after parameters.");
-	consume(TOKEN_LEFT_CURLY, "Expect '{' before lambda body.");
+	if (!match(TOKEN_PIPE) && !match(TOKEN_MINUS_GREATER)) {
+		error("Expected '|' or '->' after parameters.");
+	}
 
-	// Compile the function body
-	block();
-
+	if (parser.previous.type == TOKEN_PIPE) {
+		//~ Parse Traditional Functions
+		block();
+	} else {
+		//~ Parse implied return
+		emitByte(OP_NIL);
+		expression();
+		emitByte(OP_RETURN);
+		consume(TOKEN_RIGHT_CURLY, "Expect '}' after lambda body.");
+	}
+	
 	// Finish compiling and create the function object constant
-	// Note: Because we end the compiler, there is no corresponding endScope(). Placing an endScope() would simply add more bytecode to pop locals with no benefit
 	ObjFunction* function = endCompiler();
 	// Emit the constant onto the stack
 	emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
@@ -1020,56 +1028,56 @@ static void call(bool canAssign) {
  * Precidence column is used for the infix precedence of the operator. If some prefix (or postfix) operators had different precidence levels, their precidences would
  * also need to be stored.
  */
-ParseRule rules[] = {  // PREFIX     INFIX    		PRECIDENCE (INFIX) */
-	[TOKEN_LEFT_PAREN]    = {grouping, call,    		PREC_CALL},
-  [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_LEFT_CURLY]    = {NULL,     NULL,    		PREC_NONE}, 
-  [TOKEN_RIGHT_CURLY]   = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_DOT]           = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_MINUS]         = {unary,    binary,  		PREC_TERM},
-  [TOKEN_PLUS]          = {NULL,     binary,  		PREC_TERM},
-  [TOKEN_SEMICOLON]     = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_SLASH]         = {NULL,     binary,  		PREC_FACTOR},
-  [TOKEN_STAR]          = {NULL,     binary,  		PREC_FACTOR},
-  [TOKEN_QUESTION]      = {NULL,     conditional, PREC_CONDITIONAL},	// For conditional expressions
-  [TOKEN_COLON]         = {NULL,     optional,		PREC_OPTIONAL},			// For defaulted values 
-	[TOKEN_COMMA] 				= {NULL,     comma,   		PREC_COMMA},				// For comma operator
-	[TOKEN_PIPE] 					= {lambda,   NULL,  			PREC_NONE},					// For lambda expressions
-	[TOKEN_BANG] 					= {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_BANG_EQUAL]    = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_BANG]          = {unary,    NULL,    		PREC_NONE},
-  [TOKEN_BANG_EQUAL]    = {NULL,     binary,  		PREC_EQUALITY},
-  [TOKEN_EQUAL]         = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_EQUAL_EQUAL]   = {NULL,     binary,  		PREC_EQUALITY},
-  [TOKEN_GREATER]       = {NULL,     binary,  		PREC_COMPARISON},
-  [TOKEN_GREATER_EQUAL] = {NULL,     binary,  		PREC_COMPARISON},
-  [TOKEN_LESSER]        = {NULL,     binary,  		PREC_COMPARISON},
-  [TOKEN_LESSER_EQUAL]  = {NULL,     binary,  		PREC_COMPARISON},
-  [TOKEN_IDENTIFIER]    = {variable, NULL,    		PREC_NONE},
-	[TOKEN_STRING]        = {string,   NULL,    		PREC_NONE},
-  [TOKEN_NUMBER]        = {number,   NULL,    		PREC_NONE}, // Literals also appear as an 'operator
-  [TOKEN_AND]           = {NULL,     and_,    		PREC_NONE},
-  [TOKEN_CLASS]         = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_CONTINUE]      = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_ELSE]          = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_FALSE]         = {literal,  NULL,    		PREC_NONE},
-  [TOKEN_FOR]           = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_FUN]           = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_IF]            = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_NIL]           = {literal,  NULL,    		PREC_NONE},
-  [TOKEN_OR]            = {NULL,     or_,    			PREC_NONE},
-  [TOKEN_PRINT]         = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_RETURN]        = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_SUPER]         = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_THIS]          = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_TRUE]          = {literal,  NULL,    		PREC_NONE},
-  [TOKEN_VAR]           = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_WHILE]         = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_SWITCH]        = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_CASE]         	= {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_DEFAULT]       = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_ERROR]         = {NULL,     NULL,    		PREC_NONE},
-  [TOKEN_EOF]           = {NULL,     NULL,    		PREC_NONE},
+ParseRule rules[] = {  // 	PREFIX				INFIX					PRECIDENCE (INFIX) */
+	[TOKEN_LEFT_PAREN]			= {grouping,		call,					PREC_CALL},
+  [TOKEN_RIGHT_PAREN]			= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_LEFT_CURLY]			= {lambda,			NULL,					PREC_NONE}, 
+  [TOKEN_RIGHT_CURLY]			= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_DOT]							= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_MINUS]						= {unary,				binary,				PREC_TERM},
+  [TOKEN_PLUS]						= {NULL,				binary,				PREC_TERM},
+  [TOKEN_SEMICOLON]				= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_SLASH]						= {NULL,				binary,				PREC_FACTOR},
+  [TOKEN_STAR]						= {NULL,				binary,				PREC_FACTOR},
+  [TOKEN_QUESTION]				= {NULL,				conditional,	PREC_CONDITIONAL},	// For conditional expressions
+  [TOKEN_COLON]						= {NULL,				optional,			PREC_OPTIONAL},			// For defaulted values 
+	[TOKEN_COMMA]						= {NULL,				comma,				PREC_COMMA},				// For comma operator
+	[TOKEN_PIPE]						= {NULL,				NULL,					PREC_NONE},					// For lambda expressions
+	[TOKEN_BANG]						= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_BANG_EQUAL]			= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_BANG]						= {unary,				NULL,					PREC_NONE},
+  [TOKEN_BANG_EQUAL]			= {NULL,				binary,				PREC_EQUALITY},
+  [TOKEN_EQUAL]						= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_EQUAL_EQUAL]			= {NULL,				binary,				PREC_EQUALITY},
+  [TOKEN_GREATER]					= {NULL,				binary,				PREC_COMPARISON},
+  [TOKEN_GREATER_EQUAL]		= {NULL,				binary,				PREC_COMPARISON},
+  [TOKEN_LESSER]					= {NULL,				binary,				PREC_COMPARISON},
+  [TOKEN_LESSER_EQUAL]		= {NULL,				binary,				PREC_COMPARISON},
+  [TOKEN_IDENTIFIER]			= {variable,		NULL,					PREC_NONE},
+	[TOKEN_STRING]					= {string,			NULL,					PREC_NONE},
+  [TOKEN_NUMBER]					= {number,			NULL,					PREC_NONE}, // Literals also appear as an 'operator
+  [TOKEN_AND]							= {NULL,				and_,					PREC_NONE},
+  [TOKEN_CLASS]						= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_CONTINUE]				= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_ELSE]						= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_FALSE]						= {literal,			NULL,					PREC_NONE},
+  [TOKEN_FOR]							= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_FUN]							= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_IF]							= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_NIL]							= {literal,			NULL,					PREC_NONE},
+  [TOKEN_OR]							= {NULL,				or_,					PREC_NONE},
+  [TOKEN_PRINT]						= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_RETURN]					= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_SUPER]						= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_THIS]						= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_TRUE]						= {literal,			NULL,					PREC_NONE},
+  [TOKEN_VAR]							= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_WHILE]						= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_SWITCH]					= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_CASE]						= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_DEFAULT]					= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_ERROR]						= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_EOF]							= {NULL,				NULL,					PREC_NONE},
 };
 
 /** Parses any expressions at the same precidence level or higher. 
@@ -1457,6 +1465,8 @@ static void switchStatement() {
 #undef AFTER_DEFAULT 
 }
 
+/** Parses a return statement. Optionally allows an expression for a return value.
+ */
 static void returnStatement() {
 	if (current->type == TYPE_SCRIPT) {
 		error("Cannot return from top-level code.");
@@ -1501,7 +1511,6 @@ static void statement() {
 }
 
 /** Parses a declaration statement.
- * 
  */
 static void declaration() {
 	if (match(TOKEN_VAR)) {
