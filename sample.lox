@@ -204,15 +204,17 @@ fun fib(n) {
 	}
 }
 
-fun continue(){
-	print max(8,2);
-	print fib(6);
+print max(8,2);
+print fib(6);
 
-	// Native Functions
+// Native Functions
 
+print isnum(8);
+print isnum(8.0);
+print !isnum("8");
 
-	print clock();
+print isstr("8") and !isstr(8) and isbool(true);
+ticks();
+print "Date is now " + date();
 
-}
-
-continue();
+print "Done";
