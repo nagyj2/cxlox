@@ -4,12 +4,9 @@
 #include "vm.h"
 
 /** Tokenizes, parses and writes bytecode for the input source code and placed it into a chunk.
- * 
  * @param[in] source The source code to compile.
- * @param[out] chunk The chunk to place bytecode in.
- * @return true if there was no compilation error.
- * @return false if an error occured.
+ * @return ObjFunction* The compiled code corresponding to the script or function.
  */
-bool compile(const char* source, Chunk* chunk);
+ObjFunction* compile(const char* source);
 
 #endif /* clox_compiler_h */

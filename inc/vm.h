@@ -4,15 +4,27 @@
 #include "chunk.h"
 #include "table.h"
 #include "value.h"
+#include "object.h"
 
-#define STACK_MAX 256
+// Maximum call depth.
+#define FRAMES_MAX 64
+// Maximum size of the stack because each call can only index UINT8_COUNT locals.
+#define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
+
+/** Each function invocation creates a call frame which keeps track of properties used by a function call.
+ */
+typedef struct {
+	ObjFunction* function;	//* Function being called. Instruction pointer can be accessed through the function's chunk
+	uint8_t* ip;						//* Current execution location within the chunk.
+	Value* slots;						//* The first slot on the stack which the function can use.
+} CallFrame;
 
 /* State information of the VM. VM is a global singleton. */
 typedef struct {
-	Chunk* chunk;	//* Currently executing chunk.
-	uint8_t* ip;	//* Instruction pointer. Points to the NEXT EXECUTED instruction.
 	Value stack[STACK_MAX]; //* The entire argument stack.
 	Value* stackTop;				//* Pointer to the slot just PAST the top of the stack. 
+	CallFrame frames[FRAMES_MAX];	//* The call stack.
+	int frameCount;					//* Number of frames on the call stack.
 	Obj* objects; 					//* A pointer to the first allocated object
 	// stack == stackTop = > empty stack.
 	Table strings;					//* A table for string internment.

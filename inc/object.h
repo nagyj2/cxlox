@@ -3,20 +3,31 @@
 
 #include "common.h"
 #include "value.h"
+#include "chunk.h"
 
 // Returns the type of an object.
 #define OBJ_TYPE(value)	(AS_OBJ(value)->type)
 
 // Returns whether the object is a string.
-#define IS_STRING(value)	isObjType(value, OBJ_STRING)
+#define IS_STRING(value) isObjType(value, OBJ_STRING)
+// Returns whether the object is a function.
+#define IS_FUNCTION(value) isObjType(value, OBJ_FUNCTION)
+// Returns whether the object is a native function.
+#define IS_NATIVE(value) isObjType(value, OBJ_NATIVE)
 
 // Convert a lox value to a lox string. Returns ObjString pointer.
-#define AS_STRING(value)	((ObjString*) AS_OBJ(value))
+#define AS_STRING(value) ((ObjString*) AS_OBJ(value))
 // Convert a lox string to a c char array. Returns the character array from ObjString.
 #define AS_CSTRING(value)	(((ObjString*) AS_OBJ(value))->chars)
+// Convert a lox value to a lox function. Returns a ObjFunction pointer.
+#define AS_FUNCTION(value) ((ObjFunction*) AS_OBJ(value))
+// Convert a lox value to a native function. Returns a C function.
+#define AS_NATIVE(value) (((ObjNative*) AS_OBJ(value))->function)
 
 /* Available types for lox objects. */
 typedef enum {
+	OBJ_FUNCTION,
+	OBJ_NATIVE,
 	OBJ_STRING,
 } ObjType;
 
@@ -25,6 +36,23 @@ struct Obj {
 	ObjType type; // Type of the object.
 	struct Obj* next; // Next object in the linked list.
 };
+
+/* Internal representation of a Lox function. Functions are first class (can be passed around), so they are objects. */
+typedef struct {
+	Obj obj;					//* Holds type of object and pointer to the next/
+	int arity;				//* Number of arguments the function accepts.
+	Chunk chunk;			//* The function body.
+	ObjString* name;	//* Name of the function.
+} ObjFunction;
+
+/* Function signature for all native functions. */
+typedef Value(*NativeFn)(int argCount, Value* args);
+
+/* Native C function executable from within lox. */
+typedef struct {
+	Obj obj;
+	NativeFn function;
+} ObjNative;
 
 /* Lox, heap allocated string. */
 struct ObjString {
@@ -45,6 +73,18 @@ struct ObjString {
 static inline bool isObjType(Value value, ObjType type) {
 	return IS_OBJ(value) && AS_OBJ(value)->type == type;
 }
+
+/** Creates and returns a new Lox function struct pointer.
+ * 
+ * @return ObjFunction* of the newly compiled function.
+ */
+ObjFunction* newFunction();
+
+/** Wraps a native C function into a object value wrapper for lox.
+ * @param[in] function 
+ * @return ObjNative* pointer to a object which encapsulates the native function.
+ */
+ObjNative* newNative(NativeFn function);
 
 /** Create a new lox string value by 'taking ownership' of the input character array.
  * @details

@@ -62,10 +62,20 @@ typedef struct {
 	int depth;			//* Depth of the scope in which the variable is declared from the global scope.
 } Local;
 
+/** The type of code which is being compiled. */
+typedef enum {
+	TYPE_FUNCTION,	//* A function body is being compiled.
+	TYPE_SCRIPT,		//* The top-level (global) code is being compiled.
+} FunctionType;
+
 /** State for the compiler.
  * @note The size of locals should be the exact same size as the stack. If one changes, the other must as well.
  */
 typedef struct {
+	struct Compiler* enclosing;	//* The compiler before the current one.
+	ObjFunction* function;			//* The function being compiled.
+	FunctionType type;					//* The type of function being compiled.
+	
 	Local locals[UINT8_COUNT]; 	//* Array of local variables. Length is fixed at 256 due to 8 bit indexes.
 	int localCount; 						//* Number of local variables currently in scope.
 	int scopeDepth; 						//* Depth of of the scope where the compiler currently is. How 'far' the scope is from the global scope.
@@ -75,34 +85,33 @@ typedef struct {
 Parser parser;
 // Current compiler singleton.
 Compiler* current = NULL;
-// The chunk which is currently getting bytecode emitted to it.
-Chunk* compilingChunk;
 
 // Forward declares to allow references.
 static void expression();
 static void statement();
 static void declaration();
 static void varDeclaration();
+static void funDeclaration();
 static void expressionStatement();
 static void printStatement();
 static void ifStatement();
 static void whileStatement();
 static void forStatement();
+static void returnStatement();
+static void block();
 static ParseRule* getRule(TokenType type);
 static void parsePrecidence(Precidence precidence);
 
 /** The chunk which is currently getting bytecode emitted to it.
- * 
  * @return Chunk* pointer to the chunk currently being emitted to.
  */
 static Chunk* currentChunk() {
-	return compilingChunk;
+	return &current->function->chunk;
 }
 
 //~ Error functions
 
 /** Prints an error to stderr. Includes line number information.
- * 
  * @param[in] token The token which represents the error.
  * @param[in] message The error message to display.
  */
@@ -249,7 +258,6 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
 /** Replaces the jump placeholder bytes at the given offset to jump to the current byte.
  * @details
  * Assumes a 16 bit jump placeholder starts at the code chunk at index @p offset.
- *
  * @param[in] offset The position of the jump placeholder to replace.
  */
 static void patchJump(int offset) {
@@ -265,7 +273,6 @@ static void patchJump(int offset) {
 }
 
 /** Emits 3 bytes corresponding to a jump opcode and a 2 byte jump offset.
- * 
  * @param[in] instruction The jump opcode to emit.
  * @return int The position of the jump offset bytes.
  */
@@ -276,8 +283,7 @@ static int emitJump(uint8_t instruction) {
 	return currentChunk()->count - 2;
 }
 
-/** Emit 3 bytes corresponding to a unconditional jump backwards. 
- * 
+/** Emit 3 bytes corresponding to a unconditional jump backwards.
  * @param[in] loopStart The byte offset for the loop to jump back to.
  */
 static void emitLoop(int loopStart) {
@@ -292,9 +298,9 @@ static void emitLoop(int loopStart) {
   emitByte(offset & 0xff);
 }
 
-/** Places a constant into the current chunk's constant pool. 
+/** Places a constant into the current chunk's constant pool.
+ * @details
  * Causes an error if the number of constants in the chunk exceeds the maximum.
- *
  * @param[in] value The value to write to the constant pool.
  * @return uint8_t byte representing the index of the constant in the constant pool.
  */
@@ -308,15 +314,15 @@ static uint8_t makeConstant(Value value) {
 	return (uint8_t) constant;
 }
 
-/** Emits a return opcode.
- * 
+/** Emits an implied nil constant and a opcode for function return.
  */
 static void emitReturn() {
+	emitByte(OP_NIL); // Implicitly places nil on the stack
+	// If a return expression is present, it will be the stack top and get returned. Otherwise the just emitted nil will
 	emitByte(OP_RETURN);
 }
 
 /** Emits 2 bytes which correspond to the creation of a constant value.
- * 
  * @param[in] value The value to write.
  */
 static void emitConstant(Value value) {
@@ -324,17 +330,50 @@ static void emitConstant(Value value) {
 }
 
 /** Initializes the state of the compiler and sets it to be the current compiler.
- * 
- * @param[in,out] compiler The compiler to initialize.
+ * @pre Assumes the name of the function has just been consumed if parsing a function body.
+ * @param[out] compiler The compiler to initialize.
+ * @param[in] type The type of function being compiled.
  */
-static void initCompiler(Compiler* compiler) {
+static void initCompiler(Compiler* compiler, FunctionType type) {
+	compiler->enclosing = (struct Compiler*) current; // Store the previous compiler.
+	compiler->function = newFunction();
+	compiler->type = type;
 	compiler->localCount = 0;
 	compiler->scopeDepth = 0;
 	current = compiler;
+
+	// If not parsing the main script, assign the name to the previously parsed token
+	if (type != TYPE_SCRIPT) {
+		// Now that compilers can die, we need to copy the string so that the reference doesn't get nullified
+		current->function->name = copyString(parser.previous.start, parser.previous.length);
+	}
+
+	// Reserve a position in the stack for the compiler's use
+	Local* local = &current->locals[current->localCount++];
+	local->depth = 0;
+	local->name.start = "";
+	local->name.length = 0;
+}
+
+/** Marks the end of a compilation.
+ * @return ObjFunction* The completely compiled function.
+ */
+static ObjFunction* endCompiler() {
+	emitReturn();
+	ObjFunction* function = current->function; // Return the function we just made
+
+	// If debug is enabled, print the completed bytecode if there was no error
+#ifdef DEBUG_PRINT_CODE
+	if (!parser.hadError) {
+		disassembleChunk(currentChunk(), function->name != NULL ? function->name->chars : "<script>");
+	}
+#endif
+
+	current = (Compiler*) current->enclosing; // Restore the previous compiler
+	return function;
 }
 
 /** Signals the start of a new scope to the current compiler singleton.
- * 
  */
 static void beginScope() {
 	current->scopeDepth++;
@@ -357,6 +396,9 @@ static void endScope() {
  * 
  */
 static void markInitialized() {
+	// Do not mark initialization for global functions/ variables
+	if (current->localCount == 0)
+		return;
 	current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
@@ -604,6 +646,33 @@ static void binary(bool canAssign) {
 	}
 }
 
+/** Parses a number of arguments and returns the number of arguments parsed.
+ * @details
+ * Parsed arguments are left on the stack
+ */
+static uint8_t argumentList() {
+	uint8_t argCount = 0;
+	if (!check(TOKEN_RIGHT_PAREN)) {
+		do {
+			expression();
+			argCount++;
+			if (argCount >= 255) { // b/c using uint8_t exclusively
+				error("Cannot have more than 255 arguments.");
+			}
+		} while (match(TOKEN_COMMA));
+	}
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+	return argCount;
+}
+
+/** Parses a function call and corresponding arguments.
+ * @pre Assumes '(' has already been consumed.
+ */
+static void call(bool canAssign) {
+	uint8_t argCount = argumentList(); // The number of elements on the stack to take as input
+	emitBytes(OP_CALL, argCount);
+}
+
 /** Parse a disjunction expression.
  * @details
  * Performes short circuit evaluation. If the left operand is false, the right operand is not evaluated.
@@ -664,6 +733,36 @@ static void variable(bool canAssign) {
 	namedVariable(parser.previous, canAssign);
 }
 
+static void function(FunctionType type) {
+	Compiler compiler;
+	initCompiler(&compiler, type);
+	beginScope();
+
+	// Parse the parameter list
+	consume(TOKEN_LEFT_PAREN, "Expect '(' after function name.");
+	if (!check(TOKEN_RIGHT_PAREN)) {
+		do {
+			current->function->arity++;
+			if (current->function->arity > 255) {
+				error("Cannot have more than 255 parameters.");
+			}
+			uint8_t constant = parseVariable("Expect parameter name.");
+			defineVariable(constant); // Do not initialize. Initialization will occur when passing functions
+		} while (match(TOKEN_COMMA));
+	}
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
+	consume(TOKEN_LEFT_CURLY, "Expect '{' before function body.");
+
+	// Compile the function body
+	block();
+
+	// Finish compiling and create the function object constant
+	// Note: Because we end the compiler, there is no corresponding endScope(). Placing an endScope() would simply add more bytecode to pop locals with no benefit
+	ObjFunction* function = endCompiler();
+	// Emit the constant onto the stack
+	emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+}
+
 // Declared after all function declarations so they can be placed into the table.
 /** Singleton representing the functions to call when a token is encountered when parsing an expression and the precidence level to parse for binary expressions. 
  * Literals are included in this table with the 'unary' slot representing the function to parse the literal.
@@ -671,7 +770,7 @@ static void variable(bool canAssign) {
  * also need to be stored.
  */
 ParseRule rules[] = {  // PREFIX     INFIX    PRECIDENCE (INFIX) */
-	[TOKEN_LEFT_PAREN]    = {grouping, NULL,    PREC_NONE},
+	[TOKEN_LEFT_PAREN]    = {grouping, call,    PREC_CALL},
   [TOKEN_RIGHT_PAREN]   = {NULL,     NULL,    PREC_NONE},
   [TOKEN_LEFT_CURLY]    = {NULL,     NULL,    PREC_NONE}, 
   [TOKEN_RIGHT_CURLY]   = {NULL,     NULL,    PREC_NONE},
@@ -844,6 +943,17 @@ static void varDeclaration() {
 	defineVariable(global);
 }
 
+/** Parses a funciton declaration.
+ * @details
+ * Assumes that the 'fun' keyword has already been consumed.
+ */
+static void funDeclaration() {
+	uint8_t global = parseVariable("Expected function name.");
+	markInitialized(); // Allow recursion
+	function(TYPE_FUNCTION); // Functions are first class, so this simply places one on the stack
+	defineVariable(global); // Define the variable;
+}
+
 /** Parses an while statement.
  * @details
  * Assumes the 'while' keyword has already been consumed.
@@ -917,6 +1027,19 @@ static void forStatement() {
 	endScope();
 }
 
+static void returnStatement() {
+	if (current->type == TYPE_SCRIPT) {
+		error("Cannot return from top-level code.");
+	}
+	if (match(TOKEN_SEMICOLON)) {
+		emitReturn();
+	} else {
+		expression();
+		consume(TOKEN_SEMICOLON, "Expected ';' after return value.");
+		emitByte(OP_RETURN);
+	}
+}
+
 /** Parses a statement.
  * 
  */
@@ -933,6 +1056,8 @@ static void statement() {
 		whileStatement();
 	} else if (match(TOKEN_FOR)) {
 		forStatement();
+	} else if (match(TOKEN_RETURN)) {
+		returnStatement();
 	} else {
 		expressionStatement();
 	}
@@ -944,6 +1069,8 @@ static void statement() {
 static void declaration() {
 	if (match(TOKEN_VAR)) {
 		varDeclaration();
+	} else if (match(TOKEN_FUN)) {
+		funDeclaration();
 	} else {
 		statement();
 	}
@@ -954,27 +1081,10 @@ static void declaration() {
 
 //~ Compilation Functions
 
-/** Marks the end of a compilation.
- * 
- */
-static void endCompiler() {
-	emitReturn();
-
-	// If debug is enabled, print the completed bytecode if there was no error.
-#ifdef DEBUG_PRINT_CODE
-	if (!parser.hadError) {
-		disassembleChunk(currentChunk(), "code");
-	}
-#endif
-}
-
-bool compile(const char* source, Chunk* chunk) {
+ObjFunction* compile(const char* source) {
 	initScanner(source);
 	Compiler compiler;
-	initCompiler(&compiler);
-
-	// Initialize the compiling chunk
-	compilingChunk = chunk;
+	initCompiler(&compiler, TYPE_SCRIPT);
 
 	// Initialize the parser
 	parser.hadError = false;
@@ -987,6 +1097,6 @@ bool compile(const char* source, Chunk* chunk) {
 		declaration();
 	}
 
-	endCompiler();
-	return !parser.hadError;
+	ObjFunction* function = endCompiler();
+	return parser.hadError ? NULL : function;
 }

@@ -30,6 +30,7 @@ typedef enum {
 	OP_JUMP,						//* OPCODE OFFSET OFFSET : (SE0) Unconditionally jumps forward a number of bytes equal to the given offset.
 	OP_JUMP_IF_FALSE,		//* OPCODE OFFSET OFFSET : (SE0) If the popped element is false, jumps forward a number of bytes equal to the given offset.
 	OP_LOOP,						//* OPCODE OFFSET OFFSET : (SE0) Unconditionally jumps backwards a number of bytes equal to the given offset.
+	OP_CALL,						//* OPCODE NUMBER : (SE0) Creates a new frame over the stack a number of elements back equal to the operand and executes a function call.
 } OpCode;
 
 /* Note that the entire AST structure from jlox has been recreated just by 3 dynamic arrays, the chunk, constant pool and source line numbers */
