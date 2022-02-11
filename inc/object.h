@@ -23,8 +23,10 @@
 #define TO_STRING(value)	toString(value);
 // Convert a lox value to a lox function. Returns a ObjFunction pointer.
 #define AS_FUNCTION(value) ((ObjFunction*) AS_OBJ(value))
-// Convert a lox value to a native function. Returns a C function.
-#define AS_NATIVE(value) (((ObjNative*) AS_OBJ(value))->function)
+// Convert a lox value to a lox native function object. Returns a ObjNative pointer.
+#define AS_NATIVE(value) ((ObjNative*) AS_OBJ(value))
+// Convert a lox value to a native C function. Returns a C function.
+#define AS_CNATIVE(value) (((ObjNative*) AS_OBJ(value))->function)
 
 /* Available types for lox objects. */
 typedef enum {
@@ -53,7 +55,8 @@ typedef Value(*NativeFn)(int argCount, Value* args);
 /* Native C function executable from within lox. */
 typedef struct {
 	Obj obj;
-	NativeFn function;
+	int arity; 					//* Number of arguments the function accepts.
+	NativeFn function;	//* The C function to execute.
 } ObjNative;
 
 /* Lox, heap allocated string. */
@@ -97,7 +100,7 @@ ObjFunction* newFunction();
  * @param[in] function 
  * @return ObjNative* pointer to a object which encapsulates the native function.
  */
-ObjNative* newNative(NativeFn function);
+ObjNative* newNative(NativeFn function, int arity);
 
 /** Create a new lox string value by 'taking ownership' of the input character array.
  * @details
