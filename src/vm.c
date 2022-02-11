@@ -152,6 +152,7 @@ static void concatenate() {
  * @return false The frame could not be created.
  */
 static bool call(ObjFunction* function, int argCount) {
+	// ip register var is already stored in the call opcode decode step
 	if (argCount != function->arity) {
 		runtimeError("Expected %d arguments but got %d.", function->arity, argCount);
 		return false;
@@ -197,8 +198,9 @@ static bool callValue(Value callee, int argCount) {
 static InterpretResult run() {
 	// Get the top-most call frame
 	CallFrame* frame = &vm.frames[vm.frameCount - 1];
+	register uint8_t* ip = frame->ip; // Load the instruction pointer into a register-preferred variable
 	// Define returns the next byte while incrementing the counter
-#define READ_BYTE() (*frame->ip++)
+#define READ_BYTE() (*ip++)
 	// Read a constant from the bytecode by taking the index and then looking it up in the constant pool
 #define READ_CONSTANT() (frame->function->chunk.constants.values[READ_BYTE()])
 	// Reads a constant which has a 24 bit address
@@ -208,12 +210,13 @@ static InterpretResult run() {
 	// Read a constant from the bytecode and convert it to a string using a 24 bit address
 #define READ_STRING_LONG() AS_STRING(READ_CONSTANT_LONG())
 	// Read a 2 byte chunk of code
-#define READ_SHORT() (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
+#define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
 	// Pop two elements from the stack, add them and then place the result back. Remember, left arg is placed first
 	// Uses a do loop to allow multiple lines AND a culminating semicolon
 #define BINARY_OP(valueType, op) \
 	do { \
 		if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
+			frame->ip = ip; \
 			runtimeError("Operands must be numbers."); \
 			return INTERPRET_RUNTIME_ERROR; \
 		} \
@@ -225,6 +228,7 @@ static InterpretResult run() {
 #define ERROR_IF_CONST(name) \
 	do { \
 		if (tableGet(&vm.constants, name, &name)) { \
+			frame->ip = ip; \
 			runtimeError("Cannot redefine constant"); \
 			return INTERPRET_RUNTIME_ERROR; \
 		} \
@@ -240,7 +244,7 @@ static InterpretResult run() {
 			printf(" ]");
 		}
 		printf("\n");
-		disassembleInstruction(&frame->function->chunk, (int) (frame->ip - frame->function->chunk.code)); // Perform some math to get offset
+		disassembleInstruction(&frame->function->chunk, (int) (ip - frame->function->chunk.code)); // Perform some math to get offset
 #endif
 		uint8_t instruction;
 		switch (instruction = READ_BYTE()) {
@@ -258,6 +262,7 @@ static InterpretResult run() {
 					double a = AS_NUMBER(pop());
 					push(NUMBER_VAL(a + b));
 				} else {
+					frame->ip = ip;
 					runtimeError("Operands must be two numbers or two strings.");
 					return INTERPRET_RUNTIME_ERROR;
 				}
@@ -296,6 +301,7 @@ static InterpretResult run() {
 				vm.stackTop = frame->slots; // Reset stack to the base of the frame. Effectively removes all locals
 				push(result); // Push the result back onto the stack. Allows for returns
 				frame = &vm.frames[vm.frameCount - 1]; // Update the frame pointer
+				ip = frame->ip; // Restore ip
 				break;
 			}
 			case OP_CONSTANT: {
@@ -311,6 +317,7 @@ static InterpretResult run() {
 			case OP_NEGATE: {
 				// Ensure stack is a number.
 				if (!IS_NUMBER(peek(0))) {
+					frame->ip = ip;
 					runtimeError("Operand must be a number.");
 					return INTERPRET_RUNTIME_ERROR;
 				}
@@ -380,6 +387,7 @@ static InterpretResult run() {
 				Value name = READ_CONSTANT(); // Will always be a string
 				Value value; // Output value
 				if (!(tableGet(&vm.globals, name, &value) || tableGet(&vm.constants, name, &value))) { // Unlike string internment, globals is simply indexed by strings.
+					frame->ip = ip;
 					runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
 					return INTERPRET_RUNTIME_ERROR;
 				}
@@ -390,6 +398,7 @@ static InterpretResult run() {
 				Value name = READ_CONSTANT_LONG(); // Will always be a string
 				Value value;
 				if (!(tableGet(&vm.globals, name, &value) || tableGet(&vm.constants, name, &value))) { // If neither return a value, error
+					frame->ip = ip;
 					runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
 					return INTERPRET_RUNTIME_ERROR;
 				}
@@ -401,6 +410,7 @@ static InterpretResult run() {
 				ERROR_IF_CONST(name);
 				if (tableSet(&vm.globals, name, peek(0))) { // If this was a new entry, the variable didnt exist
 					tableDelete(&vm.globals, name); // Roll back change (important for REPL)
+					frame->ip = ip;
 					runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
 					return INTERPRET_RUNTIME_ERROR;
 				}
@@ -411,6 +421,7 @@ static InterpretResult run() {
 				ERROR_IF_CONST(name);
 				if (tableSet(&vm.globals, name, peek(0))) { // If this was a new entry, the variable didnt exist
 					tableDelete(&vm.globals, name); // Roll back change (important for REPL)
+					frame->ip = ip;
 					runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
 					return INTERPRET_RUNTIME_ERROR;
 				}
@@ -461,26 +472,28 @@ static InterpretResult run() {
 			}
 			case OP_JUMP: {
 				uint16_t offset = READ_SHORT();
-				frame->ip += offset;
+				ip += offset;
 				break;
 			}
 			case OP_JUMP_IF_FALSE: {
 				uint16_t offset = READ_SHORT();
 				if (isFalsey(peek(0)))
-					frame->ip += offset;
+					ip += offset;
 				break;
 			}
 			case OP_LOOP: {
 				uint16_t offset = READ_SHORT();
-				frame->ip -= offset;
+				ip -= offset;
 				break;
 			}
 			case OP_CALL: {
 				int argCount = READ_BYTE(); // Number of stack elements to 'consume' as arguments
+				frame->ip = ip; // Same the current ip position. Allows the call to use the register variable
 				if (!callValue(peek(argCount), argCount)) { // Add new frame to the frame stack and if that fails, error
 					return INTERPRET_RUNTIME_ERROR;
 				}
 				frame = &vm.frames[vm.frameCount - 1]; // Update frame pointer to the new frame on the stack
+				ip = frame->ip; // Restore the old ip to the register variable
 				break;
 			}
 		}
