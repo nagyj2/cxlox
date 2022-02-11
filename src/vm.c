@@ -8,7 +8,7 @@
 #include "debug.h"
 #include "object.h"
 #include "memory.h"
-#include "stdlib.h"
+#include "xstdlib.h"
 
 // Declare the VM in global scope. Prevents needing to pass it as an argument everywhere.
 // By passing the VM as a pointer to functions, it is easier to have multiple VMs and pass them around in a host language.
