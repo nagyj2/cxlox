@@ -29,6 +29,7 @@ void defineNative(const char* name, NativeFn function, int arity) {
 }
 
 //~ Native Implementations
+//! args is a pointer/ array, so it can be indexed at -1. This is where the calling function is placed. Return values can also be placed there
 
 /** Returns the time elapsed since the start of the program.
  * @return Number of elapsed seconds since the program started execution.
@@ -83,7 +84,7 @@ static Value strBeforeNative(int argCount, Value* args) {
 	char* divider = AS_CSTRING(args[1]);
 	char* pos = strstr(str, divider); // Find all chars before first divider
 	if (!pos) {
-		return BOOL_VAL(false);
+		return NIL_VAL;
 	}
 	char newstr[MAX_STRING_LEN];
 	memcpy(newstr, str, pos - str);
@@ -100,7 +101,7 @@ static Value strAfterNative(int argCount, Value* args) {
 	char* divider = AS_CSTRING(args[1]);
 	char* pos = strstr(str, divider); // Find all chars before first divider
 	if (!pos) {
-		return BOOL_VAL(false);
+		return NIL_VAL;
 	}
 	char newstr[MAX_STRING_LEN];
 	memcpy(newstr, pos + 1, (str + strlen(str)) - pos);
@@ -160,7 +161,7 @@ static Value readStringNative(int argCount, Value* args) {
 static Value readNumberNative(int argCount, Value* args) {
 	double input;
 	if (scanf("%lf", &input) != 1) {
-		return BOOL_VAL(false);
+		return NIL_VAL;
 	}
 	return NUMBER_VAL(input);
 }
@@ -184,6 +185,11 @@ void loadStdlib() {
 	defineNative("isnil", isNilNative, 1);
 	defineNative("isstr", isStringNative, 1);
 	defineNative("isfun", isFunctionNative, 1);
+	
+	//~ Type Conversions
+	// defineNative("num", convNumberNative, 1);
+	// defineNative("bool", convBooleanNative, 1);
+	// defineNative("str", convStringNative, 1);
 
 	//~ Input Functions
 	defineNative("strin", readStringNative, 0);
