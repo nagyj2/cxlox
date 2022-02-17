@@ -250,3 +250,26 @@ m("add-a")(5);
 print m("resule") == 30;
 m("add-b")(-6);
 print m("resule") == -6;
+
+fun makeVector(x,y){
+  fun vector(method){
+    if (method == "x")
+      return x;
+    else if (method == "y")
+      return y;
+    else if (method == "add") {
+      fun addVector(other){
+        return makeVector(x + other("x"), y + other("y"));
+      }
+      return addVector;
+    }
+  }
+  return vector;
+}
+
+var v1 = makeVector(2,6);
+var v2 = makeVector(3,-2);
+
+var v3 = v1("add")(v2);
+print v3("x") == 5;
+print v3("y") == 4;
