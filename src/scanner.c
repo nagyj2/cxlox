@@ -301,6 +301,10 @@ Token scanToken() {
 		case '*': return makeToken(TOKEN_STAR);
 		case '/': return makeToken(TOKEN_SLASH);
 
+		// Common mistakes
+		case '\'': return errorToken("Strings use double quotes only.");
+		case '`':  return errorToken("Strings use double quotes only.");
+
 		// Multi-character tokens
 		case '!':
 			return makeToken(match('=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);

@@ -14,6 +14,10 @@
 #define IS_FUNCTION(value) isObjType(value, OBJ_FUNCTION)
 // Returns whether the object is a native function.
 #define IS_NATIVE(value) isObjType(value, OBJ_NATIVE)
+// Returns whether the object is a function closure.
+#define IS_CLOSURE(value) isObjType(value, OBJ_CLOSURE)
+// Returns whether the object is a function closure.
+#define IS_UPVALUE(value) isObjType(value, OBJ_UPVALUE)
 
 // Convert a lox value to a lox string. Returns ObjString pointer.
 #define AS_STRING(value) ((ObjString*) AS_OBJ(value))
@@ -23,12 +27,18 @@
 #define AS_FUNCTION(value) ((ObjFunction*) AS_OBJ(value))
 // Convert a lox value to a native function. Returns a C function.
 #define AS_NATIVE(value) (((ObjNative*) AS_OBJ(value))->function)
+// Convert a lox value into a closure object. Returns a ObjClosure pointer.
+#define AS_CLOSURE(value) ((ObjClosure*) AS_OBJ(value))
+// Convert a lox value into a an upvalue. Returns a Upvalue pointer.
+#define AS_UPVALUE(value) ((ObjUpvalue*) AS_OBJ(value))
 
 /* Available types for lox objects. */
 typedef enum {
 	OBJ_FUNCTION,
 	OBJ_NATIVE,
 	OBJ_STRING,
+	OBJ_CLOSURE,
+	OBJ_UPVALUE,
 } ObjType;
 
 /* Heap allocated lox object. Base 'class' for lox values. Typedef-ed in 'value.h'. */
@@ -41,6 +51,7 @@ struct Obj {
 typedef struct {
 	Obj obj;					//* Holds type of object and pointer to the next/
 	int arity;				//* Number of arguments the function accepts.
+	int upvalueCount;	//* Number of upvalues the function has.
 	Chunk chunk;			//* The function body.
 	ObjString* name;	//* Name of the function.
 } ObjFunction;
@@ -61,6 +72,27 @@ struct ObjString {
 	char* chars;		//* Pointer to the string's characters.
 	uint32_t hash;	//* Hash of the string.
 };
+
+typedef struct ObjUpvalue ObjUpvalue;
+/** Represents an upvalue at runtime. Points to a variable which may or may not be on the stack so that it can be
+ * accessed even when off the stack.
+ */
+struct ObjUpvalue {
+	Obj obj;
+	Value* location;	//* Points to the closed over variable. Uses a pointer to refer to the value, resulting in aliasing (useful for closing).
+	Value closed;			//* The memory location the value occupies AFTER it has been closed (removed from the stack). After closing, this value is aliased by 'location'.
+	ObjUpvalue* next;	//* Next upvalue in the linked list.
+};
+
+/** Representation of a function closure. Stores variables which the function accesses which arent within its own scope.
+ * To the user, they are exactly the same as functions. Runtime construct representing the environment of a called function.
+ */
+typedef struct {
+	Obj obj;
+	ObjFunction* function;	//* The function the closure wraps over.
+	ObjUpvalue** upvalues;	//* An array of upvalue pointers the closure maintains.
+	int upvalueCount;				//* The number of upvalues the closure maintains.
+} ObjClosure;
 
 /** Returns whether or not a value is an object of a specific type. 
  * Called from the macro IS_OBJ to prevent multiple executions of @p value argument.
@@ -85,6 +117,18 @@ ObjFunction* newFunction();
  * @return ObjNative* pointer to a object which encapsulates the native function.
  */
 ObjNative* newNative(NativeFn function);
+
+/** Creates a new function closure.
+ * @param[in] function The function the closure will emcompass.
+ * @return ObjClosure* pointer to the newly created closure structure.
+ */
+ObjClosure* newClosure(ObjFunction* function);
+
+/** Creates a new runtime upvalue object. 
+ * @param[] slot 
+ * @return ObjUpvalue* 
+ */
+ObjUpvalue* newUpvalue(Value* slot);
 
 /** Create a new lox string value by 'taking ownership' of the input character array.
  * @details

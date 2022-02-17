@@ -41,6 +41,7 @@ void resetStack() {
 	// Doesnt matter if stack elements are freed b/c they are still in v.stack's allocation AND vn.stackTop will just overwrite new values.
 	vm.stackTop = vm.stack;
 	vm.frameCount = 0;
+	vm.openUpvalues = NULL;
 }
 
 void initVM() {
@@ -78,7 +79,7 @@ static void runtimeError(const char* format, ...) {
 	// todo change to opposite order in xlox
 	for (int i = vm.frameCount - 1; i >= 0; i--) {
 		CallFrame* frame = &vm.frames[i];
-		ObjFunction* function = frame->function;
+		ObjFunction* function = frame->closure->function;
 		size_t instruction = frame->ip - function->chunk.code - 1;
 		fprintf(stderr, "[line %d] in ", function->chunk.lines[instruction]);
 		if (function->name == NULL) {
@@ -143,23 +144,23 @@ static void concatenate() {
 /** Constructs a new call frame for the VM. 
  * @details
  * Places the new call frame on top of the frame stack.
- * @param[in] function The function being called.
+ * @param[in] closure The closure being called.
  * @param[in] argCount The number of arguments the function was called with.
  * @return true The frame was successfully created.
  * @return false The frame could not be created.
  */
-static bool call(ObjFunction* function, int argCount) {
-	if (argCount != function->arity) {
-		runtimeError("Expected %d arguments but got %d.", function->arity, argCount);
+static bool call(ObjClosure* closure, int argCount) {
+	if (argCount != closure->function->arity) {
+		runtimeError("Expected %d arguments but got %d.", closure->function->arity, argCount);
 		return false;
 	}
 	if (vm.frameCount == FRAMES_MAX) {
 		runtimeError("Stack overflow.");
 		return false;
 	}
-	CallFrame* frame = &vm.frames[vm.frameCount++];
-	frame->function = function;
-	frame->ip = function->chunk.code;
+	CallFrame* frame = &vm.frames[vm.frameCount++]; // Get next frame
+	frame->closure = closure;
+	frame->ip = closure->function->chunk.code;
 	frame->slots = vm.stackTop - argCount - 1;
 	return true;
 }
@@ -167,8 +168,10 @@ static bool call(ObjFunction* function, int argCount) {
 static bool callValue(Value callee, int argCount) {
 	if (IS_OBJ(callee)) {
 		switch (OBJ_TYPE(callee)) {
-			case OBJ_FUNCTION:
-				return call(AS_FUNCTION(callee), argCount);
+			// case OBJ_FUNCTION:
+			// 	return call(AS_FUNCTION(callee), argCount);
+			case OBJ_CLOSURE:
+				return call(AS_CLOSURE(callee), argCount);
 			case OBJ_NATIVE: {
 				NativeFn native = AS_NATIVE(callee);
 				Value result = native(argCount, vm.stackTop - argCount);
@@ -184,6 +187,50 @@ static bool callValue(Value callee, int argCount) {
 	return false;
 }
 
+/** Takes a value from the stack and creates an upvalue for it.
+ * @param[in] local The variable to close over.
+ * @return ObjUpvalue* pointer to the upvalue object.
+ */
+static ObjUpvalue* captureUpvalue(Value* local) {
+	ObjUpvalue* prevUpvalue = NULL;
+	ObjUpvalue* upvalue = vm.openUpvalues;
+	// Iterate through the existing upvalues based on location. Stops iterating where the looked for upvalue should be.
+	while (upvalue != NULL && upvalue->location > local) {
+		prevUpvalue = upvalue; // Found an upvalue below the element we want. Keep looking
+		upvalue = upvalue->next;
+	}
+
+	// Check to see if upvalue is where it should be
+	if (upvalue != NULL && upvalue->location == local) {
+		return upvalue; // Reuse existing upvalue
+	}
+
+	// If not found, create a new upvalue
+	ObjUpvalue* createdUpvalue = newUpvalue(local);
+	// Add it to the linked list. We already are in its sorted spot due to the check above
+	createdUpvalue->next = upvalue;
+	if (prevUpvalue == NULL) {
+		vm.openUpvalues = createdUpvalue;
+	} else {
+		prevUpvalue->next = createdUpvalue;
+	}
+	return createdUpvalue;
+}
+
+/** Closes all upvalues equal to or before the given stack pointer.
+ * @details
+ * If an upvalue is pointed to a position before the range we are attempting to close, we close it.
+ * @param[in] last The pointer position of the lowest upvalue to close.
+ */
+static void closeUpvalues(Value* last) {
+	while (vm.openUpvalues != NULL && vm.openUpvalues->location >= last) {
+		ObjUpvalue* upvalue = vm.openUpvalues;
+		upvalue->closed = *upvalue->location; // Copy variable value. Provides connection to where the value lives on the heap
+		upvalue->location = &upvalue->closed; // Point the location to its heap location. That way we either point to the stack locale or heap locale using 'location' attribute
+		vm.openUpvalues = upvalue->next; // 
+	}
+}
+
 //~ VM Execution
 
 static InterpretResult run() {
@@ -192,7 +239,7 @@ static InterpretResult run() {
 	// Define returns the next byte while incrementing the counter
 #define READ_BYTE() (*frame->ip++)
 	// Read a constant from the bytecode by taking the index and then looking it up in the constant pool
-#define READ_CONSTANT() (frame->function->chunk.constants.values[READ_BYTE()])
+#define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
 	// Read a constant from the bytecode and convert it to a string
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 	// Read a 2 byte chunk of code
@@ -220,7 +267,7 @@ static InterpretResult run() {
 			printf(" ]");
 		}
 		printf("\n");
-		disassembleInstruction(&frame->function->chunk, (int) (frame->ip - frame->function->chunk.code)); // Perform some math to get offset
+		disassembleInstruction(&frame->closure->function->chunk, (int) (frame->ip - frame->closure->function->chunk.code)); // Perform some math to get offset
 #endif
 		uint8_t instruction;
 		switch (instruction = READ_BYTE()) {
@@ -260,6 +307,7 @@ static InterpretResult run() {
 			case OP_RETURN: {
 				// Exit interpreter
 				Value result = pop(); // Remove the script element from the stack
+				closeUpvalues(frame->slots); // Implicitly close all open upvalues for the entire frame
 				vm.frameCount--; // Remove the call frame from the stack
 				if (vm.frameCount == 0) {
 					// If there are no more frames, we are done
@@ -376,6 +424,39 @@ static InterpretResult run() {
 				frame = &vm.frames[vm.frameCount - 1]; // Update frame pointer to the new frame on the stack
 				break;
 			}
+			case OP_CLOSURE: {
+				ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
+				ObjClosure* closure = newClosure(function);
+				push(OBJ_VAL(closure));
+				// Walk through each captured element and place them into the closure's upvalues
+				for (int i = 0; i < closure->upvalueCount; i++) {
+					uint8_t isLocal = READ_BYTE();
+					uint8_t index = READ_BYTE(); // Location of the captured variable (if local, stack position. Otherwise, the saved location from compilation)
+					if (isLocal) {
+						// Capture an element on the stack with given index
+						closure->upvalues[i] = captureUpvalue(frame->slots + index); // Find the upvalue source from the frame base and read index
+					} else {
+						// Capture from the surrounding function (this one), so use index to grab from my array
+						closure->upvalues[i] = frame->closure->upvalues[index]; // Retrieve stored position from the upvalues
+					}
+				}
+				break;
+			}
+			case OP_GET_UPVALUE: {
+				uint8_t slot = READ_BYTE();
+				push(*frame->closure->upvalues[slot]->location);
+				break;
+			}
+			case OP_SET_UPVALUE: {
+				uint8_t slot = READ_BYTE();
+				*frame->closure->upvalues[slot]->location = peek(0);
+				break;
+			}
+			case OP_CLOSE_UPVALUE: {
+				closeUpvalues(vm.stackTop - 1); // Save top stack element
+				pop(); // Remove the value from the stack
+				break;
+			}
 		}
 	}
 
@@ -395,7 +476,10 @@ InterpretResult interpret(const char* source) {
 
 	// Simulate the main script as a function call
 	push(OBJ_VAL(function));
-	call(function, 0); // Set up first frame
+	ObjClosure* closure = newClosure(function);
+	pop();
+	push(OBJ_VAL(closure));
+	call(closure, 0); // Set up first frame
 
 	// Run the VM
 	return run();

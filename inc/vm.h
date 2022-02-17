@@ -14,7 +14,7 @@
 /** Each function invocation creates a call frame which keeps track of properties used by a function call.
  */
 typedef struct {
-	ObjFunction* function;	//* Function being called. Instruction pointer can be accessed through the function's chunk
+	ObjClosure* closure;		//* The closure being called. Instruction pointer can be accessed through the function's chunk
 	uint8_t* ip;						//* Current execution location within the chunk.
 	Value* slots;						//* The first slot on the stack which the function can use.
 } CallFrame;
@@ -29,6 +29,7 @@ typedef struct {
 	// stack == stackTop = > empty stack.
 	Table strings;					//* A table for string internment.
 	Table globals;					//* A table for global variables.
+	ObjUpvalue* openUpvalues;	//* A linked list of upvalues which are still open.
 } VM;
 
 // Declare vm struct so other files can access it.
