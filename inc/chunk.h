@@ -23,11 +23,11 @@ typedef enum {
 	OP_MULTIPLY,				//* OPCODE : (SE-1) Performs multiplication on the top 2 stack elements and pushes the result.
 	OP_DIVIDE,					//* OPCODE : (SE-1) Performs division on the top 2 stack elements and pushes the result.
 	OP_NEGATE,					//* OPCODE : (SE0) Negates the top element on the stack and pushes the result.
-	OP_RETURN,					//* OPCODE : (SE0) Returns from the current function.
-	OP_NIL,							//* OPCODE : (SE+1) Places a 'nil' at the top of the stack.
-	OP_TRUE,						//* OPCODE : (SE+1) Places a 'true' at the top of the stack.
-	OP_FALSE,						//* OPCODE : (SE+1) Places a 'false' at the top of the stack.
-	OP_NOT,							//* OPCODE : (SE0) Pops the top element, inverts the truthiness value and pushes the result.
+	OP_RETURN,					//* OPCODE : (SE0) Returns from the current function. Return value is the top element of the stack. Also implicitly closes all open upvalues.
+	OP_NIL,							//* OPCODE : (SE+1) Introduces a 'nil' constant into the constant pool.
+	OP_TRUE,						//* OPCODE : (SE+1) Introduces a 'true' constant into the constant pool.
+	OP_FALSE,						//* OPCODE : (SE+1) Introduces a 'false' constant into the constant pool.
+	OP_NOT,							//* OPCODE : (SE0) Inverts the truth value of the top element on the stack and pushes the result.
 	OP_EQUAL,						//* OPCODE : (SE-1) Checks equality on the top 2 stack elements and pushes the result.
 	OP_GREATER,					//* OPCODE : (SE-1) Checks if the top element is lesser than the 2nd highest element and pushes the result.
 	OP_LESSER,					//* OPCODE : (SE-1) Checks if the top element is greater than the 2nd highest element and pushes the result.
@@ -42,6 +42,10 @@ typedef enum {
 	OP_JUMP_IF_FALSE,		//* OPCODE OFFSET OFFSET : (SE0) If the popped element is false, jumps forward a number of bytes equal to the given offset.
 	OP_LOOP,						//* OPCODE OFFSET OFFSET : (SE0) Unconditionally jumps backwards a number of bytes equal to the given offset.
 	OP_CALL,						//* OPCODE NUMBER : (SE0) Creates a new frame over the stack a number of elements back equal to the operand and executes a function call.
+	OP_CLOSURE,					//* OPCODE FUNCTION <2*i> : (SE0) Relies on ObjFunction's upvalueCount. First argument is the function being called. Other arguments come in pairs of 2. First byte is the locality of the upvalue and the second is the index.
+	OP_GET_UPVALUE,			//* OPCODE INDEX : (SE+1) Retrieves a variable from the function's upvalue array using a given index and places it onto the stack.
+	OP_SET_UPVALUE,			//* OPCODE INDEX : (SE0) Saves the top element of the stack to a position in the upvalue array using the given index.
+	OP_CLOSE_UPVALUE,		//* OPCODE : (SE0) Updates the upvalue pointer location of the top element from a stack position to a storage location in the ObjUpvalue itself. This allows the variable to persist outside the stack.
 } OpCode;
 
 /** Structure to more efficiently track line numbers. Uses a dynamic array. */

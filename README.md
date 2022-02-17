@@ -36,7 +36,7 @@ switchStmt    := "switch" "(" expr ")" "{" switchCase* defaultCase? "}"
 switchCase    := "case" conditional ":" statement*
 defaultCase   := "default" ":" statement*
 expr          := comma
-               | "{" [assignment ("," assignment)*] "|" declaration* "}" 
+               | "{" [assignment ("," assignment)*] "=>" declaration* "}" 
                | "{" [assignment ("," assignment)*] "->" expression "}" 
 comma         := optional ("," optional)*
 assignment    := IDENTIFIER ("=" | "+=" | "-=" | "*=" | "/=") assignment

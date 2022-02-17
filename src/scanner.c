@@ -344,7 +344,11 @@ Token scanToken() {
 		case '.': return makeToken(TOKEN_DOT);
 		case '?': return makeToken(TOKEN_QUESTION);
 		case ':': return makeToken(TOKEN_COLON);
-		case '|': return makeToken(TOKEN_PIPE);
+		// case '|': return makeToken(TOKEN_PIPE);
+
+		// Common mistakes
+		case '\'': return errorToken("Strings use double quotes only.");
+		case '`':  return errorToken("Strings use double quotes only.");
 
 		// Multi-character tokens
 		case '-':
@@ -358,7 +362,7 @@ Token scanToken() {
 		case '!':
 			return makeToken(match('=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
 		case '=':
-			return makeToken(match('=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
+			return makeToken(match('=') ? TOKEN_EQUAL_EQUAL : match('>') ? TOKEN_EQUAL_GREATER : TOKEN_EQUAL);
 		case '<':
 			return makeToken(match('=') ? TOKEN_LESSER_EQUAL : TOKEN_LESSER);
 		case '>':

@@ -68,12 +68,34 @@ typedef struct {
  * local is for retrieval when the local is called. The compiler will start at the top of the local stack and walk backwards.
  * B/c only locals are stored on the stack and are in the same order here as in the VM, the offset it finds in the
  * locals array is the number of spots to backtrack on the stack.
+ *
+ * Captured statis is tracked because it dictates whether the local should be hoisted to the heap when the variable goes out of scope.
+ * Up until hoisting, anything may refer to its stack position, so care must be taken to ensure the element can be tracked
+ * on the stack. When it is hoisted, the ObjUpvalue 'location' attribute is set to the 'closed' attribute.
  */
 typedef struct {
-	Token name;			//* Variable name.
-	bool constant;	//* Whether or not the variable is constant.
-	int depth;			//* Depth of the scope in which the variable is declared from the global scope.
+	Token name;				//* Variable name.
+	bool constant;		//* Whether or not the variable is constant.
+	int depth;				//* Depth of the scope in which the variable is declared from the global scope.
+	bool isCaptured;	//* Whether or not the variable is captured by a closure. Controls how it is removed from the stack. 
 } Local;
+
+/** Represent a local variable which is inside an enclosing function. Allows for closures to refer to variables declared outside
+ * their scope. This is done by storing a pointer to the location of the variable and then all references to the variable using that
+ * new pointer. This struct represents a single upvalue which exists within the currently compiling chunk. They also track whether
+ * they are local to the current closure. Tracking locality is important because when it determines how they are found at runtime.
+ * Local upvalues have their index representing the stack position of the upvalue and non-locals represent the index in the upvalue
+ * array. Essentially, a non-local upvalue is a pointer to another upvalue.
+ *
+ * Upvalues are stored a within an array by the compiler and their index and order mimics how they appear in the VM's upvalue array.
+ * Just like the locals array and stack, the mirroring allows for the indexes to the proper element to be created in the compiler
+ * and then used by the VM. Unlike the locals array, the count of the upvalues in a closure is kept in the function object.
+ */
+typedef struct {
+	uint8_t index;		//* Index of where the variable is. If local, index is the frame stack index position. If non-local, index is where in the upvalue array the variable is. When local, always +1 compared to stack b/c callee occupies slot 0. When non-local, indexes based on upvalue array indices.
+	bool isLocal;			//* Whether the captured variable is local to the currently compiling closure. If 1, the index indicates where on the stack (from frame slot 0) the variable is. If 0, the index represents where the variable is in the upvalue array.
+	bool constant;		//* Whether or not the upvalue is constant.
+} Upvalue;
 
 /** The type of code which is being compiled. */
 typedef enum {
@@ -82,22 +104,22 @@ typedef enum {
 	TYPE_SCRIPT,		//* The top-level (global) code is being compiled.
 } FunctionType;
 
+typedef struct Compiler Compiler;
 /** State for the compiler.
  * @note The size of locals should be the exact same size as the stack. If one changes, the other must as well.
  */
-typedef struct {
-	struct Compiler* enclosing;		//* The compiler before the current one.
-	ObjFunction* function;				//* The function being compiled.
-	FunctionType type;						//* The type of function being compiled.
-	
-	Local locals[UINT8_COUNT]; 		//* Array of local variables. Length is fixed at 256 due to 8 bit indexes.
-	int localCount; 							//* Number of local variables currently in scope.
-	int scopeDepth; 							//* Depth of of the scope where the compiler currently is. How 'far' the scope is from the global scope.
-
-	int recentLoop;								//* The most recent loop position
-	int numBreak;									//* The number of break positions
-	int recentBreak[MAX_BREAKS];	//* The most recent break position
-} Compiler;
+struct Compiler {
+	Compiler* enclosing;						//* The compiler before the current one.
+	ObjFunction* function;					//* The function being compiled.
+	FunctionType type;							//* The type of function being compiled.
+	Local locals[UINT8_COUNT]; 			//* Array of local variables. Length is fixed at 256 due to 8 bit indexes.
+	int localCount; 								//* Number of local variables currently in scope.
+	int scopeDepth; 								//* Depth of of the scope where the compiler currently is. How 'far' the scope is from the global scope.
+	Upvalue upvalues[UINT8_COUNT];	//* Upvalue array for the current closure.
+	int recentLoop;									//* The most recent loop position
+	int numBreak;										//* The number of break positions
+	int recentBreak[MAX_BREAKS];		//* The most recent break position
+};
 
 // Parser singleton.
 Parser parser;
@@ -316,8 +338,8 @@ static void emitLoop(int loopStart) {
 	if (offset > UINT16_MAX)
 		error("Loop body too large.");
 
-  emitByte((offset >> 8) & 0xff);
-  emitByte(offset & 0xff);
+	emitByte((offset >> 8) & 0xff);
+	emitByte(offset & 0xff);
 }
 
 /** Places a constant into the current chunk's constant pool.
@@ -364,7 +386,7 @@ static void emitConstant(Value value) {
  * @param[in] type The type of function being compiled.
  */
 static void initCompiler(Compiler* compiler, FunctionType type) {
-	compiler->enclosing = (struct Compiler*) current; // Store the previous compiler.
+	compiler->enclosing = current; // Store the previous compiler.
 	compiler->function = newFunction();
 	compiler->type = type;
 	compiler->localCount = 0;
@@ -391,6 +413,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 	// Reserve a position in the stack for the compiler's use
 	Local* local = &current->locals[current->localCount++];
 	local->depth = 0;
+	local->isCaptured = false;
 	local->name.start = "";
 	local->name.length = 0;
 }
@@ -409,7 +432,7 @@ static ObjFunction* endCompiler() {
 	}
 #endif
 
-	current = (Compiler*) current->enclosing; // Restore the previous compiler
+	current = current->enclosing; // Restore the previous compiler
 	return function;
 }
 
@@ -419,25 +442,48 @@ static void beginScope() {
 	current->scopeDepth++;
 }
 
+/** Emits bytes to pop a number of of values from the stack. Used for removing locals at the end of a scope.
+ * @param[in] locals The number of locals to pop.
+ */
+static void popLocals(int locals) {
+	if (locals == 1)
+		emitByte(OP_POP);
+	else
+		for (int i = 0; i < locals; i++)
+			emitBytes(OP_POPN, (uint8_t) locals);
+}
+
 /** Signals the end of the current scope to the compiler singleton.
  * @details
  * Removes all local variables stored at the current scope.
  */
 static void endScope() {
 	current->scopeDepth--;
-	int oldLocals = 0;
-	while (current->localCount > 0
-		&& current->locals[current->localCount - 1].depth > current->scopeDepth) {
+	int passedLocals = 0;
+	while (current->localCount > 0 && current->locals[current->localCount - 1].depth > current->scopeDepth) {
+		// If local is captured, emit a special pop instruction
+		if (current->locals[current->localCount - 1].isCaptured) {
+			// First remove all locals before the upvalue
+			popLocals(passedLocals);
+			passedLocals = 0;
+
+			emitByte(OP_CLOSE_UPVALUE);
+		} else {
+			passedLocals++;
+		}
 		current->localCount--;
-		oldLocals++;
 	}
-	
-	if (oldLocals == 0)
-		return;
-	else if (oldLocals == 1)
-		emitByte(OP_POP);
-	else
-		emitBytes(OP_POPN, (uint8_t) oldLocals);
+
+	// Pop all remaining locals
+	popLocals(passedLocals);
+
+	// Upvalues can be interlaced with locals, so we cant simply use POPN
+	// if (oldLocals == 0)
+	// 	return;
+	// else if (oldLocals == 1)
+	// 	emitByte(OP_POP);
+	// else
+	// 	emitBytes(OP_POPN, (uint8_t) oldLocals);
 }
 
 /** Triggers end of scope code but does not actually end the scope. Used for break statements.
@@ -542,9 +588,80 @@ static void emitLocalIndexed(int index, uint8_t opcode) {
 	if (index > CONST_TO_LONG_CONST) {
 		emitBytes(opcode, (uint8_t) (index & 0xff));
 		emitBytes((uint8_t) ((index >> 8) & 0xff), (uint8_t) ((index >> 16) & 0xff));
-	}	else {
+	} else {
 		emitBytes(opcode, (uint8_t) index);
 	}
+}
+
+/** Create a new upvalue in the array and return its index in the upvalue array.
+ * @details
+ * To prevent the compiler from creating multiple upvalues for the same variable, we iterate through the existing upvalues looking for ours. 
+ * If it is there, we return it.
+ * @param[in] compiler The compiler which the upvalue will be placed in.
+ * @param[in] index The local function offset positiion of the variable.
+ * @param[in] isLocal Whether the variable is a local or global variable.
+ * @return int representing the index of the position of the upvalue in the compiler.
+ */
+static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal, bool isConstant) {
+	int upvalueCount = compiler->function->upvalueCount; // Find the current number of upvalues
+
+	// Check for an existing upvalue. B/c they map by index, we want to verify that the index is the same and the locality.
+	// Locality matters because the origin of the upvalue call can refer to different variables
+	for (int i = 0; i < upvalueCount; i++) {
+		Upvalue* upvalue = &compiler->upvalues[i];
+		if (upvalue->index == index && upvalue->isLocal == isLocal && upvalue->constant == isLocal) {
+			return i; // Return the index in the array
+		}
+	}
+
+	// Verify there isnt too many upvalues
+	if (upvalueCount == UINT8_COUNT) {
+		error("Too many closure variables in function.");
+		return 0;
+	}
+
+	// Fill in the new values for (read: create) a new upvalue
+	compiler->upvalues[upvalueCount].index = index;
+	compiler->upvalues[upvalueCount].isLocal = isLocal;
+	compiler->upvalues[upvalueCount].constant = isConstant;
+	return compiler->function->upvalueCount++;
+
+}
+
+/** Updates upvalues if the token being resolved is a local or global variable already declared.
+ * @details
+ * If a variable cannot be resolved as a local variable, we need to check if it is a local variable of an outer scope. If so,
+ * we want to identify it as an upvalue so we can track it separately at runtime b/c it may not always be on the stack. To do
+ * this, we want to recursively check outer, non global scopes for the variable. This involves checking the local scope and if
+ * not found, check the enclosing scope's locals.
+ * @param[in] compiler The compiler which is currently being worked on.
+ * @param[in] name The variable which is being resolved.
+ * @return int representing the 'upvalue index' of the variable. Returns -1 if the variable could not be resolved as an upvalue.
+ */
+static int resolveUpvalue(Compiler* compiler, Token* name) {
+	// If global scope, we cannot possibly have an upvalue (by definition), so return not found
+	if (compiler->enclosing == NULL)
+		return -1;
+
+	// See if the variable can be resolved locally.
+	// Note: we check for locality of the 'current' compiler before calling this function, so this 'resolveLocal' is first called for the enclosing compiler
+	int local = resolveLocal(compiler->enclosing, name);
+	if (local != -1) { // If found as a local, create a local upvalue in the below compiler.
+		compiler->enclosing->locals[local].isCaptured = true; // Mark the local as captured. Used to instruct VM how to dispose of it
+		// Variable was found in the enclosing compiler, so mark it as local.
+		return addUpvalue(compiler, (uint8_t) local, true, compiler->enclosing->locals[local].constant);
+	}
+
+	// If it is not local, resolve the upvalue recursively to the top of the call stack
+	int upvalue = resolveUpvalue(compiler->enclosing, name);
+	if (upvalue != -1) { // If found, create a non-local upvalue to permit an upvalue chain
+		// Creates an upvalue. Mark it as non-local because it is NOT in in the closure immediately above current
+		// This allows for a upvalue to point to an upvalue
+		return addUpvalue(compiler, (uint8_t) upvalue, false, compiler->enclosing->upvalues[upvalue].constant);
+	}
+
+	// Not found
+	return -1;
 }
 
 /** Emits 2 bytes to retrieve or set a global variable's value.
@@ -562,6 +679,11 @@ static void namedVariable(Token name, bool canAssign) {
 		getOp = OP_GET_LOCAL;
 		setOp = OP_SET_LOCAL;
 		if (current->locals[index].constant)
+			error("Cannot assign to a constant.");
+	} else if ((index = resolveUpvalue(current, &name)) != -1) { // Captured Upvalue
+		getOp = OP_GET_UPVALUE;
+		setOp = OP_SET_UPVALUE;
+		if (current->upvalues[index].constant)
 			error("Cannot assign to a constant.");
 	} else {
 		index = identifierConstant(&name);
@@ -659,6 +781,7 @@ static void addUnnamedLocal(bool isConstant) {
 	local->name = token;
 	local->constant = isConstant;
 	local->depth = -1;
+	local->isCaptured = false;
 }
 
 /** Converts the (simulated) top stack element into a local variable.
@@ -959,11 +1082,17 @@ static void function(FunctionType type) {
 	// Note: Because we end the compiler, there is no corresponding endScope(). Placing an endScope() would simply add more bytecode to pop locals with no benefit
 	ObjFunction* function = endCompiler();
 	// Emit the constant onto the stack
-	emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+
+	emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+	// For every upvalue captured, emit its locality and index
+	for (int i = 0; i < function->upvalueCount; i++) {
+		emitByte(compiler.upvalues[i].isLocal ? 1 : 0); // Flag on whether the variable is a local or not
+		emitByte(compiler.upvalues[i].index); // index of the variable in the stack
+	}
 }
 
 /** Parses an anonymous function.
- * @pre Assumes the initial '|' has been parsed.
+ * @pre Assumes the initial '{' has been parsed.
  */
 static void lambda(bool canAssign) {
 	Compiler compiler;
@@ -972,7 +1101,7 @@ static void lambda(bool canAssign) {
 	bool constParams = false;
 
 	// Parse the parameter list
-	if (!check(TOKEN_PIPE) || !check(TOKEN_MINUS_GREATER)) {
+	if (!check(TOKEN_EQUAL_GREATER) && !check(TOKEN_MINUS_GREATER) && !check(TOKEN_EOF)) {
 		do {
 			current->function->arity++;
 			if (current->function->arity > 255) {
@@ -982,11 +1111,11 @@ static void lambda(bool canAssign) {
 			defineVariable(constant, constParams); // Do not initialize. Initialization will occur when passing functions
 		} while (match(TOKEN_COMMA));
 	}
-	if (!match(TOKEN_PIPE) && !match(TOKEN_MINUS_GREATER)) {
-		error("Expected '|' or '->' after parameters.");
+	if (!match(TOKEN_EQUAL_GREATER) && !match(TOKEN_MINUS_GREATER)) {
+		error("Expected '=>' or '->' after parameters.");
 	}
 
-	if (parser.previous.type == TOKEN_PIPE) {
+	if (parser.previous.type == TOKEN_EQUAL_GREATER) {
 		//~ Parse Traditional Functions
 		block();
 	} else {
@@ -1000,7 +1129,13 @@ static void lambda(bool canAssign) {
 	// Finish compiling and create the function object constant
 	ObjFunction* function = endCompiler();
 	// Emit the constant onto the stack
-	emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+	
+	emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+	// For every upvalue captured, emit its locality and index
+	for (int i = 0; i < function->upvalueCount; i++) {
+		emitByte(compiler.upvalues[i].isLocal ? 1 : 0); // Flag on whether the variable is a local or not
+		emitByte(compiler.upvalues[i].index); // index of the variable in the stack
+	}
 }
 
 
@@ -1042,9 +1177,7 @@ ParseRule rules[] = {  // 	PREFIX				INFIX					PRECIDENCE (INFIX) */
   [TOKEN_QUESTION]				= {NULL,				conditional,	PREC_CONDITIONAL},	// For conditional expressions
   [TOKEN_COLON]						= {NULL,				optional,			PREC_OPTIONAL},			// For defaulted values 
 	[TOKEN_COMMA]						= {NULL,				comma,				PREC_COMMA},				// For comma operator
-	[TOKEN_PIPE]						= {NULL,				NULL,					PREC_NONE},					// For lambda expressions
-	[TOKEN_BANG]						= {NULL,				NULL,					PREC_NONE},
-  [TOKEN_BANG_EQUAL]			= {NULL,				NULL,					PREC_NONE},
+	// [TOKEN_PIPE]						= {NULL,				NULL,					PREC_NONE},					// For lambda expressions
   [TOKEN_BANG]						= {unary,				NULL,					PREC_NONE},
   [TOKEN_BANG_EQUAL]			= {NULL,				binary,				PREC_EQUALITY},
   [TOKEN_EQUAL]						= {NULL,				NULL,					PREC_NONE},

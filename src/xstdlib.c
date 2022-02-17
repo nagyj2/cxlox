@@ -139,6 +139,7 @@ static Value isFunctionNative(int argCount, Value* args) {
 	switch (OBJ_TYPE(args[0])) {
 		case OBJ_NATIVE:
 		case OBJ_FUNCTION:
+		case OBJ_CLOSURE:
 			return BOOL_VAL(true);
 		default:
 			return BOOL_VAL(false);
