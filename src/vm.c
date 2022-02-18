@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
@@ -36,9 +37,18 @@ void initVM() {
 	vm.grayCapacity = 0;
 	vm.grayStack = NULL;
 
-	vm.bytesAllocated = 0; // Start with nothing allocated.
-	vm.nextGC = 500; //1024 * 1024; // Default starting size for the first GC.
+	vm.bytesAllocated = 0; // Start with nothing allocated
+	vm.nextGC = 1024 * 1024; // Default starting size for the first GC. ~1MB
+	vm.rainyDay = malloc(RAINY_DAY_MEMORY); // Allocate a portion of memory to use in case the GC needs to allocate memory for the graystack but cannot. ~0.5MB
+	if (vm.rainyDay == NULL) {
+		printf("Failed to allocate backup memory.\n");
+		exit(1);
+	}
 
+#ifdef DEBUG_LOG_GC
+	printf("%p allocate %zu for rainy day\n", vm.rainyDay, RAINY_DAY_MEMORY);
+#endif
+	
 	// Create all native functions
 #ifdef DEBUG_LOAD_STDLIB
 	loadStdlib();

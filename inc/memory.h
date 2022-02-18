@@ -3,6 +3,8 @@
 
 #include "common.h"
 #include "object.h"
+//* Memory allocated at the beginning of the program and used during GC if the graystack cannot be expanded. Is ~0.5MB.
+#define RAINY_DAY_MEMORY (1024 * 512)
 
 /** Allocate memory for a new number of objects. Wrapped reallocate call with proper arguments */
 #define ALLOCATE(type, count) \

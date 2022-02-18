@@ -42,6 +42,7 @@ typedef struct {
 
 	size_t bytesAllocated;	//* Number of bytes allocated for the runtime.
 	size_t nextGC;					//* Bytes until the next GC cycle should run.
+	void* rainyDay;					//* A portion of memory allocated in case the GC needs an allocation to function but cannot.
 } VM;
 
 // Declare vm struct so other files can access it.

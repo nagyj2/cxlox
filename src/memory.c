@@ -52,7 +52,7 @@ static void freeObject(Obj* object) {
 		case OBJ_UPVALUE: 	printf("upvalue "); break;
 		default: 						printf("unknown "); break;
 	}
-	printObject(*((Value*) object));
+	// printObject(*((Value*) object));
 	printf("\n");
 #endif
 	
@@ -120,8 +120,14 @@ void markObject(Obj* object) {
 		vm.grayStack = (Obj**) realloc(vm.grayStack, sizeof(Obj*) * vm.grayCapacity);
 
 		if (vm.grayStack == NULL) {
-			printf("Could not allocate memory for gray stack.\n");
-			exit(1);
+			free(vm.rainyDay);
+			vm.rainyDay = NULL;
+			vm.grayStack = (Obj**) realloc(vm.grayStack, sizeof(Obj*) * vm.grayCapacity);
+
+			if (vm.grayStack == NULL) {
+				printf("Could not allocate memory for gray stack.\n");
+				exit(1);
+			}
 		}
 	}
 
@@ -259,5 +265,17 @@ void collectGarbage() {
 	printf("-- GC end --\n");
 	printf("   Freed %zu bytes (from %zu to %zu) next at %zu\n", before - vm.bytesAllocated, before, vm.bytesAllocated, vm.nextGC);
 #endif
+	
+	// If the rainy day was used, try to reallocate it
+	if (vm.rainyDay == NULL) {
+		vm.rainyDay = malloc(RAINY_DAY_MEMORY);
+#ifdef DEBUG_LOG_GC
+		printf("   Rainy day reallocated: %p\n", vm.rainyDay);
+#endif
+		if (vm.rainyDay == NULL) {
+			printf("Failed to allocate backup memory.\n");
+			exit(1);
+		}
+	}
 	
 }
