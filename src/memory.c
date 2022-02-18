@@ -1,9 +1,29 @@
 #include <stdlib.h>
 
+#include "compiler.h"
 #include "memory.h"
 #include "vm.h"
 
-void *reallocate(void *pointer, size_t oldSize, size_t newSize) {
+#ifdef DEBUG_LOG_GC
+#include <stdio.h>
+#include "debug.h"
+#endif
+
+#define GC_HEAP_GROWTH_FACTOR 2
+
+void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
+	vm.bytesAllocated += newSize - oldSize; // Shift allocated bytes by the difference
+	// printf("%zu allocated, %zu next\n", vm.bytesAllocated, vm.nextGC);
+	if (newSize > oldSize) {
+		if (vm.bytesAllocated > vm.nextGC) {
+			collectGarbage();
+		} else {
+#ifdef DEBUG_STRESS_GC
+		// Always trigger  on allocation if forcing stress GC
+		collectGarbage();
+#endif
+		}
+	}
 	// If newSize is 0, handle free case.
 	if (newSize == 0) {
 		free(pointer);
@@ -22,6 +42,20 @@ void *reallocate(void *pointer, size_t oldSize, size_t newSize) {
  * @param[in,out] object The object to free.
  */
 static void freeObject(Obj* object) {
+#ifdef DEBUG_LOG_GC
+	printf("%p freed ", (void*) object);
+	switch (object->type) {
+		case OBJ_STRING: 		printf("string "); break;
+		case OBJ_FUNCTION: 	printf("function "); break;
+		case OBJ_CLOSURE: 	printf("closure "); break;
+		case OBJ_NATIVE: 		printf("native "); break;
+		case OBJ_UPVALUE: 	printf("upvalue "); break;
+		default: 						printf("unknown "); break;
+	}
+	printObject(*((Value*) object));
+	printf("\n");
+#endif
+	
 	switch (object->type) {
 		case OBJ_STRING: {
 			ObjString* string = (ObjString*) object;
@@ -61,4 +95,169 @@ void freeObjects() {
 		freeObject(object);
 		object = next;
 	}
+	
+	// Free the GC's stack manually
+	free(vm.grayStack);
+}
+
+void markObject(Obj* object) {
+	if (object == NULL)
+		return;
+	if (object->isMarked)
+		return;
+
+#ifdef DEBUG_LOG_GC
+	printf("%p mark ", (void*) object);
+	printValue(OBJ_VAL(object));
+	printf("\n");
+#endif
+
+	object->isMarked = true;
+
+	if (vm.grayCapacity < vm.grayCount + 1) {
+		vm.grayCapacity = GROW_CAPACITY(vm.grayCapacity);
+		// Use system realloc to prevent GC from managing the memory
+		vm.grayStack = (Obj**) realloc(vm.grayStack, sizeof(Obj*) * vm.grayCapacity);
+
+		if (vm.grayStack == NULL) {
+			printf("Could not allocate memory for gray stack.\n");
+			exit(1);
+		}
+	}
+
+	vm.grayStack[vm.grayCount++] = object;
+}
+
+void markValue(Value value) {
+	if (IS_OBJ(value))
+		markObject(AS_OBJ(value));
+}
+
+/** Mark all elements in an array as reachable.
+ * @param[out] array The array to mark.
+ */
+static void markArray(ValueArray* array) {
+	for (int i = 0; i < array->count; i++) {
+		markValue(array->values[i]);
+	}
+}
+
+/** Marks all root objects as reachable.
+ */
+static void markRoots() {
+	// Mark elements of the stack
+	for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
+		markValue(*slot);
+	}
+
+	// Mark call frame stack
+	for (int i = 0; i < vm.frameCount; i++) {
+		markObject((Obj*) vm.frames[i].closure);
+	}
+
+	// Mark open upvalues
+	for (ObjUpvalue* upvalue = vm.openUpvalues; upvalue != NULL; upvalue = upvalue->next) {
+		markObject((Obj*) upvalue);
+	}
+
+	// Mark globals
+	markTable(&vm.globals);
+	markTable(&vm.constants);
+
+	// Mark compiling functions
+	markCompilerRoots();
+}
+
+/** Append all reachable objects from a given object. (Adds these newly grayed objects to the gray stack)?
+ * @param[in] object The object to mark.
+ */
+static void blackenObject(Obj* object) {
+#ifdef DEBUG_LOG_GC
+	printf("%p blacken ", (void*) object);
+	printValue(OBJ_VAL(object));
+	printf("\n");
+#endif
+	
+	switch (object->type) {
+		case OBJ_UPVALUE:
+			markValue(((ObjUpvalue*) object)->closed); // Element is either on the stack or hoisted. Ensure we find the hoisted value
+			break;
+		case OBJ_FUNCTION: {
+			ObjFunction* function = (ObjFunction*) object;
+			markObject((Obj*) function->name); // Mark the name
+			markArray(&function->chunk.constants); // Mark all stored constants
+			break;
+		}
+		case OBJ_CLOSURE: {
+			ObjClosure* closure = (ObjClosure*) object;
+			markObject((Obj*) closure->function); // Mark the function
+			for (int i = 0; i < closure->upvalueCount; i++) {
+				markObject((Obj*) closure->upvalues[i]); // Mark each upvalue it maintains
+			}
+			break;
+		}
+		case OBJ_NATIVE:
+		case OBJ_STRING:
+			break;
+	}
+}
+
+/** Traven through all gray objects and mark all reachable objects from them.
+ */
+static void traceReferences() {
+	while (vm.grayCount > 0) {
+		Obj* object = vm.grayStack[--vm.grayCount];
+		blackenObject(object);
+	}
+}
+
+/** Removes all white objects from the heap.
+ * @details
+ * The objects referenced in Lox can be accessed via a linked list, so we can simply traverse it and remove
+ * all elements which have not been marked.
+ */
+static void sweep() {
+	Obj* previous = NULL;
+	Obj* object = vm.objects;
+	while (object != NULL) {
+		if (object->isMarked) {
+			object->isMarked = false; // Reset mark for next GC pass
+			previous = object;
+			object = object->next;
+		} else {
+			Obj* unreached = object;
+			object = object->next;
+			if (previous != NULL) {
+				previous->next = object;
+			} else {
+				vm.objects = object;
+			}
+			freeObject(unreached);
+		}
+	}
+}
+
+void collectGarbage() {
+#ifdef DEBUG_LOG_GC
+	printf("-- GC begin --\n");
+	size_t before = vm.bytesAllocated;
+#endif
+
+	// Mark inital gray objects
+	markRoots();
+	// Traverse the memory graph, marking elements until all possible references have been visited
+	traceReferences();
+	// We cannot treat the table as roots b/c then all strings would ALWAYS stay around
+	// While all objects have been marked as black or white, remove all white strings
+	tableRemoveWhite(&vm.strings);
+	// Sweep + remove unmarked objects
+	sweep();
+
+	vm.nextGC = vm.bytesAllocated * GC_HEAP_GROWTH_FACTOR;
+
+#ifdef DEBUG_LOG_GC
+	printf("-- GC end --\n");
+	printf("   Freed %zu bytes (from %zu to %zu) next at %zu\n", before - vm.bytesAllocated, before, vm.bytesAllocated, vm.nextGC);
+#endif
+	
 }

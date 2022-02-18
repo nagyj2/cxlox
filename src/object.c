@@ -46,7 +46,19 @@ static Obj* allocateObject(size_t size, ObjType type) {
 
 	// Set the new object list head to the new object
 	object->next = vm.objects;
+	object->isMarked = false;
 	vm.objects = object;
+
+#ifdef DEBUG_LOG_GC
+	printf("%p allocate %zu for ", (void*) object, size);
+	switch (type) {
+		case OBJ_STRING: 		printf("string\n"); break;
+		case OBJ_FUNCTION: 	printf("function\n"); break;
+		case OBJ_CLOSURE: 	printf("closure\n"); break;
+		case OBJ_NATIVE: 		printf("native\n"); break;
+		case OBJ_UPVALUE: 	printf("upvalue\n"); break;
+	}
+#endif
 
 	return object;
 }
@@ -100,7 +112,11 @@ static ObjString* allocateString(char* chars, int length, uint32_t hash) {
 	string->length = length;
 	string->chars = chars;
 	string->hash = hash;
+	
+	push(OBJ_VAL(string)); // Push for GC
 	tableSet(&vm.strings, OBJ_VAL(string), NIL_VAL); // Intern the string for future lookups
+	pop();
+	
 	return string;
 }
 

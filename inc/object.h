@@ -51,7 +51,8 @@ typedef enum {
 
 /* Heap allocated lox object. Base 'class' for lox values. Typedef-ed in 'value.h'. */
 struct Obj {
-	ObjType type; // Type of the object.
+	ObjType type; 		// Type of the object.
+	bool isMarked; 		// Whether the object is marked for GC.
 	struct Obj* next; // Next object in the linked list.
 };
 

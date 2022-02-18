@@ -2,6 +2,7 @@
 
 #include "chunk.h"
 #include "memory.h"
+#include "vm.h"
 
 void initChunk(Chunk *chunk) {
 	chunk->count = 0;
@@ -69,8 +70,10 @@ int getLine(Chunk *chunk, int instruction) {
 	}
 }
 
-int addConstant(Chunk *chunk, Value value) {
+int addConstant(Chunk* chunk, Value value) {
+	push(value); // Push for GC
 	writeValueArray(&chunk->constants, value);
+	pop();
 	// 'chunk->constant' dereferences to the exact location in memory where the constant pool is. Therefore, use '.' to get data
 	return chunk->constants.count - 1; // Return location to new constant
 }

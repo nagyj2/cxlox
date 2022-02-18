@@ -7,6 +7,7 @@
 #include "scanner.h"
 #include "vm.h"
 #include "object.h"
+#include "memory.h"
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -1682,4 +1683,10 @@ ObjFunction* compile(const char* source) {
 	return parser.hadError ? NULL : function;
 }
 
-// print "Consume " + "This"; var a = 9; print a; a = 1; print a;
+void markCompilerRoots() {
+	Compiler* compiler = current;
+	while (compiler != NULL) {
+		markObject((Obj*) compiler->function);
+		compiler = compiler->enclosing;
+	}
+}

@@ -9,7 +9,14 @@
 #define DEBUG_PRINT_CODE
 
 // Debug define to allow easier viewing of VM internals.
-#define DEBUG_TRACE_EXECUTION
+// #define DEBUG_TRACE_EXECUTION
+
+// Stress test mode for the garbage collector. Makes the GC run whenever it can.
+// #define DEBUG_STRESS_GC
+// Perform debug logging of the GC operations.
+#define DEBUG_LOG_GC
+// Load the standard library. Muddies up GC output, so it can be disabled.
+// #define DEBUG_LOAD_STDLIB
 
 #define UINT8_COUNT (UINT8_MAX + 1)
 

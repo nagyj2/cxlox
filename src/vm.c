@@ -32,8 +32,17 @@ void initVM() {
 	initTable(&vm.globals);
 	initTable(&vm.constants);
 
+	vm.grayCount = 0;
+	vm.grayCapacity = 0;
+	vm.grayStack = NULL;
+
+	vm.bytesAllocated = 0; // Start with nothing allocated.
+	vm.nextGC = 500; //1024 * 1024; // Default starting size for the first GC.
+
 	// Create all native functions
+#ifdef DEBUG_LOAD_STDLIB
 	loadStdlib();
+#endif
 }
 
 void freeVM() {
@@ -111,8 +120,8 @@ static bool isFalsey(Value value) {
 }
 
 static void concatenate() {
-	ObjString* b = AS_STRING(pop());
-	ObjString* a = AS_STRING(pop());
+	ObjString* b = AS_STRING(peek(0));
+	ObjString* a = AS_STRING(peek(1));
 
 	int length = a->length + b->length;
 	char* chars = ALLOCATE(char, length + 1);
@@ -120,7 +129,8 @@ static void concatenate() {
 	memcpy(chars + a->length, b->chars, b->length);
 	chars[length] = '\0';
 
-	ObjString* result = takeString(chars, length);
+	ObjString* result = takeString(chars, length); // May cause GC, so we want to keep arguments on the stack
+	pop(); pop(); // Leave on stack until done with them for GC reasons
 	push(OBJ_VAL(result));
 }
 
@@ -151,7 +161,7 @@ static bool call(ObjClosure* closure, int argCount) {
 static bool callValue(Value callee, int argCount) {
 	if (IS_OBJ(callee)) {
 		switch (OBJ_TYPE(callee)) {
-			// case OBJ_FUNCTION:
+			// case OBJ_FUNCTION: // Functions arent directly accessible b/c they are all enclosed by closures
 			// 	return call(AS_FUNCTION(callee), argCount);
 			case OBJ_CLOSURE:
 				return call(AS_CLOSURE(callee), argCount);
@@ -239,6 +249,7 @@ static InterpretResult run() {
 #define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
 	// Pop two elements from the stack, add them and then place the result back. Remember, left arg is placed first
 	// Uses a do loop to allow multiple lines AND a culminating semicolon
+	// Note: Safe to pop mathematical values from the stack b/c non-string primitives dont have heap data
 #define BINARY_OP(valueType, op) \
 	do { \
 		if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
