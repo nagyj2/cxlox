@@ -42,8 +42,23 @@ void *reallocate(void *pointer, size_t oldSize, size_t newSize);
 /** Frees all allocated object memory.
  * @details
  * Iterates through the object list and frees the allocated memory. Called when the VM is freed.
- *
  */
 void freeObjects();
+
+/** Marks an object to be kept by the GC.
+ * @param[out] object The object to be marked.
+ */
+void markObject(Obj* object);
+
+/** Mark an object as reachable to prevent memory deallocation.
+ * @details
+ * Ignores all values which are stored inside the value struct itself. Only objects are freed.
+ * @param[in,out] value The value to mark.
+ */
+void markValue(Value value);
+
+/** Performs garbage collection on all Lox allocated objects.
+ */
+void collectGarbage();
 
 #endif /* clox_memory_h */

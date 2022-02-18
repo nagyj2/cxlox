@@ -9,4 +9,8 @@
  */
 ObjFunction* compile(const char* source);
 
+/** Marks the currently compiling functions and closures as reachable.
+ */
+void markCompilerRoots();
+
 #endif /* clox_compiler_h */

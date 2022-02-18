@@ -89,4 +89,17 @@ void tableAddAll(Table* from, Table* to);
  */
 ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t hash);
 
+/** Mark all elements of a table as reachable. Marks the table contents and keys.
+ * @param[out] table Table to mark as reachable.
+ */
+void markTable(Table* table);
+
+/** Traverse the table and free all elements and keys which have not been marked.
+ * @details
+ * All references to the key indicate a key-value pair reference. By traversing the they keys,
+ * if there a white key, the value can be safely freed.
+ * @param[out] table The table to traverse.
+ */
+void tableRemoveWhite(Table* table);
+
 #endif /* clox_table_h */

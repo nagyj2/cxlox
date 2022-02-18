@@ -21,15 +21,25 @@ typedef struct {
 
 /* State information of the VM. VM is a global singleton. */
 typedef struct {
+	// VM Execution
 	Value stack[STACK_MAX]; //* The entire argument stack.
 	Value* stackTop;				//* Pointer to the slot just PAST the top of the stack. 
 	CallFrame frames[FRAMES_MAX];	//* The call stack.
 	int frameCount;					//* Number of frames on the call stack.
 	Obj* objects; 					//* A pointer to the first allocated object
 	// stack == stackTop = > empty stack.
+
 	Table strings;					//* A table for string internment.
 	Table globals;					//* A table for global variables.
 	ObjUpvalue* openUpvalues;	//* A linked list of upvalues which are still open.
+
+	// GC
+	int grayCount;					//* Number of gray objects.
+	int grayCapacity;				//* Capacity of the gray stack.
+	Obj** grayStack;				//* Stack of gray objects.
+
+	size_t bytesAllocated;	//* Number of bytes allocated for the runtime.
+	size_t nextGC;					//* Bytes until the next GC cycle should run.
 } VM;
 
 // Declare vm struct so other files can access it.
@@ -42,14 +52,15 @@ typedef enum {
 	INTERPRET_RUNTIME_ERROR		//* VM encountered a runtime-error.
 } InterpretResult;
 
-/** Initialize state of the VM. 
- * Includes resetting the stack.
- *
+/** Initialize state of the VM.
+ * @details
+ * Resets the stack, initializes internal hash tables and GC metadata.
  */
 void initVM();
 
 /** Cleanup and free the state of the VM.
- * 
+ * @details
+ * Frees all memory allocated to objects and contents of state hash tables.
  */
 void freeVM();
 
