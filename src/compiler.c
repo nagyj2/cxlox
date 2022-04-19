@@ -115,6 +115,7 @@ static void statement();
 static void declaration();
 static void varDeclaration();
 static void funDeclaration();
+static void classDeclaration();
 static void expressionStatement();
 static void printStatement();
 static void ifStatement();
@@ -431,7 +432,9 @@ static void markInitialized() {
 	current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
-/** Emits 2 bytes to define a new global variable.
+/** Emits 2 bytes to define a new variable for use. After this point the variable can be referenced.
+ * If defining a local variable, it will be marked as initialized by the compiler.
+ * If defining a global variable, code will be emitted to define the variable globally.
  * 
  * @param[in] global The index to the constant pool location of the global variable's name.
  */
@@ -607,8 +610,9 @@ static void addLocal(Token name) {
 	local->isCaptured = false;
 }
 
-/** Converts the (simulated) top stack element into a local variable.
- * 
+/** Converts the (simulated) top stack element into a local variable if it isn't global.
+ * Uses the last read token as the name. Will cause compile error if name is reused.
+ * Adds variable to scope.
  */
 static void declareVariable() {
 	// Globals are placed into the constant pool, so we don't need to do anything special here
@@ -771,10 +775,27 @@ static uint8_t argumentList() {
 
 /** Parses a function call and corresponding arguments.
  * @pre Assumes '(' has already been consumed.
+ * @param[in] canAssign unused.
  */
 static void call(bool canAssign) {
 	uint8_t argCount = argumentList(); // The number of elements on the stack to take as input
 	emitBytes(OP_CALL, argCount);
+}
+
+/** Parses a property get or set.
+ * @param[in] canAssign If true, dot indicates an assignment. Otherwise a get is parsed
+ */
+static void dot(bool canAssign) {
+	consume(TOKEN_IDENTIFIER, "Expected property name after '.'.");
+	uint8_t name = identifierConstant(&parser.previous); // property name
+
+	// Check if an assignment is being parsed and if an assignment can even occur
+	if (canAssign && match(TOKEN_EQUAL)) {
+		expression();
+		emitBytes(OP_SET_PROPERTY, name);
+	} else {
+		emitBytes(OP_GET_PROPERTY, name);
+	}
 }
 
 /** Parse a disjunction expression.
@@ -885,7 +906,7 @@ ParseRule rules[] = {  // PREFIX     INFIX    PRECIDENCE (INFIX) */
 	[TOKEN_LEFT_CURLY]    = {NULL,     NULL,    PREC_NONE}, 
 	[TOKEN_RIGHT_CURLY]   = {NULL,     NULL,    PREC_NONE},
 	[TOKEN_COMMA]         = {NULL,     NULL,    PREC_NONE},
-	[TOKEN_DOT]           = {NULL,     NULL,    PREC_NONE},
+	[TOKEN_DOT]           = {NULL,     dot,    	PREC_CALL},
 	[TOKEN_MINUS]         = {unary,    binary,  PREC_TERM},
 	[TOKEN_PLUS]          = {NULL,     binary,  PREC_TERM},
 	[TOKEN_SEMICOLON]     = {NULL,     NULL,    PREC_NONE},
@@ -1064,6 +1085,19 @@ static void funDeclaration() {
 	defineVariable(global); // Define the variable;
 }
 
+static void classDeclaration() {
+	consume(TOKEN_IDENTIFIER, "Expected class name.");
+	uint8_t name = identifierConstant(&parser.previous); // Place class name into constant pool so it can be printed later
+
+	declareVariable(); // Binds class object to a variable of the same name. ADDS VAR TO SCOPE
+	// Declare before class body so it can be used in the body.
+	emitBytes(OP_CLASS, name); // Emit instruction to create class at runtime
+	defineVariable(name); // Define variable for class's name
+
+	consume(TOKEN_LEFT_CURLY, "Expected '{' before class body.");
+	consume(TOKEN_RIGHT_CURLY, "Expected '}' after class body.");
+}
+
 /** Parses an while statement.
  * @details
  * Assumes the 'while' keyword has already been consumed.
@@ -1181,6 +1215,8 @@ static void declaration() {
 		varDeclaration();
 	} else if (match(TOKEN_FUN)) {
 		funDeclaration();
+	} else if (match(TOKEN_CLASS)) {
+		classDeclaration();
 	} else {
 		statement();
 	}

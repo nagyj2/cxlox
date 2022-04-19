@@ -11,6 +11,13 @@
 
 #define GC_HEAP_GROWTH_FACTOR 2
 
+/* 
+ ~ When adding new objects, modify:
+ ~	blackenObject()
+ ~	freeObject()
+ ~	allocateObject()
+ */
+
 void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
 	vm.bytesAllocated += newSize - oldSize; // Shift allocated bytes by the difference
 	// printf("%zu allocated, %zu next\n", vm.bytesAllocated, vm.nextGC);
@@ -50,6 +57,8 @@ static void freeObject(Obj* object) {
 		case OBJ_CLOSURE: 	printf("closure\n"); break;
 		case OBJ_NATIVE: 		printf("native\n"); break;
 		case OBJ_UPVALUE: 	printf("upvalue\n"); break;
+		case OBJ_CLASS: 		printf("class\n"); break;
+		case OBJ_INSTANCE: 	printf("instance\n"); break;
 		default: 						printf("unknown\n"); break;
 	}
 #endif
@@ -81,6 +90,16 @@ static void freeObject(Obj* object) {
 		case OBJ_UPVALUE: {
 			// doesnt own the variable, so it isnt released
 			FREE(ObjUpvalue, object);
+			break;
+		}
+		case OBJ_CLASS: {
+			FREE(ObjClass, object);
+			break;
+		}
+		case OBJ_INSTANCE: {
+			ObjInstance* instance = (ObjInstance*) object;
+			freeTable(&instance->fields);
+			FREE(ObjInstance, object);
 			break;
 		}
 	}
@@ -191,6 +210,17 @@ static void blackenObject(Obj* object) {
 			for (int i = 0; i < closure->upvalueCount; i++) {
 				markObject((Obj*) closure->upvalues[i]); // Mark each upvalue it maintains
 			}
+			break;
+		}
+		case OBJ_CLASS: {
+			ObjClass* klass = (ObjClass*) object;
+			markObject((Obj*) klass->name); // Mark the name of the class
+			break;
+		}
+		case OBJ_INSTANCE: {
+			ObjInstance* instance = (ObjInstance*) object;
+			markObject((Obj*) instance->klass); // Mark the class
+			markTable(&instance->fields); // Mark all fields
 			break;
 		}
 		case OBJ_NATIVE:

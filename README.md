@@ -8,9 +8,11 @@ This is a C implementation of the xlox language. There are two banches, `main` a
 program       := declaration*
 declaration   := varDecl
                | funDecl
+               | classDecl
                | statement
 varDecl       := "var" IDENTIFIER ["=" expression] ";"
 funDecl       := "fun" IDENTIFIER "(" [IDENTIFIER ("," IDENTIFIER)*] ")" "{" declaration* "}"
+classDecl     := "class" IDENTIFIER "{" "}"
 statement     := exprStmt
                | printStmt
                | blockStmt
@@ -34,7 +36,7 @@ addition      := multiply  (("+" | "-") multiply)*
 multiply 	    := unary (("*" | "/") unary)*
 unary         := ( "!" | "-") unary
                | call
-call          := primary ["(" [expr ("," expr)*)] ")"]
+call          := primary ["(" [expr ("," expr)*)] ")" | "." expr]
 primary       := NUMBER
                | STRING
                | IDENTIFIER

@@ -53,6 +53,8 @@ static Obj* allocateObject(size_t size, ObjType type) {
 		case OBJ_CLOSURE: 	printf("closure\n"); break;
 		case OBJ_NATIVE: 		printf("native\n"); break;
 		case OBJ_UPVALUE: 	printf("upvalue\n"); break;
+		case OBJ_CLASS: 		printf("class\n"); break;
+		case OBJ_INSTANCE: 	printf("instance\n"); break;
 	}
 #endif
 
@@ -92,6 +94,19 @@ ObjUpvalue* newUpvalue(Value* slot) {
 	upvalue->closed = NIL_VAL;
 	upvalue->next = NULL;
 	return upvalue;
+}
+
+ObjClass* newClass(ObjString* name) {
+	ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+	klass->name = name;
+	return klass;
+}
+
+ObjInstance* newInstance(ObjClass* klass) {
+	ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
+	instance->klass = klass;
+	initTable(&instance->fields);
+	return instance;
 }
 
 /** Create a lox string object from a character array and length. The string is only pointed to by this object, so it must be freed by the string. 
@@ -170,6 +185,12 @@ void printObject(Value value) {
 			break;
 		case OBJ_UPVALUE: // Not possible b/c upvalues arent user accessible
 			printf("upvalue");
+			break;
+		case OBJ_CLASS:
+			printf("%s", AS_CLASS(value)->name->chars);
+			break;
+		case OBJ_INSTANCE:
+			printf("%s instance", AS_INSTANCE(value)->klass->name->chars);
 			break;
 	}
 }

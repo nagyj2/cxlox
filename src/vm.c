@@ -10,6 +10,12 @@
 #include "object.h"
 #include "memory.h"
 
+/*
+ ~ When adding new instructions, modify:
+ ~ 	disassembleInstruction()
+ ~	run()
+ */
+
 // Declare the VM in global scope. Prevents needing to pass it as an argument everywhere.
 // By passing the VM as a pointer to functions, it is easier to have multiple VMs and pass them around in a host language.
 VM vm;
@@ -186,6 +192,12 @@ static bool callValue(Value callee, int argCount) {
 				vm.stackTop -= argCount + 1; // Reduce by # of args + callee reference
 				push(result);
 				return true; // success
+			}
+			case OBJ_CLASS: {
+				ObjClass* klass = AS_CLASS(callee);
+				vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass)); // Create instance where caller's name was
+				// Allows instance to be referenced by initializer func (b/c the instance is already on the stack)
+				return true;
 			}
 			default:
 				break; // Non callable object
@@ -464,6 +476,53 @@ static InterpretResult run() {
 			case OP_CLOSE_UPVALUE: {
 				closeUpvalues(vm.stackTop - 1); // Save top stack element
 				pop(); // Remove the value from the stack
+				break;
+			}
+			case OP_CLASS: {
+				push(OBJ_VAL(newClass(READ_STRING())));
+				break;
+			}
+			case OP_GET_PROPERTY: {
+				// Ensure a valid recipient is on the top of the stack
+				// This instruction ONLY operates on the SPECIFIC instance on the top of the stack
+				if (!IS_INSTANCE(peek(0))) {
+					runtimeError("Only instances have properties.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				
+				ObjInstance* instance = AS_INSTANCE(peek(0));
+				ObjString* name = READ_STRING();
+
+				Value value;
+				// If property exists, replace the top of the stack with it
+				if (tableGet(&instance->fields, name, &value)) {
+					pop();
+					push(value);
+					break;
+				}
+
+				runtimeError("Undefined property '%s'.", name->chars);
+				return INTERPRET_RUNTIME_ERROR;
+			}
+			case OP_SET_PROPERTY: {
+				// Ensure a valid recipient is under the top element of the stack
+				// This instruction ONLY operates on the SPECIFIC instance on the top of the stack
+				if (!IS_INSTANCE(peek(1))) {
+					runtimeError("Only instances have fields.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				
+				/** Stack shape
+				 * VALUE 			(value to assign)
+				 * INSTANCE		(instance to modify)
+				 * ....
+				 */
+
+				ObjInstance* instance = AS_INSTANCE(peek(1)); 				// Instance to set the property on
+				tableSet(&instance->fields, READ_STRING(), peek(0)); 	// Set the proeprty indexed by the opcode to the value on the top of the stack
+				Value value = pop(); // property
+				pop(); // instance
+				push(value); // put the value assigned back on the stack
 				break;
 			}
 		}
