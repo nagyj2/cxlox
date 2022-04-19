@@ -76,6 +76,10 @@ IDENTIFIER    := [a-zA-Z_][a-zA-Z0-9_]*
   - To allow colons in the `case` syntax, the case matches start at the 'conditional' level.
   - Default case, `default`, is available for when a match does not occur.
 
+## Todo
+- Assert statement
+  - `assert EXPR : 'MSG'`
+
 ## Build
 
 To make this project, you need to install the following dependencies:
