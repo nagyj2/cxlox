@@ -259,16 +259,16 @@
 // print m("resule") == -6;
 
 fun makeVector(x,y){
-  let z = 9;
+  var z = 9;
   fun vector(method){
     z = method;
     switch (method){
       case "x":     return x; // return {->x};
       case "y":     return y; // return {->y};
-      case "set-x": return {newx -> x = newx};
-      case "set-y": return {newy -> y = newy};
-      case "add":   return {other -> makeVector(x + other("x"), y + other("y"))};
-      case "mult":  return {other -> makeVector(x * other("x"), y * other("y"))};
+      case "set-x": return newx => x = newx;
+      case "set-y": return newy => y = newy;
+      case "add":   return other => makeVector(x + other("x"), y + other("y"));
+      case "mult":  return other => makeVector(x * other("x"), y * other("y"));
       default:      return nil;
     }
   }
