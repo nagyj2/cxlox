@@ -144,7 +144,7 @@ static void concatenate() {
 	push(OBJ_VAL(result));
 }
 
-/** Constructs a new call frame for the VM. 
+/** Constructs a new call frame for the VM. Effectively enters a new Lox function by altering the current frame
  * @details
  * Places the new call frame on top of the frame stack.
  * @param[in] closure The closure being called.
@@ -153,6 +153,7 @@ static void concatenate() {
  * @return false The frame could not be created.
  */
 static bool call(ObjClosure* closure, int argCount) {
+	// Lox cannot have functions with arbitrary number of arguments.
 	if (argCount != closure->function->arity) {
 		runtimeError("Expected %d arguments but got %d.", closure->function->arity, argCount);
 		return false;
@@ -161,13 +162,21 @@ static bool call(ObjClosure* closure, int argCount) {
 		runtimeError("Stack overflow.");
 		return false;
 	}
-	CallFrame* frame = &vm.frames[vm.frameCount++]; // Get next frame
+	// Get next frame from vm and fill in the details
+	// run() uses the top of the frame stack to determine execution, so altering the top will cause execution to move to the new code
+	CallFrame* frame = &vm.frames[vm.frameCount++];
 	frame->closure = closure;
 	frame->ip = closure->function->chunk.code;
 	frame->slots = vm.stackTop - argCount - 1;
 	return true;
 }
 
+/** Performs the actual call to a function.
+ * @param[in] callee Who is being called.
+ * @param[in] argCount The number of arguments passed to the function.
+ * @return true 
+ * @return false 
+ */
 static bool callValue(Value callee, int argCount) {
 	if (IS_OBJ(callee)) {
 		switch (OBJ_TYPE(callee)) {
@@ -177,7 +186,8 @@ static bool callValue(Value callee, int argCount) {
 				return call(AS_CLOSURE(callee), argCount);
 			case OBJ_NATIVE: {
 				ObjNative* loxcallee = AS_NATIVE(callee);
-				if (argCount != loxcallee->arity) {
+				// Ensure number of input arguments is correct. -1 indicates the function accepts any number of arguments.
+				if (loxcallee->arity != -1 && argCount != loxcallee->arity) {
 					runtimeError("Expected %d arguments but got %d.", loxcallee->arity, argCount);
 					return false;
 				}

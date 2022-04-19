@@ -29,7 +29,7 @@ void defineNative(const char* name, NativeFn function, int arity) {
 }
 
 //~ Native Implementations
-//! args is a pointer/ array, so it can be indexed at -1. This is where the calling function is placed. Return values can also be placed there
+//! If argCount = -1, then any number of arguments can be passed. Number of arguments will be calculated from 
 
 /** Returns the time elapsed since the start of the program.
  * @return Number of elapsed seconds since the program started execution.
@@ -167,6 +167,19 @@ static Value readNumberNative(int argCount, Value* args) {
 	return NUMBER_VAL(input);
 }
 
+
+/** Prints all inputs. Test function.
+ * @return Nothing
+ */
+static Value printAllNative(int argCount, Value* args) {
+	for (int i = 0; i < argCount; i++) {
+		printValue(args[i]);
+	}
+	printf("\n");
+	return NIL_VAL;
+}
+
+
 //~ Load Standard Library
 
 void loadStdlib() {
@@ -195,4 +208,7 @@ void loadStdlib() {
 	//~ Input Functions
 	defineNative("strin", readStringNative, 0);
 	defineNative("numin", readNumberNative, 0);
+
+	//~ Test Functions
+	defineNative("printall", printAllNative, -1);
 }
