@@ -28,7 +28,7 @@ printStmt     := "print" expr ";"
 blockStmt     := "{" declaration* "}"
 ifStmt        := "if" "(" expr ")" statement ["else" statement]
 whileStmt     := "while" "(" expr ")" statement
-forStmt       := "for" "(" (expr | varDecl)? ";" expr? ";" expr? ")" statement
+forStmt       := "for" "(" [expr | varDecl] ";" expr? ";" expr? ")" statement
 returnStmt    := "return" expr? ";"
 breakStmt     := "break" ";"
 continueStmt  := "continue" ";"
@@ -36,13 +36,11 @@ switchStmt    := "switch" "(" expr ")" "{" switchCase* defaultCase? "}"
 switchCase    := "case" conditional ":" statement*
 defaultCase   := "default" ":" statement*
 expr          := comma
-               | "{" [IDENT ("," IDENT)*] "=>" declaration* "}" 
-               | "{" [IDENT ("," IDENT)*] "->" expression "}" 
 comma         := optional ("," optional)*
 assignment    := IDENTIFIER ("=" | "+=" | "-=" | "*=" | "/=") assignment
                | optional
-optional      := conditional (":" optional)?
-conditional   := equality ("?" equality)?
+optional      := conditional [":" optional]
+conditional   := equality ["?" equality]
 equality      := comparison (("==" | "!=") comparison)*
 comparison    := addition (("<" | ">" | "<=" | ">=") addition)*
 addition      := multiply  (("+" | "-") multiply)*
@@ -52,12 +50,12 @@ unary         := ( "!" | "-") unary
 call          := primary ("(" [expr ("," expr)*)] ")")*
 primary       := NUMBER
                | STRING
-               | IDENTIFIER
+               | IDENTIFIER [(',' IDENTIFIER)* '=>' (expr | blockStmt)]
                | "true"
                | "false"
                | "nil"
                | "(" expr ")"
-NUMBER        := [0-9]+ ("." [0-9]+)?
+NUMBER        := [0-9]+ ["." [0-9]+]
 STRING        := "\"" (CHARACTER)* "\""
 IDENTIFIER    := [a-zA-Z_][a-zA-Z0-9_]*
 ```
