@@ -136,6 +136,7 @@ static void statement();
 static void declaration();
 static void varDeclaration();
 static void funDeclaration();
+static void classDeclaration();
 static void expressionStatement();
 static void printStatement();
 static void ifStatement();
@@ -509,7 +510,9 @@ static void markInitialized() {
 	current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
-/** Marks a variable as ready for use. If a global, a definition opcode is emitted. If a local, the variable is marked as initialized.
+/** Emits 2 bytes to define a new variable for use. After this point the variable can be referenced.
+ * If defining a local variable, it will be marked as initialized by the compiler.
+ * If defining a global variable, code will be emitted to define the variable globally.
  * 
  * @param[in] global The index to the constant pool location of the global variable's name.
  */
@@ -790,8 +793,9 @@ static void addUnnamedLocal(bool isConstant) {
 	local->isCaptured = false;
 }
 
-/** Converts the (simulated) top stack element into a local variable.
- * 
+/** Converts the (simulated) top stack element into a local variable if it isn't global.
+ * Uses the last read token as the name. Will cause compile error if name is reused.
+ * Adds variable to scope.
  */
 static void declareVariable(bool isConstant) {
 	// Globals are placed into the constant pool, so we don't need to do anything special here
@@ -952,6 +956,64 @@ static void binary(bool canAssign) {
 	}
 }
 
+/** Parses a number of arguments and returns the number of arguments parsed.
+ * @details
+ * Parsed arguments are left on the stack
+ */
+static uint8_t argumentList() {
+	uint8_t argCount = 0;
+	bool oldCallStatus = current->inCall; // Track the old status so we can restore it. Used for nested calls
+	current->inCall = true;
+	if (!check(TOKEN_RIGHT_PAREN)) {
+		do {
+			// Disallow comma expressions
+			parsePrecidence(PREC_COMMA+1);
+			// expression();
+			argCount++;
+			if (argCount >= 255) { // b/c using uint8_t exclusively
+				error("Cannot have more than 255 arguments.");
+			}
+		} while (match(TOKEN_COMMA));
+	}
+	consume(TOKEN_RIGHT_PAREN, "Expected ')'.");
+	current->inCall = oldCallStatus;
+	return argCount;
+}
+
+/** Parses a function call and corresponding arguments.
+ * @pre Assumes '(' has already been consumed.
+ * @param[in] canAssign unused.
+ */
+static void call(bool canAssign) {
+	uint8_t argCount = argumentList(); // The number of elements on the stack to take as input
+	emitBytes(OP_CALL, argCount);
+}
+
+/** Parses a property get or set.
+ * @param[in] canAssign If true, dot indicates an assignment. Otherwise a get is parsed
+ */
+static void dot(bool canAssign) {
+	uint8_t getOp, setOp;
+	consume(TOKEN_IDENTIFIER, "Expected property name after '.'.");
+	int nameIndex = identifierConstant(&parser.previous); // property name
+
+	if (nameIndex > CONST_TO_LONG_CONST) {
+			getOp = OP_GET_PROPERTY_LONG;
+			setOp = OP_SET_PROPERTY_LONG;
+		} else {
+			getOp = OP_GET_PROPERTY;
+			setOp = OP_SET_PROPERTY;
+		}
+
+	// Check if an assignment is being parsed and if an assignment can even occur
+	if (canAssign && match(TOKEN_EQUAL)) {
+		expression();
+		emitBytes(setOp, nameIndex);
+	} else {
+		emitBytes(getOp, nameIndex);
+	}
+}
+
 /** Parse a disjunction expression.
  * @details
  * Performes short circuit evaluation. If the left operand is false, the right operand is not evaluated.
@@ -1058,35 +1120,11 @@ static void variable(bool canAssign) {
 	}
 }
 
-/** Parses a number of arguments and returns the number of arguments parsed.
- * @details
- * Parsed arguments are left on the stack
- */
-static uint8_t argumentList() {
-	uint8_t argCount = 0;
-	bool oldCallStatus = current->inCall; // Track the old status so we can restore it. Used for nested calls
-	current->inCall = true;
-	if (!check(TOKEN_RIGHT_PAREN)) {
-		do {
-			// Disallow comma expressions
-			parsePrecidence(PREC_COMMA+1);
-			// expression();
-			argCount++;
-			if (argCount >= 255) { // b/c using uint8_t exclusively
-				error("Cannot have more than 255 arguments.");
-			}
-		} while (match(TOKEN_COMMA));
-	}
-	consume(TOKEN_RIGHT_PAREN, "Expected ')'.");
-	current->inCall = oldCallStatus;
-	return argCount;
-}
-
 static void function(FunctionType type) {
 	Compiler compiler;
 	initCompiler(&compiler, type);
 	beginScope();
-	bool constParams = false;
+	const bool constParams = false;
 
 	// Parse the parameter list
 	consume(TOKEN_LEFT_PAREN, "Expect '(' after function name.");
@@ -1126,7 +1164,7 @@ static void lambda() {
 	Compiler compiler;
 	initCompiler(&compiler, TYPE_LAMBDA);
 	beginScope();
-	bool constParams = false;
+	const bool constParams = false;
 
 	// Lambda is determined once the identifier has been passed over, so parseVariablePast must be used
 	uint8_t constant = parseVariablePast(constParams);
@@ -1185,15 +1223,6 @@ static void grouping(bool canAssign) {
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
 }
 
-/** Parses a function call and corresponding arguments.
- * @pre Assumes '(' has already been consumed.
- */
-static void call(bool canAssign) {
-	uint8_t argCount = argumentList(); // The number of elements on the stack to take as input
-	emitBytes(OP_CALL, argCount);
-}
-
-
 // Declared after all function declarations so they can be placed into the table.
 /** Singleton representing the functions to call when a token is encountered when parsing an expression and the precidence level to parse for binary expressions. 
  * Literals are included in this table with the 'unary' slot representing the function to parse the literal.
@@ -1204,7 +1233,7 @@ ParseRule rules[] = {  // 	PREFIX				INFIX					PRECIDENCE (INFIX) */
 	[TOKEN_LEFT_PAREN]			= {grouping,		call,					PREC_CALL},
   [TOKEN_RIGHT_PAREN]			= {NULL,				NULL,					PREC_NONE},
   [TOKEN_RIGHT_CURLY]			= {NULL,				NULL,					PREC_NONE},
-  [TOKEN_DOT]							= {NULL,				NULL,					PREC_NONE},
+	[TOKEN_DOT]           	= {NULL,     		dot,    			PREC_CALL},
   [TOKEN_MINUS]						= {unary,				binary,				PREC_TERM},
   [TOKEN_PLUS]						= {NULL,				binary,				PREC_TERM},
   [TOKEN_SEMICOLON]				= {NULL,				NULL,					PREC_NONE},
@@ -1418,6 +1447,21 @@ static void funDeclaration() {
 	markInitialized(); // Allow recursion
 	function(TYPE_FUNCTION); // Functions are first class, so this simply places one on the stack
 	defineVariable(global, constFunc); // Define the variable;
+}
+
+static void classDeclaration() {
+	const bool constClass = false;
+	
+	consume(TOKEN_IDENTIFIER, "Expected class name.");
+	uint8_t name = identifierConstant(&parser.previous); // Place class name into constant pool so it can be printed later
+
+	declareVariable(constClass); // Binds class object to a variable of the same name. ADDS VAR TO SCOPE
+	// Declare before class body so it can be used in the body.
+	emitBytes(OP_CLASS, name); // Emit instruction to create class at runtime
+	defineVariable(name, constClass); // Define variable for class's name
+
+	consume(TOKEN_LEFT_CURLY, "Expected '{' before class body.");
+	consume(TOKEN_RIGHT_CURLY, "Expected '}' after class body.");
 }
 
 /** Parses an while statement.
@@ -1687,6 +1731,8 @@ static void declaration() {
 		letDeclaration();
 	} else if (match(TOKEN_FUN)) {
 		funDeclaration();
+	} else if (match(TOKEN_CLASS)) {
+		classDeclaration();
 	} else {
 		statement();
 	}

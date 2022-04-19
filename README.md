@@ -9,10 +9,12 @@ program       := declaration*
 declaration   := varDecl
                | funDecl
                | letDecl
+               | classDecl
                | statement
 varDecl       := "var" IDENTIFIER ["=" expression] ";"
 funDecl       := "fun" IDENTIFIER "(" [IDENTIFIER ("," IDENTIFIER)*] ")" "{" declaration* "}"
 letDecl       := "let" IDENTIFIER "=" expression ";"
+classDecl     := "class" IDENTIFIER "{" "}"
 statement     := exprStmt
                | printStmt
                | blockStmt
@@ -47,7 +49,7 @@ addition      := multiply  (("+" | "-") multiply)*
 multiply 	    := unary (("*" | "/") unary)*
 unary         := ( "!" | "-") unary
                | call
-call          := primary ("(" [expr ("," expr)*)] ")")*
+call          := primary ["(" [expr ("," expr)*)] ")" | "." expr]
 primary       := NUMBER
                | STRING
                | IDENTIFIER [(',' IDENTIFIER)* '=>' (expr | blockStmt)]

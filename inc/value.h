@@ -34,6 +34,10 @@ typedef struct {
 #define NUMBER_VAL(value) ((Value){VAL_NUMBER, {.number = value}})
 #define OBJ_VAL(object) 	((Value){VAL_OBJ, {.obj = (Obj*) object}})
 
+// Shorthands for boolean constants
+#define TRUE_VAL 					BOOL_VAL(true)
+#define FALSE_VAL 				BOOL_VAL(false)
+
 // Convert a dynamically typed lox value to a statically typed C value. Only safe when the lox type is known.
 #define AS_BOOL(value) 		((value).as.boolean)
 #define AS_NUMBER(value) 	((value).as.number)

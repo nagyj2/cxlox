@@ -270,8 +270,6 @@ static Token string() {
 	while (peek() != '"' && !isAtEnd()) {
 		if (peek() == '\n')
 			scanner.line++;
-		if (peek() == '{' && peekNext() != '{')
-			type = TOKEN_STRING_INTERP;
 		advance();
 	}
 

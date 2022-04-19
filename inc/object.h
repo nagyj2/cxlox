@@ -4,6 +4,16 @@
 #include "common.h"
 #include "value.h"
 #include "chunk.h"
+#include "table.h"
+
+/*
+ ~ When creating a new object type, modify:
+ ~	IS_<> Macro
+ ~	AS_<> Macro
+ ~	new<>()
+ ~	memory.c functions
+ ~  printObject()
+ */
 
 // Returns the type of an object.
 #define OBJ_TYPE(value)	(AS_OBJ(value)->type)
@@ -18,6 +28,10 @@
 #define IS_CLOSURE(value) isObjType(value, OBJ_CLOSURE)
 // Returns whether the object is a function closure.
 #define IS_UPVALUE(value) isObjType(value, OBJ_UPVALUE)
+// Returns whether the object is a class.
+#define IS_CLASS(value) isObjType(value, OBJ_CLASS)
+// Returns whether the object is a class instance.
+#define IS_INSTANCE(value) isObjType(value, OBJ_INSTANCE)
 
 // Convert a lox value to a lox string. Returns ObjString pointer.
 #define AS_STRING(value) ((ObjString*) AS_OBJ(value))
@@ -39,6 +53,10 @@
 #define AS_CLOSURE(value) ((ObjClosure*) AS_OBJ(value))
 // Convert a lox value into a an upvalue. Returns a Upvalue pointer.
 #define AS_UPVALUE(value) ((ObjUpvalue*) AS_OBJ(value))
+// Convert a lox value into a class. Returns a Class pointer.
+#define AS_CLASS(value) ((ObjClass*) AS_OBJ(value))
+// Convert a lox value into an instance. Returns a class instance pointer.
+#define AS_INSTANCE(value) ((ObjInstance*) AS_OBJ(value))
 
 /* Available types for lox objects. */
 typedef enum {
@@ -47,6 +65,8 @@ typedef enum {
 	OBJ_STRING,
 	OBJ_CLOSURE,
 	OBJ_UPVALUE,
+	OBJ_CLASS,
+	OBJ_INSTANCE,
 } ObjType;
 
 /* Heap allocated lox object. Base 'class' for lox values. Typedef-ed in 'value.h'. */
@@ -104,6 +124,22 @@ typedef struct {
 	int upvalueCount;				//* The number of upvalues the closure maintains.
 } ObjClosure;
 
+/** Representation of a class. Used as factories to produce instances which are then used in the runtime of lox
+ * The user defines classes.
+ */
+typedef struct {
+	Obj obj;
+	ObjString* name;				//* User visible name of the class
+} ObjClass;
+
+/** Representation of a class instance at runtime.
+ */
+typedef struct {
+	Obj obj;
+	ObjClass* klass;				//* The class which the instance represents.
+	Table fields;						//* A hashmap containing the attributes of the instance.
+} ObjInstance;
+
 //~ Semantics
 
 /** Returns whether or not a value is an object of a specific type.
@@ -150,6 +186,18 @@ ObjClosure* newClosure(ObjFunction* function);
  * @return ObjUpvalue* 
  */
 ObjUpvalue* newUpvalue(Value* slot);
+
+/** Creates a new class object.
+ * @param[in] name The name to call the class
+ * @return ObjClass* pointer to a newly created class struct.
+ */
+ObjClass* newClass(ObjString* name);
+
+/** Creates a new class instance.
+ * @param[in] class The class to create an instance of
+ * @return ObjInstance* pointer to a newly created class instance.
+ */
+ObjInstance* newInstance(ObjClass* klass);
 
 /** Create a new lox string value by 'taking ownership' of the input character array.
  * @details

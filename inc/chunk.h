@@ -10,6 +10,8 @@ typedef enum {
 	OP_DEFINE_GLOBAL_LONG,	//* OPCODE INDEX INDEX INDEX : (SE-1) Defines a global variable using 24 bit index and assigns the top element to it.
 	OP_GET_GLOBAL_LONG,			//* OPCODE INDEX INDEX INDEX : (SE+1) Retrieves a global variable by 24 bit index and pushes its current value to the stack.
 	OP_SET_GLOBAL_LONG,			//* OPCODE INDEX INDEX INDEX : (SE0) Retrieves a global variable by 24 bit index and places the top of the stack at the indexed variable.
+	OP_GET_PROPERTY_LONG,		//* OPCODE INDEX INDEX INDEX : (SE+1) Retrieves a property identified by the index from the instance on top of the stack and replaces the top of the stack with that retrieved property.
+	OP_SET_PROPERTY_LONG,		//* OPCODE INDEX INDEX INDEX : (SE0) Sets a property given by the indexed string to the top element of the stack.
 	OP_CONDITIONAL,        	//* OPCODE : (SE-1) Pops 2 elements from the stack. If the 2nd element is truthy, the 1st element is pushed on the stack. Otherwise 'nil' is pushed.
 	OP_OPTIONAL,						//* OPCODE : (SE-1) Pops 2 elements from the stack. If the 2nd element is 'nil', the 1st element is pushed. Otherwise the 2nd element is pushed.
 	OP_POPN,								//* OPCODE NUMBER : (SE0) Pops n elements from the stack.
@@ -46,6 +48,9 @@ typedef enum {
 	OP_GET_UPVALUE,			//* OPCODE INDEX : (SE+1) Retrieves a variable from the function's upvalue array using a given index and places it onto the stack.
 	OP_SET_UPVALUE,			//* OPCODE INDEX : (SE0) Saves the top element of the stack to a position in the upvalue array using the given index.
 	OP_CLOSE_UPVALUE,		//* OPCODE : (SE0) Updates the upvalue pointer location of the top element from a stack position to a storage location in the ObjUpvalue itself. This allows the variable to persist outside the stack.
+	OP_CLASS,						//* OPCODE INDEX : (SE0) Creates a new class using the indexed constant as a name.
+	OP_GET_PROPERTY,		//* OPCODE INDEX : (SE+1) Retrieves a property identified by the index from the instance on top of the stack and replaces the top of the stack with that retrieved property.
+	OP_SET_PROPERTY,		//* OPCODE INDEX : (SE0) Sets a property given by the indexed string to the top element of the stack.
 } OpCode;
 
 /** Structure to more efficiently track line numbers. Uses a dynamic array. */
