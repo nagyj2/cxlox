@@ -120,6 +120,7 @@ struct Compiler {
 	int recentLoop;									//* The most recent loop position
 	int numBreak;										//* The number of break positions
 	int recentBreak[MAX_BREAKS];		//* The most recent break position
+	bool inCall;										//* Whether or not the compiler is parsing a function call
 };
 
 // Parser singleton.
@@ -142,6 +143,7 @@ static void whileStatement();
 static void forStatement();
 static void returnStatement();
 static void block();
+static void lambda();
 static ParseRule* getRule(TokenType type);
 static void parsePrecidence(Precidence precidence);
 
@@ -394,6 +396,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 	compiler->scopeDepth = 0;
 	compiler->recentLoop = -1;
 	compiler->numBreak = 0;
+	compiler->inCall = false;
 	current = compiler;
 
 	switch (type) {
@@ -423,8 +426,8 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
  * @param[in] appendReturn Whether the parsed function should have a return expression appended to it
  * @return ObjFunction* The completely compiled function.
  */
-static ObjFunction* endCompiler(bool impliedReturn) {
-	if (impliedReturn)
+static ObjFunction* endCompiler(bool appendReturn) {
+	if (appendReturn)
 		emitReturn();
 	ObjFunction* function = current->function; // Return the function we just made
 
@@ -842,6 +845,21 @@ static uint8_t parseVariable(const char* errorMessage, bool isConstant) {
 	return identifierConstant(&parser.previous);
 }
 
+/** Parses a variable which has just been passed over.
+ * @return uint8_t index of the variable in the constant pool
+ */
+static uint8_t parseVariablePast(bool isConstant) {
+	// declare the var. If a local, the locals array must be updated. If a global, nothing needs to be done
+	declareVariable(isConstant);
+	// If local, var will be placed on stack, so dont give the global location
+	if (current->scopeDepth > 0)
+		return 0;
+
+	return identifierConstant(&parser.previous);
+}
+
+
+
 /** Emits a constant number value to the current chunk. 
  *  @pre The number token is in the parser.previous position.
  * @param[in] canAssign unused.
@@ -1033,7 +1051,11 @@ static void optional(bool canAssign) {
  * @param[in] canAssign unused.
  */
 static void variable(bool canAssign) {
-	namedVariable(parser.previous, canAssign);
+	if (!current->inCall && (check(TOKEN_COMMA) || check(TOKEN_EQUAL_GREATER))) {
+		lambda();
+	} else {
+		namedVariable(parser.previous, canAssign);
+	}
 }
 
 /** Parses a number of arguments and returns the number of arguments parsed.
@@ -1042,6 +1064,8 @@ static void variable(bool canAssign) {
  */
 static uint8_t argumentList() {
 	uint8_t argCount = 0;
+	bool oldCallStatus = current->inCall; // Track the old status so we can restore it. Used for nested calls
+	current->inCall = true;
 	if (!check(TOKEN_RIGHT_PAREN)) {
 		do {
 			// Disallow comma expressions
@@ -1054,6 +1078,7 @@ static uint8_t argumentList() {
 		} while (match(TOKEN_COMMA));
 	}
 	consume(TOKEN_RIGHT_PAREN, "Expected ')'.");
+	current->inCall = oldCallStatus;
 	return argCount;
 }
 
@@ -1095,16 +1120,23 @@ static void function(FunctionType type) {
 }
 
 /** Parses an anonymous function.
- * @pre Assumes the initial '{' has been parsed.
+ * @pre Assumes the initial argument has been parsed and new scope has been initialized. parser.current = ','
  */
-static void lambda(bool canAssign) {
+static void lambda() {
 	Compiler compiler;
 	initCompiler(&compiler, TYPE_LAMBDA);
 	beginScope();
 	bool constParams = false;
 
-	// Parse the parameter list
-	if (!check(TOKEN_EQUAL_GREATER) && !check(TOKEN_MINUS_GREATER) && !check(TOKEN_EOF)) {
+	// Lambda is determined once the identifier has been passed over, so parseVariablePast must be used
+	uint8_t constant = parseVariablePast(constParams);
+	defineVariable(constant, constParams);
+	current->function->arity = 1;
+
+	match(TOKEN_COMMA); // Remove comma only if it exists
+		
+	// Parse the rest of the parameter list
+	if (!check(TOKEN_EQUAL_GREATER) && !check(TOKEN_EOF)) {
 		do {
 			current->function->arity++;
 			if (current->function->arity > 255) {
@@ -1114,11 +1146,11 @@ static void lambda(bool canAssign) {
 			defineVariable(constant, constParams); // Do not initialize. Initialization will occur when passing functions
 		} while (match(TOKEN_COMMA));
 	}
-	if (!match(TOKEN_EQUAL_GREATER) && !match(TOKEN_MINUS_GREATER)) {
-		error("Expected '=>' or '->' after parameters.");
+	if (!match(TOKEN_EQUAL_GREATER)) {
+		error("Expected '=>' after parameters.");
 	}
 
-	if (parser.previous.type == TOKEN_EQUAL_GREATER) {
+	if (match(TOKEN_LEFT_CURLY)) {
 		//~ Parse Traditional Functions
 		block();
 	} else {
@@ -1126,7 +1158,6 @@ static void lambda(bool canAssign) {
 		emitByte(OP_NIL);
 		expression();
 		emitByte(OP_RETURN);
-		consume(TOKEN_RIGHT_CURLY, "Expect '}' after lambda body.");
 	}
 	
 	// Finish compiling and create the function object constant
@@ -1147,7 +1178,10 @@ static void lambda(bool canAssign) {
  * @param[in] canAssign unused.
  */
 static void grouping(bool canAssign) {
+	bool oldCallStatus = current->inCall;
+	current->inCall = false; // Reset in call status b/c it allows lambdas to be directly put in as args
 	expression();
+	current->inCall = oldCallStatus;
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
 }
 
@@ -1169,7 +1203,6 @@ static void call(bool canAssign) {
 ParseRule rules[] = {  // 	PREFIX				INFIX					PRECIDENCE (INFIX) */
 	[TOKEN_LEFT_PAREN]			= {grouping,		call,					PREC_CALL},
   [TOKEN_RIGHT_PAREN]			= {NULL,				NULL,					PREC_NONE},
-  [TOKEN_LEFT_CURLY]			= {lambda,			NULL,					PREC_NONE}, 
   [TOKEN_RIGHT_CURLY]			= {NULL,				NULL,					PREC_NONE},
   [TOKEN_DOT]							= {NULL,				NULL,					PREC_NONE},
   [TOKEN_MINUS]						= {unary,				binary,				PREC_TERM},
@@ -1180,7 +1213,6 @@ ParseRule rules[] = {  // 	PREFIX				INFIX					PRECIDENCE (INFIX) */
   [TOKEN_QUESTION]				= {NULL,				conditional,	PREC_CONDITIONAL},	// For conditional expressions
   [TOKEN_COLON]						= {NULL,				optional,			PREC_OPTIONAL},			// For defaulted values 
 	[TOKEN_COMMA]						= {NULL,				comma,				PREC_COMMA},				// For comma operator
-	// [TOKEN_PIPE]						= {NULL,				NULL,					PREC_NONE},					// For lambda expressions
   [TOKEN_BANG]						= {unary,				NULL,					PREC_NONE},
   [TOKEN_BANG_EQUAL]			= {NULL,				binary,				PREC_EQUALITY},
   [TOKEN_EQUAL]						= {NULL,				NULL,					PREC_NONE},
