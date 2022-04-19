@@ -199,7 +199,7 @@ static void blackenObject(Obj* object) {
 	}
 }
 
-/** Traven through all gray objects and mark all reachable objects from them.
+/** Travel through all gray objects and mark all reachable objects from them.
  */
 static void traceReferences() {
 	while (vm.grayCount > 0) {
