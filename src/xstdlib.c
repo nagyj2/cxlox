@@ -13,6 +13,7 @@
 
 #include "stdlib.h"
 #include "object.h"
+#include "value.h"
 #include "vm.h"
 
 // Maximum length for a input string
@@ -29,6 +30,7 @@ void defineNative(const char* name, NativeFn function, int arity) {
 }
 
 //~ Native Implementations
+//! args is a pointer, so it can be indexed at -1. This is where the calling function is placed. Return values can also be placed there
 //! If argCount = -1, then any number of arguments can be passed. Number of arguments will be calculated from 
 
 /** Returns the time elapsed since the start of the program.
@@ -167,6 +169,33 @@ static Value readNumberNative(int argCount, Value* args) {
 	return NUMBER_VAL(input);
 }
 
+/** Returns the type of a variable as a string.
+ * @return String representing the type of the input.
+ */
+static Value typeNative(int argCount, Value* args) {
+	if (IS_BOOL(args[0])) {
+		return OBJ_VAL(copyString("bool", 4));
+	} else if (IS_NIL(args[0])) {
+		return OBJ_VAL(copyString("null", 4));
+	} else if (IS_NUMBER(args[0])) {
+		return OBJ_VAL(copyString("num", 3));
+	} else if (IS_OBJ(args[0])) {
+		switch (OBJ_TYPE(args[0])) {
+			case OBJ_STRING:
+				return OBJ_VAL(copyString("str", 3));
+			case OBJ_CLOSURE:
+				return OBJ_VAL(copyString("closure", 7));
+			case OBJ_FUNCTION:
+				return OBJ_VAL(copyString("func", 4));
+			case OBJ_NATIVE:
+				return OBJ_VAL(copyString("native", 6));
+			default:
+				break;
+		}
+	}
+
+	return OBJ_VAL(copyString("unknown", 7));
+}
 
 /** Prints all inputs. Test function.
  * @return Nothing
@@ -200,10 +229,11 @@ void loadStdlib() {
 	defineNative("isstr", isStringNative, 1);
 	defineNative("isfun", isFunctionNative, 1);
 	
-	//~ Type Conversions
+	//~ Types
 	// defineNative("num", convNumberNative, 1);
 	// defineNative("bool", convBooleanNative, 1);
 	// defineNative("str", convStringNative, 1);
+	defineNative("type", typeNative, 1);
 
 	//~ Input Functions
 	defineNative("strin", readStringNative, 0);
