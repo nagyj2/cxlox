@@ -19,5 +19,7 @@
 // #define DEBUG_LOAD_STDLIB
 
 #define UINT8_COUNT (UINT8_MAX + 1)
+// Maximum length for a input string
+#define MAX_STRING_LEN 256
 
 #endif /* clox_common_h */

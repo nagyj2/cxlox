@@ -16,9 +16,6 @@
 #include "value.h"
 #include "vm.h"
 
-// Maximum length for a input string
-#define MAX_STRING_LEN 256
-
 //~ Helper Functions
 
 void defineNative(const char* name, NativeFn function, int arity) {

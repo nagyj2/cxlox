@@ -265,10 +265,13 @@ static TokenType identifierType() {
  */
 static Token string() {
 	// This loop will put the entire string into the buffer between scanner start and current.
+	TokenType type = TOKEN_STRING;
 	char escaped[] = "\\ntr\"";
 	while (peek() != '"' && !isAtEnd()) {
 		if (peek() == '\n')
 			scanner.line++;
+		if (peek() == '{' && peekNext() != '{')
+			type = TOKEN_STRING_INTERP;
 		advance();
 	}
 
@@ -276,7 +279,7 @@ static Token string() {
 		return errorToken("Unertminated string.");
 
 	advance(); // The terminating '"'
-	return makeToken(TOKEN_STRING);
+	return makeToken(type);
 }
 
 /** Parse a decimal or integer number and returns a corresponding number token. The token points to the position in the scanner source code memory where the lexeme is. 
