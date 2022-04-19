@@ -173,7 +173,7 @@ static Value typeNative(int argCount, Value* args) {
 	if (IS_BOOL(args[0])) {
 		return OBJ_VAL(copyString("bool", 4));
 	} else if (IS_NIL(args[0])) {
-		return OBJ_VAL(copyString("null", 4));
+		return OBJ_VAL(copyString("nil", 4));
 	} else if (IS_NUMBER(args[0])) {
 		return OBJ_VAL(copyString("num", 3));
 	} else if (IS_OBJ(args[0])) {
@@ -183,15 +183,29 @@ static Value typeNative(int argCount, Value* args) {
 			case OBJ_CLOSURE:
 				return OBJ_VAL(copyString("closure", 7));
 			case OBJ_FUNCTION:
-				return OBJ_VAL(copyString("func", 4));
+				return OBJ_VAL(copyString("fun", 4));
 			case OBJ_NATIVE:
 				return OBJ_VAL(copyString("native", 6));
+			case OBJ_CLASS:
+				return OBJ_VAL(copyString("class", 5));
+			case OBJ_INSTANCE:
+				return OBJ_VAL(copyString("instance", 8));
 			default:
 				break;
 		}
 	}
 
 	return OBJ_VAL(copyString("unknown", 7));
+}
+
+/** Returns whether an instance has an attribute.
+ */
+static Value hasattrNative(int argCount, Value* args) {
+	if (!IS_INSTANCE(args[0])) 	return FALSE_VAL;
+	if (!IS_STRING(args[1])) 		return FALSE_VAL;
+
+	Value dummy;
+	return BOOL_VAL(tableGet(&AS_INSTANCE(args[0])->fields, args[1], &dummy));
 }
 
 /** Prints all inputs. Test function.
@@ -216,21 +230,17 @@ void loadStdlib() {
 	defineNative("time", timeNative, 0);
 
 	//~ String Manipulation Functions
-	defineNative("strBefore", strBeforeNative, 2);
-	defineNative("strAfter", strAfterNative, 2);
+	defineNative("splitBefore", strBeforeNative, 2);
+	defineNative("splitAfter", strAfterNative, 2);
 
-	//~ Type Tests
-	defineNative("isnum", isNumberNative, 1);
-	defineNative("isbool", isBooleanNative, 1);
-	defineNative("isnil", isNilNative, 1);
-	defineNative("isstr", isStringNative, 1);
-	defineNative("isfun", isFunctionNative, 1);
-	
 	//~ Types
-	// defineNative("num", convNumberNative, 1);
-	// defineNative("bool", convBooleanNative, 1);
-	// defineNative("str", convStringNative, 1);
 	defineNative("type", typeNative, 1);
+	defineNative("hasattr", hasattrNative, 2);
+	// defineNative("isnum", isNumberNative, 1);
+	// defineNative("isbool", isBooleanNative, 1);
+	// defineNative("isnil", isNilNative, 1);
+	// defineNative("isstr", isStringNative, 1);
+	// defineNative("isfun", isFunctionNative, 1);
 
 	//~ Input Functions
 	defineNative("strin", readStringNative, 0);
