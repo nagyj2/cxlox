@@ -420,10 +420,12 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 }
 
 /** Marks the end of a compilation.
+ * @param[in] appendReturn Whether the parsed function should have a return expression appended to it
  * @return ObjFunction* The completely compiled function.
  */
-static ObjFunction* endCompiler() {
-	emitReturn();
+static ObjFunction* endCompiler(bool impliedReturn) {
+	if (impliedReturn)
+		emitReturn();
 	ObjFunction* function = current->function; // Return the function we just made
 
 	// If debug is enabled, print the completed bytecode if there was no error
@@ -1081,9 +1083,9 @@ static void function(FunctionType type) {
 
 	// Finish compiling and create the function object constant
 	// Note: Because we end the compiler, there is no corresponding endScope(). Placing an endScope() would simply add more bytecode to pop locals with no benefit
-	ObjFunction* function = endCompiler();
-	// Emit the constant onto the stack
+	ObjFunction* function = endCompiler(true);
 
+	// Emit the constant onto the stack
 	emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
 	// For every upvalue captured, emit its locality and index
 	for (int i = 0; i < function->upvalueCount; i++) {
@@ -1128,7 +1130,7 @@ static void lambda(bool canAssign) {
 	}
 	
 	// Finish compiling and create the function object constant
-	ObjFunction* function = endCompiler();
+	ObjFunction* function = endCompiler(false);
 	// Emit the constant onto the stack
 	
 	emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
@@ -1679,7 +1681,7 @@ ObjFunction* compile(const char* source) {
 		declaration();
 	}
 
-	ObjFunction* function = endCompiler();
+	ObjFunction* function = endCompiler(true);
 	return parser.hadError ? NULL : function;
 }
 
