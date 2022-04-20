@@ -88,9 +88,9 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 		case OP_SET_GLOBAL_LONG:
 			return constantLongInstruction("OP_SET_GLOBAL_LONG", chunk, offset);
 		case OP_GET_PROPERTY_LONG:
-			return constantLongInstruction("OP_GET_PROPERTY", chunk, offset);
+			return constantLongInstruction("OP_GET_PROPERTY_LONG", chunk, offset);
 		case OP_SET_PROPERTY_LONG:
-			return constantLongInstruction("OP_SET_PROPERTY", chunk, offset);
+			return constantLongInstruction("OP_SET_PROPERTY_LONG", chunk, offset);
 		
 		case OP_DEL_PROPERTY:
 			return simpleInstruction("OP_DEL_PROPERTY", offset);

@@ -597,7 +597,7 @@ static int resolveLocal(Compiler* compiler, Token* name) {
  * @param[in] index The index of the variable.
  * @param[in] opcode The opcode to perform on the variable.
  */
-static void emitLocalIndexed(int index, uint8_t opcode) {
+static void emitLocalIndexed(uint8_t opcode, int index) {
 	if (index > CONST_TO_LONG_CONST) {
 		emitBytes(opcode, (uint8_t) (index & 0xff));
 		emitBytes((uint8_t) ((index >> 8) & 0xff), (uint8_t) ((index >> 16) & 0xff));
@@ -713,25 +713,25 @@ static void namedVariable(Token name, bool canAssign) {
 		TokenType operator = parser.previous.type;
 		switch (parser.previous.type) {
 			case TOKEN_MINUS_EQUAL: {
-				emitLocalIndexed(index, getOp);
+				emitLocalIndexed(getOp, index);
 				expression();
 				emitByte(OP_SUBTRACT);
 				break;
 			}
 			case TOKEN_PLUS_EQUAL: {
-				emitLocalIndexed(index, getOp);
+				emitLocalIndexed(getOp, index);
 				expression();
 				emitByte(OP_ADD);
 				break;
 			}
 			case TOKEN_STAR_EQUAL: {
-				emitLocalIndexed(index, getOp);
+				emitLocalIndexed(getOp, index);
 				expression();
 				emitByte(OP_MULTIPLY);
 				break;
 			}
 			case TOKEN_SLASH_EQUAL: {
-				emitLocalIndexed(index, getOp);
+				emitLocalIndexed(getOp, index);
 				expression();
 				emitByte(OP_DIVIDE);
 				break;
@@ -740,10 +740,10 @@ static void namedVariable(Token name, bool canAssign) {
 				expression();
 				break;
 		}
-		emitLocalIndexed(index, setOp);
+		emitLocalIndexed(setOp, index);
 		
 	} else {
-		emitLocalIndexed(index, getOp);
+		emitLocalIndexed(getOp, index);
 	}
 }
 
@@ -1012,9 +1012,9 @@ static void dot(bool canAssign) {
 	// Check if an assignment is being parsed and if an assignment can even occur
 	if (canAssign && match(TOKEN_EQUAL)) {
 		expression();
-		emitBytes(setOp, nameIndex);
+		emitLocalIndexed(setOp, nameIndex);
 	} else {
-		emitBytes(getOp, nameIndex);
+		emitLocalIndexed(getOp, nameIndex);
 	}
 }
 
@@ -1717,10 +1717,10 @@ static void delStatement() {
 		int nameIndex = identifierConstant(&parser.previous); // property name
 
 		if (nameIndex > CONST_TO_LONG_CONST) {
-			emitBytes(OP_GET_PROPERTY_LONG, nameIndex);
+			emitLocalIndexed(OP_GET_PROPERTY_LONG, nameIndex);
 			// emitLocalIndexed(nameIndex, OP_GET_PROPERTY_LONG);
 		} else {
-			emitBytes(OP_GET_PROPERTY, nameIndex);
+			emitLocalIndexed(OP_GET_PROPERTY, nameIndex);
 			// emitLocalIndexed(nameIndex, OP_GET_PROPERTY);
 		}
 	}

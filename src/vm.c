@@ -702,6 +702,8 @@ static InterpretResult run() {
 				 */
 
 				ObjInstance* instance = AS_INSTANCE(peek(1)); 				// Instance to set the property on
+				// ObjString* name = READ_STRING();										// Name of the property to set -> Can be inlined, like in _LONG version
+				
 				tableSet(&instance->fields, OBJ_VAL(READ_STRING()), peek(0)); 	// Set the proeprty indexed by the opcode to the value on the top of the stack
 				Value value = pop(); // property
 				pop(); // instance
