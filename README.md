@@ -25,6 +25,7 @@ statement     := exprStmt
                | breakStmt
                | continueStmt
                | switchStmt
+               | delStmt
 exprStmt      := expr ";"
 printStmt     := "print" expr ";"
 blockStmt     := "{" declaration* "}"
@@ -37,6 +38,7 @@ continueStmt  := "continue" ";"
 switchStmt    := "switch" "(" expr ")" "{" switchCase* defaultCase? "}"
 switchCase    := "case" conditional ":" statement*
 defaultCase   := "default" ":" statement*
+delStmt       := "del" IDENT ("." IDENT)+ ";"
 expr          := comma
 comma         := optional ("," optional)*
 assignment    := IDENTIFIER ("=" | "+=" | "-=" | "*=" | "/=") assignment

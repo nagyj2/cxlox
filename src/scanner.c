@@ -212,7 +212,20 @@ static TokenType identifierType() {
 			}
 			break;
 		}
-		case 'd': return checkKeyword(1, 6, "efault", TOKEN_DEFAULT);
+		case 'd':
+			if (scanner.current - scanner.start > 1) {
+				switch (scanner.start[1]) {
+					case 'e':
+						if (scanner.current - scanner.start > 2) {
+							switch (scanner.start[2]) {
+								case 'f': return checkKeyword(3, 4, "ault", TOKEN_DEFAULT);
+								case 'l': return checkKeyword(3, 0, "", TOKEN_DEL);
+							}
+						}
+						break;
+				}
+			}
+			break;
 		case 'e': return checkKeyword(1, 3, "lse", TOKEN_ELSE);
 		case 'f': {
 			// Examine next char (if present) to know which words to search for.

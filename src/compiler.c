@@ -142,6 +142,10 @@ static void printStatement();
 static void ifStatement();
 static void whileStatement();
 static void forStatement();
+static void continueStatement();
+static void breakStatement();
+static void switchStatement();
+static void delStatement();
 static void returnStatement();
 static void block();
 static void lambda();
@@ -370,7 +374,7 @@ static void emitReturn() {
 	emitByte(OP_RETURN);
 }
 
-/** Emits 2 bytes which correspond to the creation of a constant value.
+/** Emits 2-4 bytes which correspond to the creation of a constant value.
  * @param[in] value The value to write.
  */
 static void emitConstant(Value value) {
@@ -1677,6 +1681,63 @@ static void switchStatement() {
 #undef AFTER_DEFAULT 
 }
 
+// /** Emits 2-4 bytes which correspond to the creation of a constant value.
+//  * @param[in] value The value to write.
+//  */
+// static void emitDelProperty(Value value) {
+// 	int index = makeConstant(value);
+// 	if (index < CONST_TO_LONG_CONST) {
+// 		emitBytes(OP_DEL_PROPERTY, index);
+// 	} else {
+// 		// Emit opcode and then the 3 bytes of the index.
+// 		emitBytes(OP_DEL_PROPERTY_LONG, (uint8_t) (index & 0xff));
+// 		emitBytes((uint8_t) ((index >> 8) & 0xff), (uint8_t) ((index >> 16) & 0xff));
+// 	}
+// }
+
+/** Removes a property from an instance.
+ */
+static void delStatement() {
+	// Get initial variable
+	if (!match(TOKEN_IDENTIFIER)) {
+		error("Expect identifier after 'del'.");
+	}
+	namedVariable(parser.previous, false);
+
+	if (!check(TOKEN_DOT)) {
+		error("Expect '.' after identifier.");
+	}
+
+	// Keep getting until there is no more dots
+	while (match(TOKEN_DOT) && !check(TOKEN_EOF)) {
+		consume(TOKEN_IDENTIFIER, "Expected property name after '.'.");
+		if (!check(TOKEN_DOT)) {
+			break;
+		}
+		int nameIndex = identifierConstant(&parser.previous); // property name
+
+		if (nameIndex > CONST_TO_LONG_CONST) {
+			emitBytes(OP_GET_PROPERTY_LONG, nameIndex);
+			// emitLocalIndexed(nameIndex, OP_GET_PROPERTY_LONG);
+		} else {
+			emitBytes(OP_GET_PROPERTY, nameIndex);
+			// emitLocalIndexed(nameIndex, OP_GET_PROPERTY);
+		}
+	}
+	
+	// Stack will have the instance on the top and the property we are interested in is parsed but NOT emitted yet
+	// Delete the property
+
+	emitConstant(OBJ_VAL(copyString(parser.previous.start, parser.previous.length)));
+	emitByte(OP_DEL_PROPERTY);
+
+	/* INLINE VERSION
+	emitDelProperty(OBJ_VAL(copyString(parser.previous.start, parser.previous.length)));
+	*/
+	
+	REPLSemicolon();
+}
+
 /** Parses a return statement. Optionally allows an expression for a return value.
  */
 static void returnStatement() {
@@ -1711,6 +1772,8 @@ static void statement() {
 		continueStatement();
 	} else if (match(TOKEN_BREAK)) {
 		breakStatement();
+	} else if (match(TOKEN_DEL)) {
+		delStatement();
 	} else if (match(TOKEN_SWITCH)) {
 		beginScope();
 		switchStatement();

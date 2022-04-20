@@ -603,6 +603,48 @@ static InterpretResult run() {
 				push(OBJ_VAL(newClass(READ_STRING())));
 				break;
 			}
+									
+			case OP_DEL_PROPERTY: {
+				if (!IS_INSTANCE(peek(1))) {
+					runtimeError("Only instances have properties.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				
+				ObjInstance* instance = AS_INSTANCE(peek(1));
+				ObjString* name = AS_STRING(peek(0));
+
+				tableDelete(&instance->fields, OBJ_VAL(name));
+				pop(); // Pop after in case GC runs
+				break;
+			}
+			/* INLINE VERSION
+			case OP_DEL_PROPERTY: {
+				if (!IS_INSTANCE(peek(0))) {
+					runtimeError("Only instances have properties.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				
+				ObjInstance* instance = AS_INSTANCE(peek(0));
+				ObjString* name = READ_STRING();
+
+				tableDelete(&instance->fields, OBJ_VAL(name));
+				pop(); // Pop after in case GC runs
+				break;
+			}
+			case OP_DEL_PROPERTY_LONG: {
+				if (!IS_INSTANCE(peek(0))) {
+					runtimeError("Only instances have properties.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				
+				ObjInstance* instance = AS_INSTANCE(peek(0));
+				ObjString* name = READ_STRING_LONG();
+				
+				tableDelete(&instance->fields, OBJ_VAL(name));
+				pop(); // Pop after in case GC runs
+				break;
+			}
+			*/
 			case OP_GET_PROPERTY: {
 				// Ensure a valid recipient is on the top of the stack
 				// This instruction ONLY operates on the SPECIFIC instance on the top of the stack

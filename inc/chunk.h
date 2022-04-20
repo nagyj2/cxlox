@@ -12,12 +12,19 @@ typedef enum {
 	OP_SET_GLOBAL_LONG,			//* OPCODE INDEX INDEX INDEX : (SE0) Retrieves a global variable by 24 bit index and places the top of the stack at the indexed variable.
 	OP_GET_PROPERTY_LONG,		//* OPCODE INDEX INDEX INDEX : (SE+1) Retrieves a property identified by the index from the instance on top of the stack and replaces the top of the stack with that retrieved property.
 	OP_SET_PROPERTY_LONG,		//* OPCODE INDEX INDEX INDEX : (SE0) Sets a property given by the indexed string to the top element of the stack.
+	OP_DEFINE_CONST_LONG,		//* OPCODE INDEX INDEX INDEX : (SE-1) Defines a global constant using 24 bit index and assigns the top element to it.
+
+	OP_DEL_PROPERTY,				//* OPCODE: (SE-2) Deletes the top stack element (property) from the bottom stack element (instance).
+	/* INLINE VERSION
+	OP_DEL_PROPERTY,				//* OPCODE INDEX: (SE-1) Deletes the indexed string representing a property from the top instance element.
+	OP_DEL_PROPERTY_LONG,		//* OPCODE INDEX INDEX INDEX : (SE-1) Deletes the indexed string representing a property from the top instance element.
+	*/
+	
 	OP_CONDITIONAL,        	//* OPCODE : (SE-1) Pops 2 elements from the stack. If the 2nd element is truthy, the 1st element is pushed on the stack. Otherwise 'nil' is pushed.
 	OP_OPTIONAL,						//* OPCODE : (SE-1) Pops 2 elements from the stack. If the 2nd element is 'nil', the 1st element is pushed. Otherwise the 2nd element is pushed.
 	OP_POPN,								//* OPCODE NUMBER : (SE0) Pops n elements from the stack.
 	OP_POPREPL,							//* OPCODE : (SE-1) Pops 1 element from the stack and if in REPL mode, it is printed.
 	OP_DEFINE_CONST,				//* OPCODE INDEX : (SE-1) Defines a global constant and assigns the top element to it.
-	OP_DEFINE_CONST_LONG,		//* OPCODE INDEX INDEX INDEX : (SE-1) Defines a global constant using 24 bit index and assigns the top element to it.
 	OP_DUP,									//* OPCODE : (SE+1) Duplicates the top element of the stack.
 	OP_CONSTANT,				//* OPCODE INDEX : (SE+1) Introduces a constant into the constant pool.
 	OP_ADD,							//* OPCODE : (SE-1) Performs addition on the top 2 stack elements and pushes the result.
