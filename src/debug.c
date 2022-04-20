@@ -91,10 +91,16 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return constantLongInstruction("OP_GET_PROPERTY_LONG", chunk, offset);
 		case OP_SET_PROPERTY_LONG:
 			return constantLongInstruction("OP_SET_PROPERTY_LONG", chunk, offset);
+		case OP_GET_PROP_SAFE_LONG:
+			return constantLongInstruction("OP_GET_PROP_SAFE_LONG", chunk, offset);
+		// case OP_SET_PROP_SAFE_LONG:
+		// 	return constantLongInstruction("OP_SET_PROP_SAFE_LONG", chunk, offset);
 		case OP_DEFINE_CONST_LONG:
 			return constantLongInstruction("OP_DEFINE_CONST_LONG", chunk, offset);
 		case OP_CONSTANT_LONG:
 			return constantLongInstruction("OP_CONSTANT_LONG", chunk, offset);
+		case OP_GET_PROP_SAFE:
+			return constantInstruction("OP_GET_PROP_SAFE", chunk, offset);
 		case OP_CLOSURE_LONG: {
 			offset++;
 			uint32_t constant = (chunk->code[offset + 0]) |
@@ -114,7 +120,6 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			}
 			return offset;
 		}
-
 #ifdef USE_STACK_PROPERTY_DELETE
 		case OP_DEL_PROPERTY:
 			return simpleInstruction("OP_DEL_PROPERTY", offset);
@@ -124,7 +129,8 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 		case OP_DEL_PROPERTY_LONG:
 			return constantLongInstruction("OP_DEL_PROPERTY_LONG", chunk, offset);
 #endif
-
+		// case OP_SET_PROP_SAFE:
+		// 	return constantInstruction("OP_SET_PROP_SAFE", chunk, offset);
 		case OP_CONDITIONAL:
 			return simpleInstruction("OP_CONDITIONAL", offset);
 		case OP_OPTIONAL:

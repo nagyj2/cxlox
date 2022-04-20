@@ -693,20 +693,59 @@ static InterpretResult run() {
 					runtimeError("Only instances have properties.");
 					return INTERPRET_RUNTIME_ERROR;
 				}
-				
 				ObjInstance* instance = AS_INSTANCE(peek(0));
 				ObjString* name = READ_STRING_LONG();
-
 				Value value;
-				// If property exists, replace the top of the stack with it
 				if (tableGet(&instance->fields, OBJ_VAL(name), &value)) {
 					pop();
 					push(value);
 					break;
 				}
-
 				runtimeError("Undefined property '%s'.", name->chars);
 				return INTERPRET_RUNTIME_ERROR;
+			}
+			case OP_GET_PROP_SAFE: {
+				// b/c safe, we want '?.' to be chainable. If a non-instance is on top of the stack, we replace it with nil;
+				if (!IS_INSTANCE(peek(0))) {
+					READ_STRING(); // Skip the string. We dont use it, but it needs to be passed over by the VM
+					if (!IS_NIL(peek(0))) {  // Avoiding this op does give a performance boost
+						pop(); // Remove top and replace with nil
+						push(NIL_VAL);
+					}
+					break;
+				}
+				ObjInstance* instance = AS_INSTANCE(peek(0));
+				ObjString* name = READ_STRING();
+				Value value;
+				if (tableGet(&instance->fields, OBJ_VAL(name), &value)) {
+					pop(); // Keep until tableGet is done to prevent GC from snatching it
+					push(value);
+					break;
+				}
+				pop();
+				push(NIL_VAL);
+				break;
+			}
+			case OP_GET_PROP_SAFE_LONG: {
+				if (!IS_INSTANCE(peek(0))) {
+					READ_STRING_LONG();
+					if (!IS_NIL(peek(0))) {
+						pop();
+						push(NIL_VAL);
+					}
+					break;
+				}
+				ObjInstance* instance = AS_INSTANCE(peek(0));
+				ObjString* name = READ_STRING_LONG();
+				Value value;
+				if (tableGet(&instance->fields, OBJ_VAL(name), &value)) {
+					pop();
+					push(value);
+					break;
+				}
+				pop();
+				push(NIL_VAL);
+				break;
 			}
 			case OP_SET_PROPERTY: {
 				// Ensure a valid recipient is under the top element of the stack

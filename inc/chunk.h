@@ -23,6 +23,8 @@ typedef enum {
 	OP_DEL_PROPERTY,				//* OPCODE INDEX: (SE-1) Deletes the indexed string representing a property from the top instance element.
 	OP_DEL_PROPERTY_LONG,		//* OPCODE INDEX INDEX INDEX : (SE-1) Deletes the indexed string representing a property from the top instance element.
 #endif
+	OP_GET_PROP_SAFE,				//* OPCODE INDEX : (SE+1) Retrieves a property identified by the index from the instance on top of the stack and replaces the top of the stack with that retrieved property.
+	OP_GET_PROP_SAFE_LONG,	//* OPCODE INDEX : (SE+1) Retrieves a property identified by the index from the instance on top of the stack and replaces the top of the stack with that retrieved property.
 	OP_CONDITIONAL,        	//* OPCODE : (SE-1) Pops 2 elements from the stack. If the 2nd element is truthy, the 1st element is pushed on the stack. Otherwise 'nil' is pushed.
 	OP_OPTIONAL,						//* OPCODE : (SE-1) Pops 2 elements from the stack. If the 2nd element is 'nil', the 1st element is pushed. Otherwise the 2nd element is pushed.
 	OP_POPN,								//* OPCODE NUMBER : (SE0) Pops n elements from the stack.
@@ -62,6 +64,9 @@ typedef enum {
 	OP_GET_PROPERTY,		//* OPCODE INDEX : (SE+1) Retrieves a property identified by the index from the instance on top of the stack and replaces the top of the stack with that retrieved property.
 	OP_SET_PROPERTY,		//* OPCODE INDEX : (SE0) Sets a property given by the indexed string to the top element of the stack.
 } OpCode;
+
+// OP_SET_PROP_SAFE,				//* OPCODE INDEX : (SE0) Sets a property given by the indexed string to the top element of the stack.
+// OP_SET_PROP_SAFE_LONG,	//* OPCODE INDEX : (SE0) Sets a property given by the indexed string to the top element of the stack.	
 
 /** Structure to more efficiently track line numbers. Uses a dynamic array. */
 typedef struct {

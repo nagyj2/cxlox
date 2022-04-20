@@ -356,7 +356,6 @@ Token scanToken() {
 		case ';': return makeToken(TOKEN_SEMICOLON);
 		case ',': return makeToken(TOKEN_COMMA);
 		case '.': return makeToken(TOKEN_DOT);
-		case '?': return makeToken(TOKEN_QUESTION);
 		case ':': return makeToken(TOKEN_COLON);
 		// case '|': return makeToken(TOKEN_PIPE);
 
@@ -365,6 +364,8 @@ Token scanToken() {
 		case '`':  return errorToken("Strings use double quotes only.");
 
 		// Multi-character tokens
+		case '?':
+			return makeToken(match('.') ? TOKEN_QUESTION_DOT : TOKEN_QUESTION);
 		case '-':
 			if (match('>')) return errorToken("Lambda functions use '=>' only.");
 			return makeToken(match('=') ? TOKEN_MINUS_EQUAL : match('>') ? TOKEN_MINUS_GREATER : TOKEN_MINUS);

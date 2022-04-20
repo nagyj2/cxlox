@@ -51,7 +51,7 @@ addition      := multiply  (("+" | "-") multiply)*
 multiply 	    := unary (("*" | "/") unary)*
 unary         := ( "!" | "-") unary
                | call
-call          := primary ["(" [expr ("," expr)*)] ")" | "." expr]
+call          := primary ["(" [expr ("," expr)*)] ")" | ("." | "?.") expr]
 primary       := NUMBER
                | STRING
                | IDENTIFIER [(',' IDENTIFIER)* '=>' (expr | blockStmt)]
@@ -77,6 +77,10 @@ IDENTIFIER    := [a-zA-Z_][a-zA-Z0-9_]*
   - Can be prevented by use of `break` statement.
   - To allow colons in the `case` syntax, the case matches start at the 'conditional' level.
   - Default case, `default`, is available for when a match does not occur.
+- Properties can be deleted from instances using the `del` keyword followed by a single property access.
+- Properties can be accessed in a safe way with the `?.` operator.
+  - If the left operand is not an instance, the result will be `nil`.
+  - If the left operand is an instance and the right operand is a property that instance has, the result will be that property. Otherwise, `nil` will be returned.
 
 ## Todo
 - Assert statement

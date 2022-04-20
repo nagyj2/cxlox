@@ -1029,7 +1029,6 @@ static void call(bool canAssign) {
  * @param[in] canAssign If true, dot indicates an assignment. Otherwise a get is parsed
  */
 static void dot(bool canAssign) {
-	opcode_t getOp, setOp;
 	consume(TOKEN_IDENTIFIER, "Expected property name after '.'.");
 	index_t nameIndex = identifierConstant(&parser.previous); // property name
 
@@ -1039,6 +1038,23 @@ static void dot(bool canAssign) {
 		emitLongable(OP_SET_PROPERTY, OP_SET_PROPERTY_LONG, nameIndex);
 	} else {
 		emitLongable(OP_GET_PROPERTY, OP_GET_PROPERTY_LONG, nameIndex);
+	}
+}
+
+/** Parses a property get or set, but defaults a nil output on error.
+ * @param[in] canAssign If true, dot indicates an assignment. Otherwise a get is parsed
+ */
+static void dotsafe(bool canAssign) {
+	consume(TOKEN_IDENTIFIER, "Expected property name after '?.'.");
+	index_t nameIndex = identifierConstant(&parser.previous); // property name
+
+	// Check if an assignment is being parsed and if an assignment can even occur
+	if (canAssign && match(TOKEN_EQUAL)) {
+		error("Cannot use '?.' in assignments.");
+		// expression();
+		// emitLongable(OP_SET_PROP_SAFE, OP_SET_PROP_SAFE_LONG, nameIndex);
+	} else {
+		emitLongable(OP_GET_PROP_SAFE, OP_GET_PROP_SAFE_LONG, nameIndex);
 	}
 }
 
@@ -1272,6 +1288,7 @@ ParseRule rules[] = {  // 	PREFIX				INFIX					PRECIDENCE (INFIX) */
   [TOKEN_QUESTION]				= {NULL,				conditional,	PREC_CONDITIONAL},	// For conditional expressions
   [TOKEN_COLON]						= {NULL,				optional,			PREC_OPTIONAL},			// For defaulted values 
 	[TOKEN_COMMA]						= {NULL,				comma,				PREC_COMMA},				// For comma operator
+	[TOKEN_QUESTION_DOT]    = {NULL,     		dotsafe,    	PREC_CALL},					// For safe access
   [TOKEN_BANG]						= {unary,				NULL,					PREC_NONE},
   [TOKEN_BANG_EQUAL]			= {NULL,				binary,				PREC_EQUALITY},
   [TOKEN_EQUAL]						= {NULL,				NULL,					PREC_NONE},
