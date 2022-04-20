@@ -4,6 +4,9 @@
 #include "common.h"
 #include "value.h"
 
+typedef uint8_t 	opcode_t;		//* Size of a single opcode
+typedef uint32_t 	index_t;	//* Size of a index for the bytecode. Converted to uint8_t at time of bytecode writing
+
 /** Define the Operation Codes which can exist in the bytecode. */
 typedef enum {
 	OP_CONSTANT_LONG,				//* OPCODE INDEX INDEX INDEX : (SE+1) Places a constant from the constant pool into the stack using a 24 bit address.
@@ -100,7 +103,7 @@ void writeChunk(Chunk *chunk, uint8_t byte, int line);
  * @param[in] value The constant to put into the constant pool.
  * @return The constant pool index of '@p value' input.
  */
-int addConstant(Chunk *chunk, Value value);
+index_t addConstant(Chunk *chunk, Value value);
 
 /** Releases the memory held by a chunk and what it points to. Also resets metadata and nullifies pointer.
  *
@@ -122,6 +125,6 @@ int getLine(Chunk *chunk, int instruction);
  * @param[in] value The value to write
  * @param[in] line The source line the value shows up on.
  */
-void writeConstant(Chunk *chunk, Value value, int line);
+// void writeConstant(Chunk *chunk, Value value, int line);
 
 #endif /* clox_chunk_h */

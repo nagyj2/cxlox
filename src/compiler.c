@@ -33,6 +33,12 @@
     PRINTF_BINARY_PATTERN_INT32             PRINTF_BINARY_PATTERN_INT32
 #define PRINTF_BYTE_TO_BINARY_INT64(i) \
     PRINTF_BYTE_TO_BINARY_INT32((i) >> 32), PRINTF_BYTE_TO_BINARY_INT32(i)
+
+// Example:
+// printf("global:  "
+//   PRINTF_BINARY_PATTERN_INT32 "\n",
+// 	PRINTF_BYTE_TO_BINARY_INT32(global));
+
 /* --- end macros --- */
 
 #ifdef DEBUG_PRINT_CODE
@@ -335,7 +341,7 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
  * @param[in] opcode_long The opcode to emit.
  * @param[in] index The index to emit as 3 bytes
  */
-static void emitLongBytes(uint8_t opcode_long, int index) {
+static void emitLongBytes(uint8_t opcode_long, index_t index) {
 	emitBytes(opcode_long, (uint8_t) (index & 0xff));
 	emitBytes((uint8_t) ((index >> 8) & 0xff), (uint8_t) ((index >> 16) & 0xff));
 }
@@ -345,7 +351,7 @@ static void emitLongBytes(uint8_t opcode_long, int index) {
  * @param[in] opcode_long The opcode to emit in case of a long index.
  * @param[in] index The index to emit.
  */
-static void emitLongable(uint8_t opcode, uint8_t opcode_long, int index) {
+static void emitLongable(opcode_t opcode, opcode_t opcode_long, index_t index) {
 	if (index >= CONST_TO_LONG_CONST) {
 		emitLongBytes(opcode_long, index);
 	} else {
@@ -374,7 +380,7 @@ static void patchJump(int offset) {
  * @param[in] instruction The jump opcode to emit.
  * @return int The position of the jump offset bytes.
  */
-static int emitJump(uint8_t instruction) {
+static int emitJump(opcode_t instruction) {
 	emitByte(instruction);
 	emitByte(0xff); // Jump offset placeholder.
 	emitByte(0xff);
@@ -401,15 +407,14 @@ static void emitLoop(int loopStart) {
  * @details
  * Causes an error if the number of constants in the chunk exceeds the maximum.
  * @param[in] value The value to write to the constant pool.
- * @return uint8_t byte representing the index of the constant in the constant pool.
+ * @return index_t byte representing the index of the constant in the constant pool.
  */
-static int makeConstant(Value value) {
-	int constant = addConstant(currentChunk(), value);
+static index_t makeConstant(Value value) {
+	index_t constant = addConstant(currentChunk(), value);
 	if (constant > MAX_CONSTANTS_PER_CHUNK) {
 		error("Too many constants in one chunk.");
 		return 0;
 	}
-
 	return constant;
 }
 
@@ -417,7 +422,7 @@ static int makeConstant(Value value) {
  * @param[in] value The value to write.
  */
 static void emitConstant(Value value) {
-	int index = makeConstant(value);
+	index_t index = makeConstant(value);
 	emitLongable(OP_CONSTANT, OP_CONSTANT_LONG, index);
 }
 
@@ -501,7 +506,6 @@ static void popLocals(int locals) {
 	if (locals == 1)
 		emitByte(OP_POP);
 	else
-		// for (int i = 0; i < locals; i++)
 		emitBytes(OP_POPN, (uint8_t) locals);
 }
 
@@ -561,7 +565,7 @@ static void markInitialized() {
  * 
  * @param[in] global The index to the constant pool location of the global variable's name.
  */
-static void defineVariable(int global, bool isConstant) {
+static void defineVariable(index_t global, bool isConstant) {
 	// If a local, don't put into constant pool
 	if (current->scopeDepth > 0) {
 		markInitialized();
@@ -571,9 +575,6 @@ static void defineVariable(int global, bool isConstant) {
 	if (isConstant) {
 		emitLongable(OP_DEFINE_CONST, OP_DEFINE_CONST_LONG, global);
 	} else {
-		printf("global:  "
-           PRINTF_BINARY_PATTERN_INT32 "\n",
-           PRINTF_BYTE_TO_BINARY_INT32(global));
 		emitLongable(OP_DEFINE_GLOBAL, OP_DEFINE_GLOBAL_LONG, global);
 	}
 }
@@ -581,9 +582,9 @@ static void defineVariable(int global, bool isConstant) {
 /** Creates a string constant for an identifier, places it in the constant pool, and returns the index of the constant.
  * 
  * @param[in] name The name of the variable to declare.
- * @return uint8_t 
+ * @return index_t 
  */
-static int identifierConstant(Token* name) {
+static index_t identifierConstant(Token* name) {
 	return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
 	// return emitConstant(OBJ_VAL(copyString(name->start, name->length)));
 	
@@ -720,54 +721,49 @@ static int resolveUpvalue(Compiler* compiler, Token* name) {
  * @param[in] name The name of the variable to retrieve.
  */
 static void namedVariable(Token name, bool canAssign) {
-	uint8_t getOp, setOp;
-	// Attempt to find local with name
-	int index = resolveLocal(current, &name);
+	opcode_t getOp, setOp, getOpLong, setOpLong;
+	// Attempt to find local with name. 
+	index_t index = resolveLocal(current, &name); // RETURNS INTEGER; POSITION OF VAR IN LOCALS. IF -1, then it will be converted to index_t below
 	
 	if (index != -1) {
-		getOp = OP_GET_LOCAL;
-		setOp = OP_SET_LOCAL;
+		getOp = OP_GET_LOCAL; getOpLong = OP_GET_LOCAL;
+		setOp = OP_SET_LOCAL; setOpLong = OP_SET_LOCAL;
 		if (current->locals[index].constant)
 			error("Cannot assign to a constant.");
 	} else if ((index = resolveUpvalue(current, &name)) != -1) { // Captured Upvalue
-		getOp = OP_GET_UPVALUE;
-		setOp = OP_SET_UPVALUE;
+		getOp = OP_GET_UPVALUE; getOpLong = OP_GET_UPVALUE;
+		setOp = OP_SET_UPVALUE; setOpLong = OP_SET_UPVALUE;
 		if (current->upvalues[index].constant)
 			error("Cannot assign to a constant.");
 	} else {
 		index = identifierConstant(&name);
-		if (index > CONST_TO_LONG_CONST) {
-			getOp = OP_GET_GLOBAL_LONG;
-			setOp = OP_SET_GLOBAL_LONG;
-		} else {
-			getOp = OP_GET_GLOBAL;
-			setOp = OP_SET_GLOBAL;
-		}
+		getOp = OP_GET_GLOBAL; getOpLong = OP_GET_GLOBAL_LONG;
+		setOp = OP_SET_GLOBAL; setOpLong = OP_SET_GLOBAL_LONG;
 	}
 
 	if (canAssign && (match(TOKEN_EQUAL) || match(TOKEN_MINUS_EQUAL) || match(TOKEN_PLUS_EQUAL) || match(TOKEN_STAR_EQUAL) || match(TOKEN_SLASH_EQUAL))) { // Check if it should be a setter right before we emit the opcode
 		TokenType operator = parser.previous.type;
 		switch (parser.previous.type) {
 			case TOKEN_MINUS_EQUAL: {
-				emitLocalIndexed(getOp, index);
+				emitLongable(getOp, getOpLong, index);
 				expression();
 				emitByte(OP_SUBTRACT);
 				break;
 			}
 			case TOKEN_PLUS_EQUAL: {
-				emitLocalIndexed(getOp, index);
+				emitLongable(getOp, getOpLong, index);
 				expression();
 				emitByte(OP_ADD);
 				break;
 			}
 			case TOKEN_STAR_EQUAL: {
-				emitLocalIndexed(getOp, index);
+				emitLongable(getOp, getOpLong, index);
 				expression();
 				emitByte(OP_MULTIPLY);
 				break;
 			}
 			case TOKEN_SLASH_EQUAL: {
-				emitLocalIndexed(getOp, index);
+				emitLongable(getOp, getOpLong, index);
 				expression();
 				emitByte(OP_DIVIDE);
 				break;
@@ -776,10 +772,10 @@ static void namedVariable(Token name, bool canAssign) {
 				expression();
 				break;
 		}
-		emitLocalIndexed(setOp, index);
+		emitLongable(setOp, setOpLong, index);
 		
 	} else {
-		emitLocalIndexed(getOp, index);
+		emitLongable(getOp, getOpLong, index);
 	}
 }
 
@@ -875,9 +871,9 @@ static void declareUnnamedVariable(bool isConstant) {
 /** Parses a variable, creates a local or global and then and returns the index of the variable in the constant pool or stack.
  * 
  * @param[in] errorMessage The message to show if the variable name is missing.
- * @return int index of the variable in the constant pool
+ * @return index_t index of the variable in the constant pool
  */
-static int parseVariable(const char* errorMessage, bool isConstant) {
+static index_t parseVariable(const char* errorMessage, bool isConstant) {
 	consume(TOKEN_IDENTIFIER, errorMessage);
 
 	// declare the var. If a local, the locals array must be updated. If a global, nothing needs to be done
@@ -890,9 +886,9 @@ static int parseVariable(const char* errorMessage, bool isConstant) {
 }
 
 /** Parses a variable which has just been passed over.
- * @return uint8_t index of the variable in the constant pool
+ * @return index_t index of the variable in the constant pool
  */
-static uint8_t parseVariablePast(bool isConstant) {
+static index_t parseVariablePast(bool isConstant) {
 	// declare the var. If a local, the locals array must be updated. If a global, nothing needs to be done
 	declareVariable(isConstant);
 	// If local, var will be placed on stack, so dont give the global location
@@ -1000,8 +996,8 @@ static void binary(bool canAssign) {
  * @details
  * Parsed arguments are left on the stack
  */
-static uint8_t argumentList() {
-	uint8_t argCount = 0;
+static int argumentList() {
+	int argCount = 0;
 	bool oldCallStatus = current->inCall; // Track the old status so we can restore it. Used for nested calls
 	current->inCall = true;
 	if (!check(TOKEN_RIGHT_PAREN)) {
@@ -1025,17 +1021,17 @@ static uint8_t argumentList() {
  * @param[in] canAssign unused.
  */
 static void call(bool canAssign) {
-	uint8_t argCount = argumentList(); // The number of elements on the stack to take as input
-	emitBytes(OP_CALL, argCount);
+	int argCount = argumentList(); // The number of elements on the stack to take as input
+	emitBytes(OP_CALL, (uint8_t) argCount);
 }
 
 /** Parses a property get or set.
  * @param[in] canAssign If true, dot indicates an assignment. Otherwise a get is parsed
  */
 static void dot(bool canAssign) {
-	uint8_t getOp, setOp;
+	opcode_t getOp, setOp;
 	consume(TOKEN_IDENTIFIER, "Expected property name after '.'.");
-	int nameIndex = identifierConstant(&parser.previous); // property name
+	index_t nameIndex = identifierConstant(&parser.previous); // property name
 
 	// Check if an assignment is being parsed and if an assignment can even occur
 	if (canAssign && match(TOKEN_EQUAL)) {
@@ -1166,7 +1162,7 @@ static void function(FunctionType type) {
 			if (current->function->arity > 255) {
 				error("Cannot have more than 255 parameters.");
 			}
-			int constant = parseVariable("Expect parameter name.", constParams);
+			index_t constant = parseVariable("Expect parameter name.", constParams);
 			defineVariable(constant, constParams); // Do not initialize. Initialization will occur when passing functions
 		} while (match(TOKEN_COMMA));
 	}
@@ -1180,7 +1176,7 @@ static void function(FunctionType type) {
 	// Note: Because we end the compiler, there is no corresponding endScope(). Placing an endScope() would simply add more bytecode to pop locals with no benefit
 	ObjFunction* function = endCompiler(true); // resets current compiler chunk
 
-	int index = makeConstant(OBJ_VAL(function));
+	index_t index = makeConstant(OBJ_VAL(function));
 
 	// Emit the constant onto the stack
 	emitLongable(OP_CLOSURE, OP_CLOSURE_LONG, index);
@@ -1201,7 +1197,7 @@ static void lambda() {
 	const bool constParams = false;
 
 	// Lambda is determined once the identifier has been passed over, so parseVariablePast must be used
-	int constant = parseVariablePast(constParams);
+	index_t constant = parseVariablePast(constParams);
 	defineVariable(constant, constParams);
 	current->function->arity = 1;
 
@@ -1214,7 +1210,7 @@ static void lambda() {
 			if (current->function->arity > 255) {
 				error("Cannot have more than 255 parameters.");
 			}
-			int constant = parseVariable("Expect parameter name.", constParams);
+			index_t constant = parseVariable("Expect parameter name.", constParams);
 			defineVariable(constant, constParams); // Do not initialize. Initialization will occur when passing functions
 		} while (match(TOKEN_COMMA));
 	}
@@ -1439,7 +1435,7 @@ static void ifStatement() {
 static void varDeclaration() {
 	// If local, place on stack and update locals array
 	// If global, put identifier string on stack
-	int global = parseVariable("Expecteded variable name.", false);
+	index_t global = parseVariable("Expecteded variable name.", false);
 
 	// Check for initializer expression
 	if (match(TOKEN_EQUAL)) {
@@ -1458,7 +1454,7 @@ static void varDeclaration() {
  * @pre Assumes that the 'var' keyword has already been consumed.
  */
 static void letDeclaration() {
-	int global = parseVariable("Expecteded constant name.", true);
+	index_t global = parseVariable("Expecteded constant name.", true);
 
 	// Check for initializer expression
 	if (match(TOKEN_EQUAL)) {
@@ -1477,7 +1473,7 @@ static void letDeclaration() {
  */
 static void funDeclaration() {
 	bool constFunc = false;
-	int global = parseVariable("Expected function name.", constFunc);
+	index_t global = parseVariable("Expected function name.", constFunc);
 	markInitialized(); // Allow recursion
 	function(TYPE_FUNCTION); // Functions are first class, so this simply places one on the stack
 	defineVariable(global, constFunc); // Define the variable;
@@ -1487,7 +1483,7 @@ static void classDeclaration() {
 	const bool constClass = false;
 	
 	consume(TOKEN_IDENTIFIER, "Expected class name.");
-	int name = identifierConstant(&parser.previous); // Place class name into constant pool so it can be printed later
+	index_t name = identifierConstant(&parser.previous); // Place class name into constant pool so it can be printed later
 
 	declareVariable(constClass); // Binds class object to a variable of the same name. ADDS VAR TO SCOPE
 	// Declare before class body so it can be used in the body.
@@ -1631,7 +1627,7 @@ static void switchStatement() {
 #define BEFORE_DEFAULT 1
 #define AFTER_DEFAULT 2
 
-	int state = 0; // 0: before all cases, 1: before default, 2: after default.
+	int state = BEFORE_CASE;
 	int caseEnds[MAX_CASES];
 	int caseCount = 0;
 	int previousCaseSkip = -1;
@@ -1745,7 +1741,7 @@ static void delStatement() {
 			break;
 		}
 		
-		int nameIndex = identifierConstant(&parser.previous); // property name
+		index_t nameIndex = identifierConstant(&parser.previous); // property name
 		emitLongable(OP_GET_PROPERTY, OP_GET_PROPERTY_LONG, nameIndex);
 	}
 	

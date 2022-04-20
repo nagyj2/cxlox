@@ -70,7 +70,7 @@ int getLine(Chunk *chunk, int instruction) {
 	}
 }
 
-int addConstant(Chunk* chunk, Value value) {
+index_t addConstant(Chunk* chunk, Value value) {
 	push(value); // Push for GC
 	writeValueArray(&chunk->constants, value);
 	pop();
