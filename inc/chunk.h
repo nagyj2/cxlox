@@ -13,7 +13,8 @@ typedef enum {
 	OP_GET_PROPERTY_LONG,		//* OPCODE INDEX INDEX INDEX : (SE+1) Retrieves a property identified by the index from the instance on top of the stack and replaces the top of the stack with that retrieved property.
 	OP_SET_PROPERTY_LONG,		//* OPCODE INDEX INDEX INDEX : (SE0) Sets a property given by the indexed string to the top element of the stack.
 	OP_DEFINE_CONST_LONG,		//* OPCODE INDEX INDEX INDEX : (SE-1) Defines a global constant using 24 bit index and assigns the top element to it.
-
+	OP_CLOSURE_LONG,				//* OPCODE FUNCTION <2*i> : (SE0) Relies on ObjFunction's upvalueCount. First argument is the function being called. Other arguments come in pairs of 2. First byte is the locality of the upvalue and the second is the index.
+	
 	OP_DEL_PROPERTY,				//* OPCODE: (SE-2) Deletes the top stack element (property) from the bottom stack element (instance).
 	/* INLINE VERSION
 	OP_DEL_PROPERTY,				//* OPCODE INDEX: (SE-1) Deletes the indexed string representing a property from the top instance element.

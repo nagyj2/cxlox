@@ -9,6 +9,32 @@
 #include "object.h"
 #include "memory.h"
 
+/* --- PRINTF_BYTE_TO_BINARY macro's --- */
+#define PRINTF_BINARY_PATTERN_INT8 "%c%c%c%c%c%c%c%c"
+#define PRINTF_BYTE_TO_BINARY_INT8(i)    \
+    (((i) & 0x80ll) ? '1' : '0'), \
+    (((i) & 0x40ll) ? '1' : '0'), \
+    (((i) & 0x20ll) ? '1' : '0'), \
+    (((i) & 0x10ll) ? '1' : '0'), \
+    (((i) & 0x08ll) ? '1' : '0'), \
+    (((i) & 0x04ll) ? '1' : '0'), \
+    (((i) & 0x02ll) ? '1' : '0'), \
+    (((i) & 0x01ll) ? '1' : '0')
+
+#define PRINTF_BINARY_PATTERN_INT16 \
+    PRINTF_BINARY_PATTERN_INT8              PRINTF_BINARY_PATTERN_INT8
+#define PRINTF_BYTE_TO_BINARY_INT16(i) \
+    PRINTF_BYTE_TO_BINARY_INT8((i) >> 8),   PRINTF_BYTE_TO_BINARY_INT8(i)
+#define PRINTF_BINARY_PATTERN_INT32 \
+    PRINTF_BINARY_PATTERN_INT16             PRINTF_BINARY_PATTERN_INT16
+#define PRINTF_BYTE_TO_BINARY_INT32(i) \
+    PRINTF_BYTE_TO_BINARY_INT16((i) >> 16), PRINTF_BYTE_TO_BINARY_INT16(i)
+#define PRINTF_BINARY_PATTERN_INT64    \
+    PRINTF_BINARY_PATTERN_INT32             PRINTF_BINARY_PATTERN_INT32
+#define PRINTF_BYTE_TO_BINARY_INT64(i) \
+    PRINTF_BYTE_TO_BINARY_INT32((i) >> 32), PRINTF_BYTE_TO_BINARY_INT32(i)
+/* --- end macros --- */
+
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
 #endif
@@ -290,21 +316,41 @@ static bool match(TokenType type) {
 //~ Bytecode Emission
 
 /** Appends a byte to the current chunk.
- * 
  * @param[in] byte The byte to append.
  */
 static void emitByte(uint8_t byte) {
 	writeChunk(currentChunk(), byte, parser.previous.line);
 }
 
-/** Emits two sequential bytes to the current chunk.
- * 
+/** Emits 2 sequential bytes to the current chunk.
  * @param[in] byte1 The first byte to emit.
  * @param[in] byte2 The second byte to emit.
  */
 static void emitBytes(uint8_t byte1, uint8_t byte2) {
 	emitByte(byte1);
 	emitByte(byte2);
+}
+
+/** Emits 4 sequential bytes to the current chunk.
+ * @param[in] opcode_long The opcode to emit.
+ * @param[in] index The index to emit as 3 bytes
+ */
+static void emitLongBytes(uint8_t opcode_long, int index) {
+	emitBytes(opcode_long, (uint8_t) (index & 0xff));
+	emitBytes((uint8_t) ((index >> 8) & 0xff), (uint8_t) ((index >> 16) & 0xff));
+}
+
+/** Emits 2-4 bytes depending on the size of the index.
+ * @param[in] opcode The opcode to emit in case of a short index.
+ * @param[in] opcode_long The opcode to emit in case of a long index.
+ * @param[in] index The index to emit.
+ */
+static void emitLongable(uint8_t opcode, uint8_t opcode_long, int index) {
+	if (index >= CONST_TO_LONG_CONST) {
+		emitLongBytes(opcode_long, index);
+	} else {
+		emitBytes(opcode, (uint8_t) index);
+	}
 }
 
 /** Replaces the jump placeholder bytes at the given offset to jump to the current byte.
@@ -350,7 +396,8 @@ static void emitLoop(int loopStart) {
 	emitByte(offset & 0xff);
 }
 
-/** Places a constant into the current chunk's constant pool.
+/** Places a constant into the current chunk's constant pool and returns its index.
+ * Used to inline constants indicies into the bytecode
  * @details
  * Causes an error if the number of constants in the chunk exceeds the maximum.
  * @param[in] value The value to write to the constant pool.
@@ -366,26 +413,20 @@ static int makeConstant(Value value) {
 	return constant;
 }
 
+/** Emits a constant value which is placed on the stack.
+ * @param[in] value The value to write.
+ */
+static void emitConstant(Value value) {
+	int index = makeConstant(value);
+	emitLongable(OP_CONSTANT, OP_CONSTANT_LONG, index);
+}
+
 /** Emits an implied nil constant and a opcode for function return.
  */
 static void emitReturn() {
 	emitByte(OP_NIL); // Implicitly places nil on the stack
 	// If a return expression is present, it will be the stack top and get returned. Otherwise the just emitted nil will
 	emitByte(OP_RETURN);
-}
-
-/** Emits 2-4 bytes which correspond to the creation of a constant value.
- * @param[in] value The value to write.
- */
-static void emitConstant(Value value) {
-	int index = makeConstant(value);
-	if (index < CONST_TO_LONG_CONST) {
-		emitBytes(OP_CONSTANT, index);
-	} else {
-		// Emit opcode and then the 3 bytes of the index.
-		emitBytes(OP_CONSTANT_LONG, (uint8_t) (index & 0xff));
-		emitBytes((uint8_t) ((index >> 8) & 0xff), (uint8_t) ((index >> 16) & 0xff));
-	}
 }
 
 /** Initializes the state of the compiler and sets it to be the current compiler.
@@ -520,7 +561,7 @@ static void markInitialized() {
  * 
  * @param[in] global The index to the constant pool location of the global variable's name.
  */
-static void defineVariable(uint8_t global, bool isConstant) {
+static void defineVariable(int global, bool isConstant) {
 	// If a local, don't put into constant pool
 	if (current->scopeDepth > 0) {
 		markInitialized();
@@ -528,19 +569,12 @@ static void defineVariable(uint8_t global, bool isConstant) {
 	}
 
 	if (isConstant) {
-		if (global > CONST_TO_LONG_CONST) {
-			emitBytes(OP_DEFINE_CONST_LONG, (uint8_t) (global & 0xff));
-			emitBytes((uint8_t) ((global >> 8) & 0xff), (uint8_t) ((global >> 16) & 0xff));
-		} else {
-			emitBytes(OP_DEFINE_CONST, global);
-		}
+		emitLongable(OP_DEFINE_CONST, OP_DEFINE_CONST_LONG, global);
 	} else {
-		if (global > CONST_TO_LONG_CONST) {
-			emitBytes(OP_DEFINE_GLOBAL_LONG, (uint8_t) (global & 0xff));
-			emitBytes((uint8_t) ((global >> 8) & 0xff), (uint8_t) ((global >> 16) & 0xff));
-		} else {
-			emitBytes(OP_DEFINE_GLOBAL, global);
-		}
+		printf("global:  "
+           PRINTF_BINARY_PATTERN_INT32 "\n",
+           PRINTF_BYTE_TO_BINARY_INT32(global));
+		emitLongable(OP_DEFINE_GLOBAL, OP_DEFINE_GLOBAL_LONG, global);
 	}
 }
 
@@ -551,6 +585,8 @@ static void defineVariable(uint8_t global, bool isConstant) {
  */
 static int identifierConstant(Token* name) {
 	return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
+	// return emitConstant(OBJ_VAL(copyString(name->start, name->length)));
+	
 }
 
 /** Test if two identifier (string) tokens are equal.
@@ -839,9 +875,9 @@ static void declareUnnamedVariable(bool isConstant) {
 /** Parses a variable, creates a local or global and then and returns the index of the variable in the constant pool or stack.
  * 
  * @param[in] errorMessage The message to show if the variable name is missing.
- * @return uint8_t index of the variable in the constant pool
+ * @return int index of the variable in the constant pool
  */
-static uint8_t parseVariable(const char* errorMessage, bool isConstant) {
+static int parseVariable(const char* errorMessage, bool isConstant) {
 	consume(TOKEN_IDENTIFIER, errorMessage);
 
 	// declare the var. If a local, the locals array must be updated. If a global, nothing needs to be done
@@ -1001,20 +1037,12 @@ static void dot(bool canAssign) {
 	consume(TOKEN_IDENTIFIER, "Expected property name after '.'.");
 	int nameIndex = identifierConstant(&parser.previous); // property name
 
-	if (nameIndex > CONST_TO_LONG_CONST) {
-			getOp = OP_GET_PROPERTY_LONG;
-			setOp = OP_SET_PROPERTY_LONG;
-		} else {
-			getOp = OP_GET_PROPERTY;
-			setOp = OP_SET_PROPERTY;
-		}
-
 	// Check if an assignment is being parsed and if an assignment can even occur
 	if (canAssign && match(TOKEN_EQUAL)) {
 		expression();
-		emitLocalIndexed(setOp, nameIndex);
+		emitLongable(OP_SET_PROPERTY, OP_SET_PROPERTY_LONG, nameIndex);
 	} else {
-		emitLocalIndexed(getOp, nameIndex);
+		emitLongable(OP_GET_PROPERTY, OP_GET_PROPERTY_LONG, nameIndex);
 	}
 }
 
@@ -1138,7 +1166,7 @@ static void function(FunctionType type) {
 			if (current->function->arity > 255) {
 				error("Cannot have more than 255 parameters.");
 			}
-			uint8_t constant = parseVariable("Expect parameter name.", constParams);
+			int constant = parseVariable("Expect parameter name.", constParams);
 			defineVariable(constant, constParams); // Do not initialize. Initialization will occur when passing functions
 		} while (match(TOKEN_COMMA));
 	}
@@ -1150,10 +1178,12 @@ static void function(FunctionType type) {
 
 	// Finish compiling and create the function object constant
 	// Note: Because we end the compiler, there is no corresponding endScope(). Placing an endScope() would simply add more bytecode to pop locals with no benefit
-	ObjFunction* function = endCompiler(true);
+	ObjFunction* function = endCompiler(true); // resets current compiler chunk
+
+	int index = makeConstant(OBJ_VAL(function));
 
 	// Emit the constant onto the stack
-	emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+	emitLongable(OP_CLOSURE, OP_CLOSURE_LONG, index);
 	// For every upvalue captured, emit its locality and index
 	for (int i = 0; i < function->upvalueCount; i++) {
 		emitByte(compiler.upvalues[i].isLocal ? 1 : 0); // Flag on whether the variable is a local or not
@@ -1171,7 +1201,7 @@ static void lambda() {
 	const bool constParams = false;
 
 	// Lambda is determined once the identifier has been passed over, so parseVariablePast must be used
-	uint8_t constant = parseVariablePast(constParams);
+	int constant = parseVariablePast(constParams);
 	defineVariable(constant, constParams);
 	current->function->arity = 1;
 
@@ -1184,7 +1214,7 @@ static void lambda() {
 			if (current->function->arity > 255) {
 				error("Cannot have more than 255 parameters.");
 			}
-			uint8_t constant = parseVariable("Expect parameter name.", constParams);
+			int constant = parseVariable("Expect parameter name.", constParams);
 			defineVariable(constant, constParams); // Do not initialize. Initialization will occur when passing functions
 		} while (match(TOKEN_COMMA));
 	}
@@ -1206,7 +1236,7 @@ static void lambda() {
 	ObjFunction* function = endCompiler(false);
 	// Emit the constant onto the stack
 	
-	emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+	emitLongable(OP_CLOSURE, OP_CLOSURE_LONG, makeConstant(OBJ_VAL(function)));
 	// For every upvalue captured, emit its locality and index
 	for (int i = 0; i < function->upvalueCount; i++) {
 		emitByte(compiler.upvalues[i].isLocal ? 1 : 0); // Flag on whether the variable is a local or not
@@ -1409,7 +1439,7 @@ static void ifStatement() {
 static void varDeclaration() {
 	// If local, place on stack and update locals array
 	// If global, put identifier string on stack
-	uint8_t global = parseVariable("Expecteded variable name.", false);
+	int global = parseVariable("Expecteded variable name.", false);
 
 	// Check for initializer expression
 	if (match(TOKEN_EQUAL)) {
@@ -1428,7 +1458,7 @@ static void varDeclaration() {
  * @pre Assumes that the 'var' keyword has already been consumed.
  */
 static void letDeclaration() {
-	uint8_t global = parseVariable("Expecteded constant name.", true);
+	int global = parseVariable("Expecteded constant name.", true);
 
 	// Check for initializer expression
 	if (match(TOKEN_EQUAL)) {
@@ -1447,7 +1477,7 @@ static void letDeclaration() {
  */
 static void funDeclaration() {
 	bool constFunc = false;
-	uint8_t global = parseVariable("Expected function name.", constFunc);
+	int global = parseVariable("Expected function name.", constFunc);
 	markInitialized(); // Allow recursion
 	function(TYPE_FUNCTION); // Functions are first class, so this simply places one on the stack
 	defineVariable(global, constFunc); // Define the variable;
@@ -1457,7 +1487,7 @@ static void classDeclaration() {
 	const bool constClass = false;
 	
 	consume(TOKEN_IDENTIFIER, "Expected class name.");
-	uint8_t name = identifierConstant(&parser.previous); // Place class name into constant pool so it can be printed later
+	int name = identifierConstant(&parser.previous); // Place class name into constant pool so it can be printed later
 
 	declareVariable(constClass); // Binds class object to a variable of the same name. ADDS VAR TO SCOPE
 	// Declare before class body so it can be used in the body.
@@ -1714,15 +1744,9 @@ static void delStatement() {
 		if (!check(TOKEN_DOT)) {
 			break;
 		}
+		
 		int nameIndex = identifierConstant(&parser.previous); // property name
-
-		if (nameIndex > CONST_TO_LONG_CONST) {
-			emitLocalIndexed(OP_GET_PROPERTY_LONG, nameIndex);
-			// emitLocalIndexed(nameIndex, OP_GET_PROPERTY_LONG);
-		} else {
-			emitLocalIndexed(OP_GET_PROPERTY, nameIndex);
-			// emitLocalIndexed(nameIndex, OP_GET_PROPERTY);
-		}
+		emitLongable(OP_GET_PROPERTY, OP_GET_PROPERTY_LONG, nameIndex);
 	}
 	
 	// Stack will have the instance on the top and the property we are interested in is parsed but NOT emitted yet

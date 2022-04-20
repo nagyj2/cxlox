@@ -586,6 +586,24 @@ static InterpretResult run() {
 				}
 				break;
 			}
+			case OP_CLOSURE_LONG: {
+				ObjFunction* function = AS_FUNCTION(READ_CONSTANT_LONG());
+				ObjClosure* closure = newClosure(function);
+				push(OBJ_VAL(closure));
+				// Walk through each captured element and place them into the closure's upvalues
+				for (int i = 0; i < closure->upvalueCount; i++) {
+					uint8_t isLocal = READ_BYTE();
+					uint8_t index = READ_BYTE(); // Location of the captured variable (if local, stack position. Otherwise, the saved location from compilation)
+					if (isLocal) {
+						// Capture an element on the stack with given index
+						closure->upvalues[i] = captureUpvalue(frame->slots + index); // Find the upvalue source from the frame base and read index
+					} else {
+						// Capture from the surrounding function (this one), so use index to grab from my array
+						closure->upvalues[i] = frame->closure->upvalues[index]; // Retrieve stored position from the upvalues
+					}
+				}
+				break;
+			}
 			case OP_GET_UPVALUE: {
 				uint8_t slot = READ_BYTE();
 				push(*frame->closure->upvalues[slot]->location);

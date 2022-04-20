@@ -33,7 +33,7 @@ static int simpleInstruction(const char* name, int offset) {
  */
 static int constantInstruction(const char *name, Chunk *chunk, int offset) {
 	uint8_t constantIndex = chunk->code[offset + 1];
-	printf("%-20s %4d '", name, constantIndex);
+	printf("%-24s %4d '", name, constantIndex);
 	printValue(chunk->constants.values[constantIndex]);
 	printf("'\n");
 
@@ -45,7 +45,7 @@ static int constantLongInstruction(const char *name, Chunk *chunk, int offset) {
 	int constantIndex = (chunk->code[offset + 1]) |
 											(chunk->code[offset + 2] << 8) |
 											(chunk->code[offset + 3] << 16); // Reassemble number from the 3 parts
-	printf("%-20s %4d '", name, constantIndex);
+	printf("%-24s %4d '", name, constantIndex);
 	printValue(chunk->constants.values[constantIndex]);
 	printf("'\n");
 
@@ -54,19 +54,19 @@ static int constantLongInstruction(const char *name, Chunk *chunk, int offset) {
 
 static int byteInstruction(const char* name, Chunk* chunk, int offset) {
 	uint8_t slot = chunk->code[offset + 1];
-	printf("%-20s %4d\n", name, slot);
+	printf("%-24s %4d\n", name, slot);
 	return offset + 2;
 }
 
 static int jumpInstruction(const char* name, int sign, Chunk* chunk, int offset) {
 	uint16_t jump = (uint16_t) ((chunk->code[offset + 1] << 8) | chunk->code[offset + 2]);
-	printf("%-20s %4d -> %d\n", name, offset, offset + 3 + sign * jump); // Display this location and where it goes to
+	printf("%-24s %4d -> %d\n", name, offset, offset + 3 + sign * jump); // Display this location and where it goes to
 	return offset + 3;
 }
 
 static int shortInstruction(const char* name, Chunk* chunk, int offset) {
 	uint16_t slot = (uint16_t) ((chunk->code[offset + 1] << 8) | chunk->code[offset + 2]);
-	printf("%-20s %4d\n", name, slot);
+	printf("%-24s %4d\n", name, slot);
 	return offset + 3;
 }
 
@@ -91,7 +91,30 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return constantLongInstruction("OP_GET_PROPERTY_LONG", chunk, offset);
 		case OP_SET_PROPERTY_LONG:
 			return constantLongInstruction("OP_SET_PROPERTY_LONG", chunk, offset);
-		
+		case OP_DEFINE_CONST_LONG:
+			return constantLongInstruction("OP_DEFINE_CONST_LONG", chunk, offset);
+		case OP_CONSTANT_LONG:
+			return constantLongInstruction("OP_CONSTANT_LONG", chunk, offset);
+		case OP_CLOSURE_LONG: {
+			offset++;
+			uint32_t constant = (chunk->code[offset + 0]) |
+													(chunk->code[offset + 1] << 8) |
+													(chunk->code[offset + 2] << 16); // Reassemble number from the 3 parts
+			offset = offset + 3;
+			printf("%-24s %4d ", "OP_CLOSURE_LONG", constant);
+			printValue(chunk->constants.values[constant]);
+			printf("\n");
+
+			ObjFunction* function = AS_FUNCTION(chunk->constants.values[constant]);
+			for (int j = 0; j < function->upvalueCount; j++) {
+				int isLocal = chunk->code[offset++];
+				int index = chunk->code[offset++];
+				// 'local' means MY local is referenced by someone else. 'upvalue' means SOMEONE ELSE'S local is referenced.
+				printf("%04d    |                             %s %d\n", offset - 2, isLocal ? "local" : "upvalue", index);
+			}
+			return offset;
+		}
+
 		case OP_DEL_PROPERTY:
 			return simpleInstruction("OP_DEL_PROPERTY", offset);
 		/* INLINE VERSION
@@ -113,8 +136,7 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return simpleInstruction("OP_DUP", offset);
 		case OP_DEFINE_CONST:
 			return constantInstruction("OP_DEFINE_CONST", chunk, offset);
-		case OP_DEFINE_CONST_LONG:
-			return constantLongInstruction("OP_DEFINE_CONST_LONG", chunk, offset);
+			
 		case OP_RETURN:
 			return simpleInstruction("OP_RETURN", offset);
 		case OP_ADD:
@@ -133,8 +155,6 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return simpleInstruction("OP_LESSER", offset);
 		case OP_CONSTANT:
 			return constantInstruction("OP_CONSTANT", chunk, offset);
-		case OP_CONSTANT_LONG:
-			return constantLongInstruction("OP_CONSTANT_LONG", chunk, offset);
 		case OP_NEGATE:
 			return simpleInstruction("OP_NEGATE", offset);
 		case OP_NOT:
@@ -170,7 +190,7 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 		case OP_CLOSURE: {
 			offset++;
 			uint8_t constant = chunk->code[offset++];
-			printf("%-20s %4d ", "OP_CLOSURE", constant);
+			printf("%-24s %4d ", "OP_CLOSURE", constant);
 			printValue(chunk->constants.values[constant]);
 			printf("\n");
 
@@ -179,7 +199,7 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 				int isLocal = chunk->code[offset++];
 				int index = chunk->code[offset++];
 				// 'local' means MY local is referenced by someone else. 'upvalue' means SOMEONE ELSE'S local is referenced.
-				printf("%04d    |                         %s %d\n", offset - 2, isLocal ? "local" : "upvalue", index);
+				printf("%04d    |                             %s %d\n", offset - 2, isLocal ? "local" : "upvalue", index);
 			}
 			return offset;
 		}
