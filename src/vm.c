@@ -304,7 +304,7 @@ static InterpretResult run() {
 	} while (false)
 
 	for (;;) {
-#ifdef DEBUG_TRACE_EXECUTION
+#ifdef DEBUG_TRACE_STACK
 		// Print the stack contents before disassembling the instruction
 		printf("        ");
 		for (Value *slot = vm.stack; slot < vm.stackTop; slot++) {
@@ -313,6 +313,8 @@ static InterpretResult run() {
 			printf(" ]");
 		}
 		printf("\n");
+#endif
+#ifdef DEBUG_TRACE_EXECUTION
 		disassembleInstruction(&frame->closure->function->chunk, (int) (ip - frame->closure->function->chunk.code)); // Perform some math to get offset
 #endif
 		uint8_t instruction;
