@@ -460,8 +460,8 @@ static void popLocals(int locals) {
 	if (locals == 1)
 		emitByte(OP_POP);
 	else
-		for (int i = 0; i < locals; i++)
-			emitBytes(OP_POPN, (uint8_t) locals);
+		// for (int i = 0; i < locals; i++)
+		emitBytes(OP_POPN, (uint8_t) locals);
 }
 
 /** Signals the end of the current scope to the compiler singleton.
