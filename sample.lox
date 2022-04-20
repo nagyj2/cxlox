@@ -219,11 +219,11 @@
 
 // // Expanded Native Functions
 
-// print isnum(8);
-// print isnum(8.0);
-// print !isnum("8");
+// print type(8) == "num";
+// print type(8.0) == "num";
+// print type("8") != "num";
 
-// print isstr("8") and !isstr(8) and isbool(true);
+// print type("8") == "str" and type(8) != "str" and type(true) == "bool";
 // ticks();
 // print "Date is now " + date();
 
