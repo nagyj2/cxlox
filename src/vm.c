@@ -623,7 +623,7 @@ static InterpretResult run() {
 				push(OBJ_VAL(newClass(READ_STRING())));
 				break;
 			}
-									
+#ifdef USE_STACK_PROPERTY_DELETE
 			case OP_DEL_PROPERTY: {
 				if (!IS_INSTANCE(peek(1))) {
 					runtimeError("Only instances have properties.");
@@ -638,7 +638,7 @@ static InterpretResult run() {
 				pop();
 				break;
 			}
-			/* INLINE VERSION
+#else
 			case OP_DEL_PROPERTY: {
 				if (!IS_INSTANCE(peek(0))) {
 					runtimeError("Only instances have properties.");
@@ -665,7 +665,7 @@ static InterpretResult run() {
 				pop(); // Pop after in case GC runs
 				break;
 			}
-			*/
+#endif
 			case OP_GET_PROPERTY: {
 				// Ensure a valid recipient is on the top of the stack
 				// This instruction ONLY operates on the SPECIFIC instance on the top of the stack

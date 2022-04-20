@@ -17,13 +17,12 @@ typedef enum {
 	OP_SET_PROPERTY_LONG,		//* OPCODE INDEX INDEX INDEX : (SE0) Sets a property given by the indexed string to the top element of the stack.
 	OP_DEFINE_CONST_LONG,		//* OPCODE INDEX INDEX INDEX : (SE-1) Defines a global constant using 24 bit index and assigns the top element to it.
 	OP_CLOSURE_LONG,				//* OPCODE FUNCTION <2*i> : (SE0) Relies on ObjFunction's upvalueCount. First argument is the function being called. Other arguments come in pairs of 2. First byte is the locality of the upvalue and the second is the index.
-	
+#ifdef USE_STACK_PROPERTY_DELETE
 	OP_DEL_PROPERTY,				//* OPCODE: (SE-2) Deletes the top stack element (property) from the bottom stack element (instance).
-	/* INLINE VERSION
+#else
 	OP_DEL_PROPERTY,				//* OPCODE INDEX: (SE-1) Deletes the indexed string representing a property from the top instance element.
 	OP_DEL_PROPERTY_LONG,		//* OPCODE INDEX INDEX INDEX : (SE-1) Deletes the indexed string representing a property from the top instance element.
-	*/
-	
+#endif
 	OP_CONDITIONAL,        	//* OPCODE : (SE-1) Pops 2 elements from the stack. If the 2nd element is truthy, the 1st element is pushed on the stack. Otherwise 'nil' is pushed.
 	OP_OPTIONAL,						//* OPCODE : (SE-1) Pops 2 elements from the stack. If the 2nd element is 'nil', the 1st element is pushed. Otherwise the 2nd element is pushed.
 	OP_POPN,								//* OPCODE NUMBER : (SE0) Pops n elements from the stack.

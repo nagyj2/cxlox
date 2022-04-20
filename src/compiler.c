@@ -1707,19 +1707,15 @@ static void switchStatement() {
 #undef AFTER_DEFAULT 
 }
 
-// /** Emits 2-4 bytes which correspond to the creation of a constant value.
-//  * @param[in] value The value to write.
-//  */
-// static void emitDelProperty(Value value) {
-// 	int index = makeConstant(value);
-// 	if (index < CONST_TO_LONG_CONST) {
-// 		emitBytes(OP_DEL_PROPERTY, index);
-// 	} else {
-// 		// Emit opcode and then the 3 bytes of the index.
-// 		emitBytes(OP_DEL_PROPERTY_LONG, (uint8_t) (index & 0xff));
-// 		emitBytes((uint8_t) ((index >> 8) & 0xff), (uint8_t) ((index >> 16) & 0xff));
-// 	}
-// }
+#ifndef USE_STACK_PROPERTY_DELETE
+/** Emits 2-4 bytes which correspond to the creation of a constant value.
+ * @param[in] value The value to write.
+ */
+static void emitDelProperty(Value value) {
+	index_t index = makeConstant(value);
+	emitLongable(OP_DEL_PROPERTY, OP_DEL_PROPERTY_LONG, index);
+}
+#endif
 
 /** Removes a property from an instance.
  */
@@ -1747,14 +1743,13 @@ static void delStatement() {
 	
 	// Stack will have the instance on the top and the property we are interested in is parsed but NOT emitted yet
 	// Delete the property
-
+#ifdef USE_STACK_PROPERTY_DELETE
 	emitConstant(OBJ_VAL(copyString(parser.previous.start, parser.previous.length)));
 	emitByte(OP_DEL_PROPERTY);
-
-	/* INLINE VERSION
+#else
 	emitDelProperty(OBJ_VAL(copyString(parser.previous.start, parser.previous.length)));
-	*/
-	
+#endif
+
 	REPLSemicolon();
 }
 

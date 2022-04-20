@@ -115,15 +115,16 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return offset;
 		}
 
+#ifdef USE_STACK_PROPERTY_DELETE
 		case OP_DEL_PROPERTY:
 			return simpleInstruction("OP_DEL_PROPERTY", offset);
-		/* INLINE VERSION
+#else
 		case OP_DEL_PROPERTY:
 			return constantInstruction("OP_DEL_PROPERTY", chunk, offset);
 		case OP_DEL_PROPERTY_LONG:
 			return constantLongInstruction("OP_DEL_PROPERTY_LONG", chunk, offset);
-		*/
-			
+#endif
+
 		case OP_CONDITIONAL:
 			return simpleInstruction("OP_CONDITIONAL", offset);
 		case OP_OPTIONAL:

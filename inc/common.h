@@ -6,7 +6,7 @@
 #include <stdint.h> // uint8_t
 
 // Enables chunk dumping when the compiler finishes with the chunk.
-#define DEBUG_PRINT_CODE
+// #define DEBUG_PRINT_CODE
 
 // Debug define to allow easier viewing of VM internals
 // #define DEBUG_TRACE_EXECUTION
@@ -19,7 +19,10 @@
 // #define DEBUG_LOG_GC
 
 // Load the standard library. Muddies up GC output, so it can be disabled.
-// #define DEBUG_LOAD_STDLIB
+#define DEBUG_LOAD_STDLIB
+
+// If defined, the stack based OP_DEL_PROPERTY will be used.
+// #define USE_STACK_PROPERTY_DELETE
 
 #define UINT8_COUNT (UINT8_MAX + 1)
 
