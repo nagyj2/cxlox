@@ -286,4 +286,6 @@ v3("set-x")(10);
 print v3("x") == 10;
 print v3("y") == 4;
 
+print v2("error") == nil;
+
 print "Done";
