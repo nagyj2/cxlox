@@ -615,6 +615,7 @@ static InterpretResult run() {
 
 				tableDelete(&instance->fields, OBJ_VAL(name));
 				pop(); // Pop after in case GC runs
+				pop();
 				break;
 			}
 			/* INLINE VERSION
