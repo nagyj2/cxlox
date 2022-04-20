@@ -63,14 +63,18 @@ void initVM() {
 	vm.bytesAllocated = 0; // Start with nothing allocated.
 	vm.nextGC = 1024 * 1024; // Default starting size for the first GC.
 
+	vm.initString = NULL; // copyString() can allocate, thus causing GC which will read uninitializer vm.initString. For safety, NULL it
+	vm.initString = copyString("init", 4);
+	
 	// Create all native functions
 	defineNative("clock", clockNative);
 }
 
 void freeVM() {
-	freeObjects();
+	vm.initString = NULL;
 	freeTable(&vm.strings);
 	freeTable(&vm.globals);
+	freeObjects();
 }
 
 //~ Error Reporting
@@ -179,6 +183,12 @@ static bool call(ObjClosure* closure, int argCount) {
 	return true;
 }
 
+/** Provides the setup logic for calling any value. 
+ * @param[in] callee The value being called.
+ * @param[in] argCount The number of arguments on top of the stack (how far back to set frame - frame includes them as locals).
+ * @return true if the call was successful.
+ * @return false if the call was unsuccessful.
+ */
 static bool callValue(Value callee, int argCount) {
 	if (IS_OBJ(callee)) {
 		switch (OBJ_TYPE(callee)) {
@@ -196,8 +206,24 @@ static bool callValue(Value callee, int argCount) {
 			case OBJ_CLASS: {
 				ObjClass* klass = AS_CLASS(callee);
 				vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass)); // Create instance where caller's name was
-				// Allows instance to be referenced by initializer func (b/c the instance is already on the stack)
+				// ^ Allows instance to be referenced by initializer func (b/c the instance is already on the stack)
+
+				Value initializer;
+				if (tableGet(&klass->methods, vm.initString, &initializer)) {
+					return call(AS_CLOSURE(initializer), argCount); // call() handles arity checking
+				} else if (argCount != 0) { // No initializer, so implicitly require 0 args
+					runtimeError("Expected 0 arguments but got %d.", argCount);
+					return false;
+				}
+
 				return true;
+			}
+			case OBJ_BOUND_METHOD: {
+				ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
+				// initCompiler sets aside slot 1 on methods for the instance and binds it to 'this', 
+				// so we need to place a reference to the instance there
+					vm.stackTop[-argCount - 1] = bound->receiver;
+				return call(bound->method, argCount);
 			}
 			default:
 				break; // Non callable object
@@ -249,6 +275,39 @@ static void closeUpvalues(Value* last) {
 		upvalue->location = &upvalue->closed; // Point the location to its heap location. That way we either point to the stack locale or heap locale using 'location' attribute
 		vm.openUpvalues = upvalue->next; // 
 	}
+}
+
+/** Binds a method to a class' methods table.
+ * @param[in] name The property name to bind the method under.
+ */
+static void defineMethod(ObjString* name) {
+	Value method = peek(0);
+	ObjClass* klass = AS_CLASS(peek(1));
+	tableSet(&klass->methods, name, method);
+	pop(); // Remove method from stack
+}
+
+/** Places a bounded method on the top of the stack.
+ * @details
+ * Expects an instance to be on the top of the stack and uses that instance's class and the input property name
+ * to find the method. Once found, the instance and method (closure) are combined into a bound method object
+ * which then replaces the instance on top of the stack.
+ * @param[in] klass The class to look for the method in
+ * @param[in] name The method name to find in the class
+ * @return true If the method was found
+ * @return false If the method was not found
+ */
+static bool bindMethod(ObjClass* klass, ObjString* name) {
+	Value method;
+	if (!tableGet(&klass->methods, name, &method)) { // If the method cannot be found, return errpr
+		runtimeError("Undefined property '%s'.", name->chars);
+		return false;
+	}
+
+	ObjBoundMethod* bound = newBoundMethod(peek(0), AS_CLOSURE(method));
+	pop(); // instance
+	push(OBJ_VAL(bound));
+	return true;
 }
 
 //~ VM Execution
@@ -496,13 +555,15 @@ static InterpretResult run() {
 				Value value;
 				// If property exists, replace the top of the stack with it
 				if (tableGet(&instance->fields, name, &value)) {
-					pop();
+					pop(); // Instance
 					push(value);
 					break;
 				}
 
-				runtimeError("Undefined property '%s'.", name->chars);
-				return INTERPRET_RUNTIME_ERROR;
+				if (!bindMethod(instance->klass, name)) {
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				break;
 			}
 			case OP_SET_PROPERTY: {
 				// Ensure a valid recipient is under the top element of the stack
@@ -523,6 +584,10 @@ static InterpretResult run() {
 				Value value = pop(); // property
 				pop(); // instance
 				push(value); // put the value assigned back on the stack
+				break;
+			}
+			case OP_METHOD: {
+				defineMethod(READ_STRING());
 				break;
 			}
 		}

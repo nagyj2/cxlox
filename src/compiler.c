@@ -86,8 +86,10 @@ typedef struct {
 
 /** The type of code which is being compiled. */
 typedef enum {
-	TYPE_FUNCTION,	//* A function body is being compiled.
-	TYPE_SCRIPT,		//* The top-level (global) code is being compiled.
+	TYPE_FUNCTION,			//* A function body is being compiled.
+	TYPE_SCRIPT,				//* The top-level (global) code is being compiled.
+	TYPE_METHOD,				//* A method is being compiled.
+	TYPE_INITIALIZER,		//* Initializer method is being compiled.
 } FunctionType;
 
 typedef struct Compiler Compiler;
@@ -104,10 +106,18 @@ struct Compiler {
 	Upvalue upvalues[UINT8_COUNT];	//* Upvalue array for the current closure.
 };
 
+/** Captures the innermost class being compiled.
+ */
+typedef struct ClassCompiler {
+	struct ClassCompiler* enclosing;
+} ClassCompiler;
+
 // Parser singleton.
 Parser parser;
 // Current compiler singleton.
 Compiler* current = NULL;
+// Current class compiler singleton.
+ClassCompiler* currentClass = NULL;
 
 // Forward declares to allow references.
 static void expression();
@@ -123,6 +133,8 @@ static void whileStatement();
 static void forStatement();
 static void returnStatement();
 static void block();
+static void function();
+static void method();
 static ParseRule* getRule(TokenType type);
 static void parsePrecidence(Precidence precidence);
 
@@ -341,7 +353,12 @@ static uint8_t makeConstant(Value value) {
 /** Emits an implied nil constant and a opcode for function return.
  */
 static void emitReturn() {
-	emitByte(OP_NIL); // Implicitly places nil on the stack
+	if (current->type == TYPE_INITIALIZER) {
+		emitBytes(OP_GET_LOCAL, 0); // we reserved slot 0 for 'this'. Return this if initializer
+	} else {
+		emitByte(OP_NIL); // Implicitly places nil on the stack
+	}
+	
 	// If a return expression is present, it will be the stack top and get returned. Otherwise the just emitted nil will
 	emitByte(OP_RETURN);
 }
@@ -374,10 +391,15 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 
 	// Reserve a position in the stack for the compiler's use
 	Local* local = &current->locals[current->localCount++];
-	local->depth = 0;
+	local->depth = 0; // Save as a top level scoped local. Prevents it from getting removed from endScope
 	local->isCaptured = false;
-	local->name.start = "";
-	local->name.length = 0;
+	if (type != TYPE_FUNCTION) {
+		local->name.start = "this";
+		local->name.length = 4;
+	} else {
+		local->name.start = "";
+		local->name.length = 0;
+	}
 }
 
 /** Marks the end of a compilation.
@@ -423,7 +445,8 @@ static void endScope() {
 }
 
 /** Declare the top most local variable available for use by removing the sentinel -1 depth.
- * 
+ * @details
+ * If the variable is not global to the current function, its depth is updated.
  */
 static void markInitialized() {
 	// Do not mark initialization for global functions/ variables
@@ -563,7 +586,7 @@ static int resolveUpvalue(Compiler* compiler, Token* name) {
 	return -1;
 }
 
-/** Emits 2 bytes to retrieve or set a global variable's value.
+/** Emits 2 bytes to retrieve or set a global variable's value and place it on the stack.
  * 
  * @param[in] name The name of the variable to retrieve.
  */
@@ -858,6 +881,18 @@ static void variable(bool canAssign) {
 	namedVariable(parser.previous, canAssign);
 }
 
+/** Emits instructions/ alters state to implement the 'this' keyword.
+ * @pre The 'this' keyword has already been consumed.
+ * @param[in] canAssign
+ */
+static void this_(bool canAssign) {
+	if (currentClass == NULL) {
+		error("Cannot use 'this' outside of a class.");
+		return;
+	}
+	variable(false); // simply create a variable called 'this'
+}
+
 static void function(FunctionType type) {
 	Compiler compiler;
 	initCompiler(&compiler, type);
@@ -935,7 +970,7 @@ ParseRule rules[] = {  // PREFIX     INFIX    PRECIDENCE (INFIX) */
 	[TOKEN_PRINT]         = {NULL,     NULL,    PREC_NONE},
 	[TOKEN_RETURN]        = {NULL,     NULL,    PREC_NONE},
 	[TOKEN_SUPER]         = {NULL,     NULL,    PREC_NONE},
-	[TOKEN_THIS]          = {NULL,     NULL,    PREC_NONE},
+	[TOKEN_THIS]          = {this_,    NULL,    PREC_NONE},
 	[TOKEN_TRUE]          = {literal,  NULL,    PREC_NONE},
 	[TOKEN_VAR]           = {NULL,     NULL,    PREC_NONE},
 	[TOKEN_WHILE]         = {NULL,     NULL,    PREC_NONE},
@@ -1087,6 +1122,7 @@ static void funDeclaration() {
 
 static void classDeclaration() {
 	consume(TOKEN_IDENTIFIER, "Expected class name.");
+	Token className = parser.previous;
 	uint8_t name = identifierConstant(&parser.previous); // Place class name into constant pool so it can be printed later
 
 	declareVariable(); // Binds class object to a variable of the same name. ADDS VAR TO SCOPE
@@ -1094,8 +1130,38 @@ static void classDeclaration() {
 	emitBytes(OP_CLASS, name); // Emit instruction to create class at runtime
 	defineVariable(name); // Define variable for class's name
 
+	// We need to track the innermost class compiler so we can determine if 'this' is valid
+	ClassCompiler classCompiler; // Class compiler for this class
+	classCompiler.enclosing = currentClass; // Save old innermost class
+	currentClass = &classCompiler; // Set the current class compiler to be the innermost
+
+	namedVariable(className, false); // Place class name on the stack
 	consume(TOKEN_LEFT_CURLY, "Expected '{' before class body.");
+
+	while (!check(TOKEN_RIGHT_CURLY) && !check(TOKEN_EOF)) {
+		method();
+	}
+
 	consume(TOKEN_RIGHT_CURLY, "Expected '}' after class body.");
+	emitByte(OP_POP); // Pop class name
+	currentClass = currentClass->enclosing; // Restore innermost class
+}
+
+static void method() {
+	// Name of the method
+	consume(TOKEN_IDENTIFIER, "Expected method name.");
+	uint8_t constant = identifierConstant(&parser.previous); // place method name into constant pool
+
+	// Closure for method body
+	FunctionType type = TYPE_METHOD;
+	// Check if initialzer -> want to disallow explicit (user) return and have implicit 'return this' instead of 'return nil'
+	if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
+		type = TYPE_INITIALIZER;
+	}
+	function(type); // Place closure on the stack
+
+	// Bind method to class
+	emitBytes(OP_METHOD, constant);
 }
 
 /** Parses an while statement.
@@ -1178,6 +1244,10 @@ static void returnStatement() {
 	if (match(TOKEN_SEMICOLON)) {
 		emitReturn();
 	} else {
+		if (current->type == TYPE_INITIALIZER) {
+			error("Cannot return a value from an initializer.");
+		}
+		
 		expression();
 		consume(TOKEN_SEMICOLON, "Expected ';' after return value.");
 		emitByte(OP_RETURN);

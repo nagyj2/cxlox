@@ -48,13 +48,14 @@ static Obj* allocateObject(size_t size, ObjType type) {
 #ifdef DEBUG_LOG_GC
 	printf("%p allocate %zu for ", (void*) object, size);
 	switch (type) {
-		case OBJ_STRING: 		printf("string\n"); break;
-		case OBJ_FUNCTION: 	printf("function\n"); break;
-		case OBJ_CLOSURE: 	printf("closure\n"); break;
-		case OBJ_NATIVE: 		printf("native\n"); break;
-		case OBJ_UPVALUE: 	printf("upvalue\n"); break;
-		case OBJ_CLASS: 		printf("class\n"); break;
-		case OBJ_INSTANCE: 	printf("instance\n"); break;
+		case OBJ_STRING: 				printf("string\n"); break;
+		case OBJ_FUNCTION: 			printf("function\n"); break;
+		case OBJ_CLOSURE: 			printf("closure\n"); break;
+		case OBJ_NATIVE: 				printf("native\n"); break;
+		case OBJ_UPVALUE: 			printf("upvalue\n"); break;
+		case OBJ_CLASS: 				printf("class\n"); break;
+		case OBJ_INSTANCE: 			printf("instance\n"); break;
+		case OBJ_BOUND_METHOD:	printf("bound method\n"); break;
 	}
 #endif
 
@@ -99,6 +100,7 @@ ObjUpvalue* newUpvalue(Value* slot) {
 ObjClass* newClass(ObjString* name) {
 	ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
 	klass->name = name;
+	initTable(&klass->methods);
 	return klass;
 }
 
@@ -107,6 +109,13 @@ ObjInstance* newInstance(ObjClass* klass) {
 	instance->klass = klass;
 	initTable(&instance->fields);
 	return instance;
+}
+
+ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method) {
+	ObjBoundMethod* boundMethod = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
+	boundMethod->receiver = receiver;
+	boundMethod->method = method;
+	return boundMethod;
 }
 
 /** Create a lox string object from a character array and length. The string is only pointed to by this object, so it must be freed by the string. 
@@ -191,6 +200,9 @@ void printObject(Value value) {
 			break;
 		case OBJ_INSTANCE:
 			printf("%s instance", AS_INSTANCE(value)->klass->name->chars);
+			break;
+		case OBJ_BOUND_METHOD:
+			printFunction(AS_BOUND_METHOD(value)->method->function);
 			break;
 	}
 }

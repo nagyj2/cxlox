@@ -29,9 +29,10 @@ typedef struct {
 	Obj* objects; 					//* A pointer to the first allocated object
 	// stack == stackTop = > empty stack.
 
-	Table strings;					//* A table for string internment.
-	Table globals;					//* A table for global variables.
+	Table strings;						//* A table for string internment.
+	Table globals;						//* A table for global variables.
 	ObjUpvalue* openUpvalues;	//* A linked list of upvalues which are still open.
+	ObjString* initString;		//* String which represents an initializer method. Fast b/c of string interning.
 
 	// GC
 	int grayCount;					//* Number of gray objects.
@@ -40,6 +41,7 @@ typedef struct {
 
 	size_t bytesAllocated;	//* Number of bytes allocated for the runtime.
 	size_t nextGC;					//* Bytes until the next GC cycle should run.
+
 } VM;
 
 // Declare vm struct so other files can access it.

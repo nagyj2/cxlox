@@ -1,275 +1,289 @@
-fun mathops(){
-  // Test unary minus
+// fun mathops(){
+//   // Test unary minus
 
-  -1 == -1;
-  --1 == 1;
-  -0 == 0;
-  0 == -1;
+//   -1 == -1;
+//   --1 == 1;
+//   -0 == 0;
+//   0 == -1;
 
-  // Test addition sign
+//   // Test addition sign
 
-  1 + 1 == 2;
-  1.0 + 1 == 2;
-  1 + 1.0 == 2;
-  1.0 + 1.0 == 2;
-  -1 + 1 == 0;
-  1.5 + 1.0 == 2.5;
-  1.5 + 1.5 == 3.0;
-  1 + 2 + 3 == 6;
-  6 == 1 + 2 + 3;
+//   1 + 1 == 2;
+//   1.0 + 1 == 2;
+//   1 + 1.0 == 2;
+//   1.0 + 1.0 == 2;
+//   -1 + 1 == 0;
+//   1.5 + 1.0 == 2.5;
+//   1.5 + 1.5 == 3.0;
+//   1 + 2 + 3 == 6;
+//   6 == 1 + 2 + 3;
 
-  // Test subtraction sign
+//   // Test subtraction sign
 
-  1 - 1 == 0;
-  1.0 - 1 == 0;
-  1 - 1.0 == 0;
-  1.0 - 1.0 == 0;
-  -1 - 1 == -2;
-  -1 - -1 == 0;
-  1.5 - 1.0 == 0.5;
-  1.5 - 2.5 == 1.0;
-  1 - 2 - 3 == -4;
-  0 == 3 - 2 - 1;
+//   1 - 1 == 0;
+//   1.0 - 1 == 0;
+//   1 - 1.0 == 0;
+//   1.0 - 1.0 == 0;
+//   -1 - 1 == -2;
+//   -1 - -1 == 0;
+//   1.5 - 1.0 == 0.5;
+//   1.5 - 2.5 == 1.0;
+//   1 - 2 - 3 == -4;
+//   0 == 3 - 2 - 1;
 
-  // Test multiplication sign
+//   // Test multiplication sign
 
-  1 * 1 == 1;
-  1.0 * 2 == 2;
-  2 * 2.0 == 4;
-  1.5 * 4.0 == 6;
-  -1 * 1 == -1;
-  1.5 * 1.0 == 1.5;
-  1.5 * 1.5 == 2.25;
-  1 * 2 * 3 == 6;
-  1 * 2 * -3 == -6;
-  -2 * -3 == 6;
+//   1 * 1 == 1;
+//   1.0 * 2 == 2;
+//   2 * 2.0 == 4;
+//   1.5 * 4.0 == 6;
+//   -1 * 1 == -1;
+//   1.5 * 1.0 == 1.5;
+//   1.5 * 1.5 == 2.25;
+//   1 * 2 * 3 == 6;
+//   1 * 2 * -3 == -6;
+//   -2 * -3 == 6;
 
-  // Test division sign
+//   // Test division sign
 
-  1 / 1 == 1;
-  1.0 / 2 == 0.5;
-  2 / 2.0 == 1;
-  1.5 / 4.0 == 0.375;
-  -1 / 1 == -1;
-  1.5 / 1.0 == 1.5;
-  1.5 / 1.5 == 1;
-  1 / 2 / 4 == 0.125;
-  1 / -2 / 4 == -0.125;
+//   1 / 1 == 1;
+//   1.0 / 2 == 0.5;
+//   2 / 2.0 == 1;
+//   1.5 / 4.0 == 0.375;
+//   -1 / 1 == -1;
+//   1.5 / 1.0 == 1.5;
+//   1.5 / 1.5 == 1;
+//   1 / 2 / 4 == 0.125;
+//   1 / -2 / 4 == -0.125;
+// }
+
+// mathops();
+
+// var a;
+// var b;
+// fun basicops(){
+//   // Printing
+
+//   print 4;
+//   print 4.0;
+//   print -4;
+//   print 2.0 + 2;
+//   print "2 + 2";
+//   print true;
+
+//   // Variables
+
+//   a= nil;
+//   a == nil;
+//   a == a;
+//   print a;
+
+//   a = 2;
+//   print a == 2;
+//   print a == a;
+//   print a = true;
+
+//   // Local Variables
+
+//   a = 5;
+//   {
+//     print a == 5;
+//     var b = 10;
+//     print b == 10;
+
+//     a = 20;
+//     print a == 20;
+//     b = 30;
+//     print b == 30;
+
+//     var c = a = b;
+//     print a == 30;
+//     print b == 30;
+//     print c == 30;
+//     // var b = 0; // error - already defined
+//   }
+
+//   print a == 30;
+
+//   // Logical operators
+
+//   a = true;
+//   print a and true;
+//   print !(a and false);
+//   print a or true;
+//   print a or false;
+
+//   a = false;
+//   print (a and true) == false;
+//   print !(a and false) == true;
+//   print (a or true) == true;
+//   print (a or false) == false;
+
+//   // Branching
+
+//   a = true;
+//   if (a) {
+//     print a;
+//   }
+
+//   a = false;
+//   if (a == false) {
+//     print a == false;
+//   }
+
+//   if (a) {
+//     print !a;
+//   } else {
+//     print !a;
+//   }
+
+//   a = 2;
+//   if (a == 1) {
+//     print a != 2;
+//   } else if (a == 2) {
+//     print a == 2;
+//   } else {
+//     print a != 2;
+//   }
+
+//   a = true;
+//   b = false;
+//   if (a) {
+//     if (b)
+//       print a and b;
+//     else
+//       print a and !b;
+//   } else {
+//     if (b)
+//       print !a and b;
+//     else
+//       print !a and !b;
+//   }
+
+//   // While loops
+
+//   a = 0;
+//   while (a < 10) {
+//     print a;
+//     a = a + 1;
+//   }
+
+//   a = 0; 
+//   var flag = false;
+//   while (a < 10 and !flag) {
+//     a = a + 1;
+//     if (a == 5) {
+//       flag = true;
+//     }
+//   }
+//   print a == 5;
+// }
+
+// basicops();
+
+// // For loops
+
+// for (var i = 0; i < 10; i = i + 1) {
+// 	print i;
+// }
+
+// var flag = false;
+// for (var i = 0; i < 10 and !flag; i = i + 1) {
+// 	if (i == 4) {
+// 		a = 4;
+// 		flag = true;
+// 	}
+// }
+// print a == 4;
+
+// // Functions
+
+// fun max(a,b) {
+// 	if (a > b) {
+// 		return a;
+// 	} else {
+// 		return b;
+// 	}
+// }
+
+// fun fib(n) {
+// 	if (n <= 1) {
+// 		return 1;
+// 	} else {
+// 		return fib(n-1) + fib(n-2);
+// 	}
+// }
+
+// print max(8,2);
+// print fib(6);
+
+// // Native Functions
+
+
+// print clock();
+
+// // Closures
+
+// fun makeMultiplier(a,b){
+//   fun dofunc(methodname){
+//     if (methodname == "resule") {
+//       return a * b;
+//     } else if (methodname == "add-a"){
+//       fun adda(value){
+//         a = a + value;
+//       }
+//       return adda;
+//     } else if (methodname == "add-b"){
+//       fun addb(value){
+//         b = b + value;
+//       }
+//       return addb;
+//     } else {
+//       return nil;
+//     }
+//   }
+//   return dofunc;
+// }
+
+// var m = makeMultiplier(1,5);
+// m("add-a")(5);
+// print m("resule") == 30;
+// m("add-b")(-6);
+// print m("resule") == -6;
+
+// fun makeVector(x,y){
+//   fun vector(method){
+//     if (method == "x")
+//       return x;
+//     else if (method == "y")
+//       return y;
+//     else if (method == "add") {
+//       fun addVector(other){
+//         return makeVector(x + other("x"), y + other("y"));
+//       }
+//       return addVector;
+//     }
+//   }
+//   return vector;
+// }
+
+// var v1 = makeVector(2,6);
+// var v2 = makeVector(3,-2);
+
+// var v3 = v1("add")(v2);
+// print v3("x") == 5;
+// print v3("y") == 4;
+
+class CoffeeMaker {
+  init(coffee){
+    this.coffee = coffee;
+  }
+
+  brew() {
+    print "Enjoy your cup of " + this.coffee;
+    this.coffee = nil;
+  }
 }
 
-mathops();
-
-var a;
-var b;
-fun basicops(){
-  // Printing
-
-  print 4;
-  print 4.0;
-  print -4;
-  print 2.0 + 2;
-  print "2 + 2";
-  print true;
-
-  // Variables
-
-  a= nil;
-  a == nil;
-  a == a;
-  print a;
-
-  a = 2;
-  print a == 2;
-  print a == a;
-  print a = true;
-
-  // Local Variables
-
-  a = 5;
-  {
-    print a == 5;
-    var b = 10;
-    print b == 10;
-
-    a = 20;
-    print a == 20;
-    b = 30;
-    print b == 30;
-
-    var c = a = b;
-    print a == 30;
-    print b == 30;
-    print c == 30;
-    // var b = 0; // error - already defined
-  }
-
-  print a == 30;
-
-  // Logical operators
-
-  a = true;
-  print a and true;
-  print !(a and false);
-  print a or true;
-  print a or false;
-
-  a = false;
-  print (a and true) == false;
-  print !(a and false) == true;
-  print (a or true) == true;
-  print (a or false) == false;
-
-  // Branching
-
-  a = true;
-  if (a) {
-    print a;
-  }
-
-  a = false;
-  if (a == false) {
-    print a == false;
-  }
-
-  if (a) {
-    print !a;
-  } else {
-    print !a;
-  }
-
-  a = 2;
-  if (a == 1) {
-    print a != 2;
-  } else if (a == 2) {
-    print a == 2;
-  } else {
-    print a != 2;
-  }
-
-  a = true;
-  b = false;
-  if (a) {
-    if (b)
-      print a and b;
-    else
-      print a and !b;
-  } else {
-    if (b)
-      print !a and b;
-    else
-      print !a and !b;
-  }
-
-  // While loops
-
-  a = 0;
-  while (a < 10) {
-    print a;
-    a = a + 1;
-  }
-
-  a = 0; 
-  var flag = false;
-  while (a < 10 and !flag) {
-    a = a + 1;
-    if (a == 5) {
-      flag = true;
-    }
-  }
-  print a == 5;
-}
-
-basicops();
-
-// For loops
-
-for (var i = 0; i < 10; i = i + 1) {
-	print i;
-}
-
-var flag = false;
-for (var i = 0; i < 10 and !flag; i = i + 1) {
-	if (i == 4) {
-		a = 4;
-		flag = true;
-	}
-}
-print a == 4;
-
-// Functions
-
-fun max(a,b) {
-	if (a > b) {
-		return a;
-	} else {
-		return b;
-	}
-}
-
-fun fib(n) {
-	if (n <= 1) {
-		return 1;
-	} else {
-		return fib(n-1) + fib(n-2);
-	}
-}
-
-print max(8,2);
-print fib(6);
-
-// Native Functions
-
-
-print clock();
-
-// Closures
-
-fun makeMultiplier(a,b){
-  fun dofunc(methodname){
-    if (methodname == "resule") {
-      return a * b;
-    } else if (methodname == "add-a"){
-      fun adda(value){
-        a = a + value;
-      }
-      return adda;
-    } else if (methodname == "add-b"){
-      fun addb(value){
-        b = b + value;
-      }
-      return addb;
-    } else {
-      return nil;
-    }
-  }
-  return dofunc;
-}
-
-var m = makeMultiplier(1,5);
-m("add-a")(5);
-print m("resule") == 30;
-m("add-b")(-6);
-print m("resule") == -6;
-
-fun makeVector(x,y){
-  fun vector(method){
-    if (method == "x")
-      return x;
-    else if (method == "y")
-      return y;
-    else if (method == "add") {
-      fun addVector(other){
-        return makeVector(x + other("x"), y + other("y"));
-      }
-      return addVector;
-    }
-  }
-  return vector;
-}
-
-var v1 = makeVector(2,6);
-var v2 = makeVector(3,-2);
-
-var v3 = v1("add")(v2);
-print v3("x") == 5;
-print v3("y") == 4;
+var maker = CoffeeMaker("coffee and chicory");
+maker.brew();
