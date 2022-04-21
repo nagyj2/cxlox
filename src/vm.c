@@ -310,6 +310,49 @@ static bool bindMethod(ObjClass* klass, ObjString* name) {
 	return true;
 }
 
+/** Invokes a method directly from a class.
+ * @param[in] klass The class to look for the method in.
+ * @param[in] name The method to call.
+ * @param[in] argCount The number of arguments being passed to the method.
+ * @return true If the call is successful.
+ * @return false If the call is unsuccessful.
+ */
+static bool invokeFromClass(ObjClass* klass, ObjString* name, int argCount) {
+	Value method;
+	if (!tableGet(&klass->methods, name, &method)) {
+		runtimeError("Undefined property '%s'.", name->chars);
+		return false;
+	}
+
+	return call(AS_CLOSURE(method), argCount);
+}
+
+/** Looks back on the stack to determine if a instance can be called upon.
+ * If so, it gets called.
+ * @param[in] name The method to call from the instance.
+ * @param[in] argCount The number of arguments being passed to the method.
+ * @return true if the call succeeded.
+ * @return false if the call failed.
+ */
+static bool invoke(ObjString* name, int argCount) {
+	Value receiver = peek(argCount); // instance we are calling on
+	if (!IS_INSTANCE(receiver)) {
+		runtimeError("Only instances have methods.");
+		return false;
+	}
+	
+	ObjInstance* instance = AS_INSTANCE(receiver);
+
+	// Check if there is a callable field first
+	Value value;
+	if (tableGet(&instance->fields, name, &value)) {
+		vm.stackTop[-argCount - 1] = value; // Replace same spot as OP_GET_PROPERTY
+		return callValue(value, argCount);
+	}
+				
+	return invokeFromClass(instance->klass, name, argCount);
+}
+
 //~ VM Execution
 
 static InterpretResult run() {
@@ -553,7 +596,7 @@ static InterpretResult run() {
 				ObjString* name = READ_STRING();
 
 				Value value;
-				// If property exists, replace the top of the stack with it
+				// If property exists, replace the top of the stack with it. Higher precidence than a method call
 				if (tableGet(&instance->fields, name, &value)) {
 					pop(); // Instance
 					push(value);
@@ -588,6 +631,15 @@ static InterpretResult run() {
 			}
 			case OP_METHOD: {
 				defineMethod(READ_STRING());
+				break;
+			}
+			case OP_INVOKE: {
+				ObjString* method = READ_STRING();
+				int argCount = READ_BYTE();
+				if (!invoke(method, argCount)) {
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				frame = &vm.frames[vm.frameCount - 1];
 				break;
 			}
 		}
