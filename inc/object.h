@@ -32,6 +32,8 @@
 #define IS_CLASS(value) isObjType(value, OBJ_CLASS)
 // Returns whether the object is a class instance.
 #define IS_INSTANCE(value) isObjType(value, OBJ_INSTANCE)
+// Returns whether the object is a bounded method (method taken from an instance.
+#define IS_BOUND_METHOD(value) isObjType(value, OBJ_BOUND_METHOD)
 
 // Convert a lox value to a lox string. Returns ObjString pointer.
 #define AS_STRING(value) ((ObjString*) AS_OBJ(value))
@@ -57,6 +59,8 @@
 #define AS_CLASS(value) ((ObjClass*) AS_OBJ(value))
 // Convert a lox value into an instance. Returns a class instance pointer.
 #define AS_INSTANCE(value) ((ObjInstance*) AS_OBJ(value))
+// Convert a lox value into a bound method. Returns a bounded method pointer.
+#define AS_BOUND_METHOD(value) ((ObjBoundMethod*) AS_OBJ(value))
 
 /* Available types for lox objects. */
 typedef enum {
@@ -67,6 +71,7 @@ typedef enum {
 	OBJ_UPVALUE,
 	OBJ_CLASS,
 	OBJ_INSTANCE,
+	OBJ_BOUND_METHOD,
 } ObjType;
 
 /* Heap allocated lox object. Base 'class' for lox values. Typedef-ed in 'value.h'. */
@@ -129,7 +134,8 @@ typedef struct {
  */
 typedef struct {
 	Obj obj;
-	ObjString* name;				//* User visible name of the class
+	ObjString* name;				//* User visible name of the class.
+	Table methods;					//* Methods available to the class.
 } ObjClass;
 
 /** Representation of a class instance at runtime.
@@ -139,6 +145,14 @@ typedef struct {
 	ObjClass* klass;				//* The class which the instance represents.
 	Table fields;						//* A hashmap containing the attributes of the instance.
 } ObjInstance;
+
+/** Represents a method on an existing lox instance. Used to bind a method closure to a particular instance.
+ */
+typedef struct {
+	Obj obj;
+	Value receiver;				//* Instance which the method was taken from. This is where 'this' will bind to.
+	ObjClosure* method;		//* The method closure.
+} ObjBoundMethod;
 
 //~ Semantics
 
@@ -198,6 +212,13 @@ ObjClass* newClass(ObjString* name);
  * @return ObjInstance* pointer to a newly created class instance.
  */
 ObjInstance* newInstance(ObjClass* klass);
+
+/** Creates a new bounded method.
+ * @param[in] receiver The instance to bind to the method
+ * @param[in] ObjClosure* The method to extract
+ * @return ObjBoundMethod* pointer to a newly created bound method.
+ */
+ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method);
 
 /** Create a new lox string value by 'taking ownership' of the input character array.
  * @details

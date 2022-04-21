@@ -29,6 +29,7 @@ typedef enum {
 	OP_OPTIONAL,						//* OPCODE : (SE-1) Pops 2 elements from the stack. If the 2nd element is 'nil', the 1st element is pushed. Otherwise the 2nd element is pushed.
 	OP_POPN,								//* OPCODE NUMBER : (SE0) Pops n elements from the stack.
 	OP_POPREPL,							//* OPCODE : (SE-1) Pops 1 element from the stack and if in REPL mode, it is printed.
+	OP_INVOKE_SAFE,					//* OPCODE INDEX NUMBER : (SE+1) Takes the top element of the stack and gets a field using the index and immediately calls it with a number of arguments. If the field does not exist, nil is placed on the stack.
 	OP_DEFINE_CONST,				//* OPCODE INDEX : (SE-1) Defines a global constant and assigns the top element to it.
 	OP_DUP,									//* OPCODE : (SE+1) Duplicates the top element of the stack.
 	OP_CONSTANT,				//* OPCODE INDEX : (SE+1) Introduces a constant into the constant pool.
@@ -63,6 +64,8 @@ typedef enum {
 	OP_CLASS,						//* OPCODE INDEX : (SE0) Creates a new class using the indexed constant as a name.
 	OP_GET_PROPERTY,		//* OPCODE INDEX : (SE+1) Retrieves a property identified by the index from the instance on top of the stack and replaces the top of the stack with that retrieved property.
 	OP_SET_PROPERTY,		//* OPCODE INDEX : (SE0) Sets a property given by the indexed string to the top element of the stack.
+	OP_METHOD,					//* OPCODE INDEX : (SE-1) Sets the top stack element (closure) to a method of the 2nd top stack element (class) and calls the property the indexed string.
+	OP_INVOKE,					//* OPCODE INDEX NUMBER : (SE+1) Takes the top element of the stack and gets a field using the index and immediately calls it with a number of arguments.
 } OpCode;
 
 // OP_SET_PROP_SAFE,				//* OPCODE INDEX : (SE0) Sets a property given by the indexed string to the top element of the stack.

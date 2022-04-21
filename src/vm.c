@@ -55,6 +55,9 @@ void initVM() {
 	printf("%p allocate %zu for rainy day\n", vm.rainyDay, RAINY_DAY_MEMORY);
 #endif
 	
+	vm.initString = NULL; // copyString() can allocate, thus causing GC which will read uninitializer vm.initString. For safety, NULL it
+	vm.initString = copyString("init", 4);
+	
 	// Create all native functions
 #ifdef DEBUG_LOAD_STDLIB
 	loadStdlib();
@@ -62,16 +65,18 @@ void initVM() {
 }
 
 void freeVM() {
-	freeObjects();
+	vm.initString = NULL;
 	freeTable(&vm.strings);
 	freeTable(&vm.globals);
 	freeTable(&vm.constants);
+	freeObjects();
 }
 
 //~ Error Reporting
 
 /** Prints an error message to stderr. Also resets the stack.
- * 
+ * To prevent nonsense line methods, `frame->ip = ip;` must preceed this function call in run()
+ *
  * @param[in] format Format string to print to stderr.
  * @param[in] ... The arguments to put into the format string.
  */
@@ -150,6 +155,19 @@ static void concatenate() {
 	push(OBJ_VAL(result));
 }
 
+/** Add a new frame to the top of the frame stack and fill in its details
+ * @param[in] closure The new function to start executing
+ * @param[in] argCount Backwards stack offset to place the frame's stack at
+ */
+static void createFrame(ObjClosure* closure, int argCount) {
+	// Get next frame from vm and fill in the details
+	// run() uses the top of the frame stack to determine execution, so altering the top will cause execution to move to the new code
+	CallFrame* frame = &vm.frames[vm.frameCount++];
+	frame->closure = closure;
+	frame->ip = closure->function->chunk.code;
+	frame->slots = vm.stackTop - argCount - 1;
+}
+
 /** Constructs a new call frame for the VM. Effectively enters a new Lox function by altering the current frame
  * @details
  * Places the new call frame on top of the frame stack.
@@ -168,20 +186,15 @@ static bool call(ObjClosure* closure, int argCount) {
 		runtimeError("Stack overflow.");
 		return false;
 	}
-	// Get next frame from vm and fill in the details
-	// run() uses the top of the frame stack to determine execution, so altering the top will cause execution to move to the new code
-	CallFrame* frame = &vm.frames[vm.frameCount++];
-	frame->closure = closure;
-	frame->ip = closure->function->chunk.code;
-	frame->slots = vm.stackTop - argCount - 1;
+	createFrame(closure, argCount);
 	return true;
 }
 
-/** Performs the actual call to a function.
- * @param[in] callee Who is being called.
- * @param[in] argCount The number of arguments passed to the function.
- * @return true 
- * @return false 
+/** Provides the setup logic for calling any value. May pass call to secondary functions if needed.
+ * @param[in] callee The value being called.
+ * @param[in] argCount The number of arguments on top of the stack (how far back to set frame - frame includes them as locals).
+ * @return true if the call was successful.
+ * @return false if the call was unsuccessful.
  */
 static bool callValue(Value callee, int argCount) {
 	if (IS_OBJ(callee)) {
@@ -206,8 +219,24 @@ static bool callValue(Value callee, int argCount) {
 			case OBJ_CLASS: {
 				ObjClass* klass = AS_CLASS(callee);
 				vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass)); // Create instance where caller's name was
-				// Allows instance to be referenced by initializer func (b/c the instance is already on the stack)
+				// ^ Allows instance to be referenced by initializer func (b/c the instance is already on the stack)
+
+				Value initializer;
+				if (tableGet(&klass->methods, OBJ_VAL(vm.initString), &initializer)) {
+					return call(AS_CLOSURE(initializer), argCount); // call() handles arity checking
+				} else if (argCount != 0) { // No initializer, so implicitly require 0 args
+					runtimeError("Expected 0 arguments but got %d.", argCount);
+					return false;
+				}
+
 				return true;
+			}
+			case OBJ_BOUND_METHOD: {
+				ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
+				// initCompiler sets aside slot 1 on methods for the instance and binds it to 'this', 
+				// so we need to place a reference to the instance there
+					vm.stackTop[-argCount - 1] = bound->receiver;
+				return call(bound->method, argCount);
 			}
 			default:
 				break; // Non callable object
@@ -259,6 +288,82 @@ static void closeUpvalues(Value* last) {
 		upvalue->location = &upvalue->closed; // Point the location to its heap location. That way we either point to the stack locale or heap locale using 'location' attribute
 		vm.openUpvalues = upvalue->next; // 
 	}
+}
+
+/** Binds a method to a class' methods table.
+ * @param[in] name The property name to bind the method under.
+ */
+static void defineMethod(ObjString* name) {
+	Value method = peek(0);
+	ObjClass* klass = AS_CLASS(peek(1));
+	tableSet(&klass->methods, OBJ_VAL(name), method);
+	pop(); // Remove method from stack
+}
+
+/** Places a bounded method on the top of the stack.
+ * @details
+ * Expects an instance to be on the top of the stack and uses that instance's class and the input property name
+ * to find the method. Once found, the instance and method (closure) are combined into a bound method object
+ * which then replaces the instance on top of the stack.
+ * @param[in] klass The class to look for the method in
+ * @param[in] name The method name to find in the class
+ * @return true If the method was found
+ * @return false If the method was not found
+ */
+static bool bindMethod(ObjClass* klass, ObjString* name) {
+	Value method;
+	if (!tableGet(&klass->methods, OBJ_VAL(name), &method)) { // If the method cannot be found, return errpr
+		runtimeError("Undefined property '%s'.", name->chars);
+		return false;
+	}
+
+	ObjBoundMethod* bound = newBoundMethod(peek(0), AS_CLOSURE(method));
+	pop(); // instance
+	push(OBJ_VAL(bound));
+	return true;
+}
+
+/** Invokes a method directly from a class.
+ * @param[in] klass The class to look for the method in.
+ * @param[in] name The method to call.
+ * @param[in] argCount The number of arguments being passed to the method.
+ * @return true If the call is successful.
+ * @return false If the call is unsuccessful.
+ */
+static bool invokeFromClass(ObjClass* klass, ObjString* name, int argCount) {
+	Value method;
+	if (!tableGet(&klass->methods, OBJ_VAL(name), &method)) {
+		runtimeError("Undefined property '%s'.", name->chars);
+		return false;
+	}
+
+	return call(AS_CLOSURE(method), argCount);
+}
+
+/** Looks back on the stack to determine if a instance can be called upon.
+ * If so, it gets called.
+ * @param[in] name The method to call from the instance.
+ * @param[in] argCount The number of arguments being passed to the method.
+ * @return true if the call succeeded.
+ * @return false if the call failed.
+ */
+static bool invoke(ObjString* name, int argCount) {
+	Value receiver = peek(argCount); // instance we are calling on
+	if (!IS_INSTANCE(receiver)) {
+		runtimeError("Only instances have methods.");
+		return false;
+	}
+	
+	ObjInstance* instance = AS_INSTANCE(receiver);
+
+	// Check if there is a callable field first
+	Value value;
+	if (tableGet(&instance->fields, OBJ_VAL(name), &value)) {
+		vm.stackTop[-argCount - 1] = value; // Replace same spot as OP_GET_PROPERTY
+		return callValue(value, argCount);
+	}
+				
+	return invokeFromClass(instance->klass, name, argCount);
 }
 
 //~ VM Execution
@@ -372,6 +477,7 @@ static InterpretResult run() {
 
 				vm.stackTop = frame->slots; // Reset stack to the base of the frame. Effectively removes all locals
 				push(result); // Push the result back onto the stack. Allows for returns
+				//~ Restores frame (returns execution back to the caller)
 				frame = &vm.frames[vm.frameCount - 1]; // Update the frame pointer
 				ip = frame->ip; // Restore ip
 				break;
@@ -626,6 +732,7 @@ static InterpretResult run() {
 #ifdef USE_STACK_PROPERTY_DELETE
 			case OP_DEL_PROPERTY: {
 				if (!IS_INSTANCE(peek(1))) {
+					frame->ip = ip;
 					runtimeError("Only instances have properties.");
 					return INTERPRET_RUNTIME_ERROR;
 				}
@@ -641,6 +748,7 @@ static InterpretResult run() {
 #else
 			case OP_DEL_PROPERTY: {
 				if (!IS_INSTANCE(peek(0))) {
+					frame->ip = ip;
 					runtimeError("Only instances have properties.");
 					return INTERPRET_RUNTIME_ERROR;
 				}
@@ -654,6 +762,7 @@ static InterpretResult run() {
 			}
 			case OP_DEL_PROPERTY_LONG: {
 				if (!IS_INSTANCE(peek(0))) {
+					frame->ip = ip;
 					runtimeError("Only instances have properties.");
 					return INTERPRET_RUNTIME_ERROR;
 				}
@@ -670,6 +779,7 @@ static InterpretResult run() {
 				// Ensure a valid recipient is on the top of the stack
 				// This instruction ONLY operates on the SPECIFIC instance on the top of the stack
 				if (!IS_INSTANCE(peek(0))) {
+					frame->ip = ip;
 					runtimeError("Only instances have properties.");
 					return INTERPRET_RUNTIME_ERROR;
 				}
@@ -678,18 +788,21 @@ static InterpretResult run() {
 				ObjString* name = READ_STRING();
 
 				Value value;
-				// If property exists, replace the top of the stack with it
+				// If property exists, replace the top of the stack with it. Higher precidence than a method call
 				if (tableGet(&instance->fields, OBJ_VAL(name), &value)) {
-					pop();
+					pop(); // Instance
 					push(value);
 					break;
 				}
 
-				runtimeError("Undefined property '%s'.", name->chars);
-				return INTERPRET_RUNTIME_ERROR;
+				if (!bindMethod(instance->klass, name)) {
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				break;
 			}
 			case OP_GET_PROPERTY_LONG: {
 				if (!IS_INSTANCE(peek(0))) {
+					frame->ip = ip;
 					runtimeError("Only instances have properties.");
 					return INTERPRET_RUNTIME_ERROR;
 				}
@@ -701,6 +814,7 @@ static InterpretResult run() {
 					push(value);
 					break;
 				}
+				frame->ip = ip;
 				runtimeError("Undefined property '%s'.", name->chars);
 				return INTERPRET_RUNTIME_ERROR;
 			}
@@ -751,6 +865,7 @@ static InterpretResult run() {
 				// Ensure a valid recipient is under the top element of the stack
 				// This instruction ONLY operates on the SPECIFIC instance on the top of the stack
 				if (!IS_INSTANCE(peek(1))) {
+					frame->ip = ip;
 					runtimeError("Only instances have fields.");
 					return INTERPRET_RUNTIME_ERROR;
 				}
@@ -772,6 +887,7 @@ static InterpretResult run() {
 			}
 			case OP_SET_PROPERTY_LONG: {
 				if (!IS_INSTANCE(peek(1))) {
+					frame->ip = ip;
 					runtimeError("Only instances have fields.");
 					return INTERPRET_RUNTIME_ERROR;
 				}
@@ -781,6 +897,21 @@ static InterpretResult run() {
 				Value value = pop(); // property
 				pop(); // instance
 				push(value); // put the value assigned back on the stack
+				break;
+			}
+			case OP_METHOD: {
+				defineMethod(READ_STRING());
+				break;
+			}
+			case OP_INVOKE: {
+				ObjString* method = READ_STRING();
+				int argCount = READ_BYTE();
+				frame->ip = ip;
+				if (!invoke(method, argCount)) {
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				frame = &vm.frames[vm.frameCount - 1];
+				ip = frame->ip;
 				break;
 			}
 		}

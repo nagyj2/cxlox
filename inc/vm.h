@@ -29,11 +29,12 @@ typedef struct {
 	Obj* objects; 					//* A pointer to the first allocated object
 	// stack == stackTop = > empty stack.
 
-	Table strings;					//* A table for string internment.
-	Table globals;					//* A table for global variables.
+	Table strings;						//* A table for string internment.
+	Table globals;						//* A table for global variables.
 	Table constants;					//* A table for global constants.
-	bool isREPL;						//* Whether or not we are in REPL mode.
+	bool isREPL;							//* Whether or not we are in REPL mode.
 	ObjUpvalue* openUpvalues;	//* A linked list of upvalues which are still open.
+	ObjString* initString;		//* String which represents an initializer method. Fast b/c of string interning.
 
 	// GC
 	int grayCount;					//* Number of gray objects.

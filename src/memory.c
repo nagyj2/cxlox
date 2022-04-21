@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "compiler.h"
 #include "memory.h"
@@ -52,14 +53,15 @@ static void freeObject(Obj* object) {
 #ifdef DEBUG_LOG_GC
 	printf("%p freed ", (void*) object);
 	switch (object->type) {
-		case OBJ_STRING: 		printf("string "); break;
-		case OBJ_FUNCTION: 	printf("function "); break;
-		case OBJ_CLOSURE: 	printf("closure "); break;
-		case OBJ_NATIVE: 		printf("native "); break;
-		case OBJ_UPVALUE: 	printf("upvalue "); break;
-		case OBJ_CLASS: 		printf("class\n"); break;
-		case OBJ_INSTANCE: 	printf("instance\n"); break;
-		default: 						printf("unknown "); break;
+		case OBJ_STRING: 				printf("string\n"); break;
+		case OBJ_FUNCTION: 			printf("function\n"); break;
+		case OBJ_CLOSURE: 			printf("closure\n"); break;
+		case OBJ_NATIVE: 				printf("native\n"); break;
+		case OBJ_UPVALUE: 			printf("upvalue\n"); break;
+		case OBJ_CLASS: 				printf("class\n"); break;
+		case OBJ_INSTANCE: 			printf("instance\n"); break;
+		case OBJ_BOUND_METHOD:	printf("bound method\n"); break;
+		default: 								printf("unknown\n"); break;
 	}
 	// printObject(*((Value*) object));
 	printf("\n");
@@ -95,6 +97,8 @@ static void freeObject(Obj* object) {
 			break;
 		}
 		case OBJ_CLASS: {
+			ObjClass* klass = (ObjClass*) object;
+			freeTable(&klass->methods);
 			FREE(ObjClass, object);
 			break;
 		}
@@ -102,6 +106,12 @@ static void freeObject(Obj* object) {
 			ObjInstance* instance = (ObjInstance*) object;
 			freeTable(&instance->fields);
 			FREE(ObjInstance, object);
+			break;
+		}
+		case OBJ_BOUND_METHOD: {
+			ObjBoundMethod* boundMethod = (ObjBoundMethod*) object;
+			// Does not own the method or instance, so it doesn't free them
+			FREE(ObjBoundMethod, object);
 			break;
 		}
 	}
@@ -191,9 +201,12 @@ static void markRoots() {
 
 	// Mark compiling functions
 	markCompilerRoots();
+
+	// Mark special VM strings
+	markObject((Obj*) vm.initString);
 }
 
-/** Append all reachable objects from a given object. (Adds these newly grayed objects to the gray stack)?
+/** Append all reachable objects from a given object to the gray stack. 
  * @param[in] object The object to mark.
  */
 static void blackenObject(Obj* object) {
@@ -224,12 +237,19 @@ static void blackenObject(Obj* object) {
 		case OBJ_CLASS: {
 			ObjClass* klass = (ObjClass*) object;
 			markObject((Obj*) klass->name); // Mark the name of the class
+			markTable(&klass->methods); // Mark all methods
 			break;
 		}
 		case OBJ_INSTANCE: {
 			ObjInstance* instance = (ObjInstance*) object;
 			markObject((Obj*) instance->klass); // Mark the class
 			markTable(&instance->fields); // Mark all fields
+			break;
+		}
+		case OBJ_BOUND_METHOD: {
+			ObjBoundMethod* bound = (ObjBoundMethod*) object;
+			markValue(bound->receiver);
+			markObject((Obj*) bound->method);
 			break;
 		}
 		case OBJ_NATIVE:
