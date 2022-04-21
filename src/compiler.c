@@ -1181,7 +1181,7 @@ static void optional(bool canAssign) {
 	emitByte(OP_OPTIONAL);
 }
 
-/** Parses a variable.
+/** Parses a variable or lambda declaration.
  * @details
  * Assumes the variable has already been consumed and is in `parser.previous`.
  * @param[in] canAssign unused.
@@ -1279,9 +1279,11 @@ static void lambda() {
 	if (match(TOKEN_LEFT_CURLY)) {
 		//~ Parse Traditional Functions
 		block();
+		emitByte(OP_NIL); // B/c lambdas come in expr or stmt varieties, we handle returning here instead of endCompiler()
+		emitByte(OP_RETURN); // Dont use emitReturn b/c we dont want the possibility to allow 'this'
 	} else {
 		//~ Parse implied return
-		emitByte(OP_NIL);
+		emitByte(OP_NIL); // Implicit return value
 		expression();
 		emitByte(OP_RETURN);
 	}
