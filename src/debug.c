@@ -152,6 +152,8 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return simpleInstruction("OP_DUP", offset);
 		case OP_DEFINE_CONST:
 			return constantInstruction("OP_DEFINE_CONST", chunk, offset);
+		case OP_INVOKE_SAFE:
+			return invokeInstruction("OP_INVOKE_SAFE", chunk, offset);
 			
 		case OP_RETURN:
 			return simpleInstruction("OP_RETURN", offset);

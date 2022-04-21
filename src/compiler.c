@@ -1079,10 +1079,10 @@ static void dotsafe(bool canAssign) {
 	// Check if an assignment is being parsed and if an assignment can even occur
 	if (canAssign && match(TOKEN_EQUAL)) {
 		error("Cannot use '?.' in assignments.");
-	// } else if (match(TOKEN_LEFT_PAREN)) {
-	// 	int argCount = argumentList();
-	// 	emitBytes(OP_INVOKE_SAFE, nameIndex);
-	// 	emitByte(argCount);
+	} else if (match(TOKEN_LEFT_PAREN)) {
+		int argCount = argumentList();
+		emitBytes(OP_INVOKE_SAFE, nameIndex);
+		emitByte(argCount);
 	} else {
 		emitLongable(OP_GET_PROP_SAFE, OP_GET_PROP_SAFE_LONG, nameIndex);
 	}

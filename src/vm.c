@@ -118,6 +118,11 @@ Value pop() {
 	return *vm.stackTop;
 }
 
+Value popn(int n) {
+	vm.stackTop -=n ;
+	return *vm.stackTop;
+}
+
 /** Returns the value at a given index from the top of the stack.
  * @pre there is at least one element in the stack.
  *
@@ -323,16 +328,26 @@ static bool bindMethod(ObjClass* klass, ObjString* name) {
 	return true;
 }
 
+static void resolveSafeCall(int argCount) {
+	popn(argCount + 1);
+	push(NIL_VAL);
+}
+
 /** Invokes a method directly from a class.
  * @param[in] klass The class to look for the method in.
  * @param[in] name The method to call.
  * @param[in] argCount The number of arguments being passed to the method.
+ * @param[in] safe If true and the method is not found, nil will be placed on the stack instead of an error.
  * @return true If the call is successful.
  * @return false If the call is unsuccessful.
  */
-static bool invokeFromClass(ObjClass* klass, ObjString* name, int argCount) {
+static bool invokeFromClass(ObjClass* klass, ObjString* name, int argCount, bool safe) {
 	Value method;
 	if (!tableGet(&klass->methods, OBJ_VAL(name), &method)) {
+		if (safe) {
+			resolveSafeCall(argCount);
+			return true;
+		}
 		runtimeError("Undefined property '%s'.", name->chars);
 		return false;
 	}
@@ -344,12 +359,18 @@ static bool invokeFromClass(ObjClass* klass, ObjString* name, int argCount) {
  * If so, it gets called.
  * @param[in] name The method to call from the instance.
  * @param[in] argCount The number of arguments being passed to the method.
+ * @param[in] safe If true and the method is not found, nil will be placed on the stack instead of an error.
  * @return true if the call succeeded.
  * @return false if the call failed.
  */
-static bool invoke(ObjString* name, int argCount) {
+static bool invoke(ObjString* name, int argCount, bool safe) {
 	Value receiver = peek(argCount); // instance we are calling on
 	if (!IS_INSTANCE(receiver)) {
+		printf("Safety: %d", safe);
+		if (safe) {
+			resolveSafeCall(argCount);
+			return true;
+		}
 		runtimeError("Only instances have methods.");
 		return false;
 	}
@@ -363,7 +384,7 @@ static bool invoke(ObjString* name, int argCount) {
 		return callValue(value, argCount);
 	}
 				
-	return invokeFromClass(instance->klass, name, argCount);
+	return invokeFromClass(instance->klass, name, argCount, safe);
 }
 
 //~ VM Execution
@@ -907,7 +928,18 @@ static InterpretResult run() {
 				ObjString* method = READ_STRING();
 				int argCount = READ_BYTE();
 				frame->ip = ip;
-				if (!invoke(method, argCount)) {
+				if (!invoke(method, argCount, false)) {
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				frame = &vm.frames[vm.frameCount - 1];
+				ip = frame->ip;
+				break;
+			}
+			case OP_INVOKE_SAFE: {
+				ObjString* method = READ_STRING();
+				int argCount = READ_BYTE();
+				frame->ip = ip;
+				if (!invoke(method, argCount, true)) {
 					return INTERPRET_RUNTIME_ERROR;
 				}
 				frame = &vm.frames[vm.frameCount - 1];
