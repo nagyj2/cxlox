@@ -287,3 +287,16 @@ class CoffeeMaker {
 
 var maker = CoffeeMaker("coffee and chicory");
 maker.brew();
+
+class Oops {
+  init() {
+    fun f() {
+      print "NOT A METHOD";
+    }
+
+    this.field = f;
+  }
+}
+
+var oops = Oops();
+oops.field();
