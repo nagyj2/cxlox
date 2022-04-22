@@ -1,6 +1,7 @@
 #include <stdlib.h> // snprintf
 #include <stdio.h>
 #include <string.h>
+#include <math.h> // floor, log10, abs 
 
 #include "memory.h"
 #include "object.h"
@@ -215,28 +216,34 @@ void printObject(Value value) {
 ObjString* toObjString(Value value) {
 	switch (value.type) {
 		case VAL_NUMBER: {
-			// todo: currently assumes largest required
-			char* buffer = malloc(sizeof(char) * MAX_INT_STRLEN); // allocate room for new text
-			// todo : memory leak?
-			int size = snprintf(buffer, MAX_INT_STRLEN, "%g", AS_NUMBER(value)); // copy over number text
+			int nchars = 1; // Default to 1 character for 0
+			if (AS_NUMBER(value) != 0) {
+				nchars = floor(log10(fabs(AS_NUMBER(value))));
+			}
+			if (AS_NUMBER(value) < 0) nchars++; // Add 1 for negative sign
 
-			return takeString(buffer, size);
+			// Prepend ++ to allow for the terminating null character
+			char* buffer = malloc(sizeof(char) * ++nchars); // allocate room for new text
+			// todo : memory leak?
+			int size = snprintf(buffer, nchars, "%g", AS_NUMBER(value)); // copy over number text
+
+			return takeString(buffer, size); //take b/c we are allocating the string here
 		}
 		case VAL_BOOL: {
 			if (AS_BOOL(value))
-				return takeString("true", 4);
+				return copyString("true", 4);
 			else
-				return takeString("false", 5);
+				return copyString("false", 5);
 		}
 		case VAL_NIL:
-			return takeString("nil", 3);
+			return copyString("nil", 3);
 		case VAL_OBJ: {
 			switch (OBJ_TYPE(value)) {
 				case OBJ_STRING:
 					return AS_STRING(value);
 				default: // Impossible
 					printf("Cannot convert to a string: %d\n'", OBJ_TYPE(value));
-					return takeString("??", 2);
+					return copyString("<not stringable>", 16);
 			}
 		}
 		default:
