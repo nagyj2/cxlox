@@ -609,7 +609,6 @@ static void defineVariable(index_t global, bool isConstant) {
  */
 static index_t identifierConstant(Token* name) {
 	return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
-	// return emitConstant(OBJ_VAL(copyString(name->start, name->length)));
 	
 }
 
@@ -1060,9 +1059,8 @@ static void dot(bool canAssign) {
 		emitLongable(OP_SET_PROPERTY, OP_SET_PROPERTY_LONG, nameIndex);
 		// emitBytes(OP_SET_PROPERTY, name);
 	} else if (match(TOKEN_LEFT_PAREN)) { // Optimization for method calls: 'x.y(z)'
-		// TODO - Need INVOKE_LONG
 		int argCount = argumentList();
-		emitBytes(OP_INVOKE, nameIndex);
+		emitLongable(OP_INVOKE, OP_INVOKE_LONG, nameIndex);
 		emitByte(argCount);
 	} else {
 		emitLongable(OP_GET_PROPERTY, OP_GET_PROPERTY_LONG, nameIndex);
@@ -1081,7 +1079,7 @@ static void dotsafe(bool canAssign) {
 		error("Cannot use '?.' in assignments.");
 	} else if (match(TOKEN_LEFT_PAREN)) {
 		int argCount = argumentList();
-		emitBytes(OP_INVOKE_SAFE, nameIndex);
+		emitLongable(OP_INVOKE_SAFE, OP_INVOKE_SAFE_LONG, nameIndex);
 		emitByte(argCount);
 	} else {
 		emitLongable(OP_GET_PROP_SAFE, OP_GET_PROP_SAFE_LONG, nameIndex);
@@ -1549,7 +1547,7 @@ static void classDeclaration() {
 
 	declareVariable(constClass); // Binds class object to a variable of the same name. ADDS VAR TO SCOPE
 	// Declare before class body so it can be used in the body.
-	emitBytes(OP_CLASS, name); // Emit instruction to create class at runtime
+	emitLongable(OP_CLASS, OP_CLASS_LONG, name); // Emit instruction to create class at runtime
 	defineVariable(name, constClass); // Define variable for class's name
 
 	// We need to track the innermost class compiler so we can determine if 'this' is valid
@@ -1583,7 +1581,7 @@ static void method() {
 	function(type); // Place closure on the stack
 
 	// Bind method to class
-	emitBytes(OP_METHOD, constant);
+	emitLongable(OP_METHOD, OP_METHOD_LONG, constant);
 }
 
 /** Parses an while statement.

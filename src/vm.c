@@ -759,6 +759,10 @@ static InterpretResult run() {
 				push(OBJ_VAL(newClass(READ_STRING())));
 				break;
 			}
+			case OP_CLASS_LONG: {
+				push(OBJ_VAL(newClass(READ_STRING_LONG())));
+				break;
+			}
 #ifdef USE_STACK_PROPERTY_DELETE
 			case OP_DEL_PROPERTY: {
 				if (!IS_INSTANCE(peek(1))) {
@@ -933,6 +937,10 @@ static InterpretResult run() {
 				defineMethod(READ_STRING());
 				break;
 			}
+			case OP_METHOD_LONG: {
+				defineMethod(READ_STRING_LONG());
+				break;
+			}
 			case OP_INVOKE: {
 				ObjString* method = READ_STRING();
 				int argCount = READ_BYTE();
@@ -946,6 +954,28 @@ static InterpretResult run() {
 			}
 			case OP_INVOKE_SAFE: {
 				ObjString* method = READ_STRING();
+				int argCount = READ_BYTE();
+				frame->ip = ip;
+				if (!invoke(method, argCount, true)) {
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				frame = &vm.frames[vm.frameCount - 1];
+				ip = frame->ip;
+				break;
+			}
+			case OP_INVOKE_LONG: {
+				ObjString* method = READ_STRING_LONG();
+				int argCount = READ_BYTE();
+				frame->ip = ip;
+				if (!invoke(method, argCount, false)) {
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				frame = &vm.frames[vm.frameCount - 1];
+				ip = frame->ip;
+				break;
+			}
+			case OP_INVOKE_SAFE_LONG: {
+				ObjString* method = READ_STRING_LONG();
 				int argCount = READ_BYTE();
 				frame->ip = ip;
 				if (!invoke(method, argCount, true)) {

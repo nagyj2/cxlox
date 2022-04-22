@@ -9,27 +9,31 @@ typedef uint32_t 	index_t;	//* Size of a index for the bytecode. Converted to ui
 
 /** Define the Operation Codes which can exist in the bytecode. */
 typedef enum {
-	OP_CONSTANT_LONG,				//* OPCODE INDEX INDEX INDEX : (SE+1) Places a constant from the constant pool into the stack using a 24 bit address.
-	OP_DEFINE_GLOBAL_LONG,	//* OPCODE INDEX INDEX INDEX : (SE-1) Defines a global variable using 24 bit index and assigns the top element to it.
-	OP_GET_GLOBAL_LONG,			//* OPCODE INDEX INDEX INDEX : (SE+1) Retrieves a global variable by 24 bit index and pushes its current value to the stack.
-	OP_SET_GLOBAL_LONG,			//* OPCODE INDEX INDEX INDEX : (SE0) Retrieves a global variable by 24 bit index and places the top of the stack at the indexed variable.
-	OP_GET_PROPERTY_LONG,		//* OPCODE INDEX INDEX INDEX : (SE+1) Retrieves a property identified by the index from the instance on top of the stack and replaces the top of the stack with that retrieved property.
-	OP_SET_PROPERTY_LONG,		//* OPCODE INDEX INDEX INDEX : (SE0) Sets a property given by the indexed string to the top element of the stack.
-	OP_DEFINE_CONST_LONG,		//* OPCODE INDEX INDEX INDEX : (SE-1) Defines a global constant using 24 bit index and assigns the top element to it.
-	OP_CLOSURE_LONG,				//* OPCODE FUNCTION <2*i> : (SE0) Relies on ObjFunction's upvalueCount. First argument is the function being called. Other arguments come in pairs of 2. First byte is the locality of the upvalue and the second is the index.
+	OP_CONSTANT_LONG,				//* OPCODE INDEX INDEX INDEX : (SE+1) Long version of OP_CONSTANT.
+	OP_DEFINE_GLOBAL_LONG,	//* OPCODE INDEX INDEX INDEX : (SE-1) Long version of OP_DEFINE_GLOBAL.
+	OP_GET_GLOBAL_LONG,			//* OPCODE INDEX INDEX INDEX : (SE+1) Long version of OP_GET_GLOBAL.
+	OP_SET_GLOBAL_LONG,			//* OPCODE INDEX INDEX INDEX : (SE0) Long version of OP_SET_GLOBAL.
+	OP_GET_PROPERTY_LONG,		//* OPCODE INDEX INDEX INDEX : (SE+1) Long version of OP_GET_PROPERTY.
+	OP_SET_PROPERTY_LONG,		//* OPCODE INDEX INDEX INDEX : (SE0) Long version of OP_SET_PROPERTY.
+	OP_DEFINE_CONST_LONG,		//* OPCODE INDEX INDEX INDEX : (SE-1) Long version of OP_DEFINE_CONST.
+	OP_CLOSURE_LONG,				//* OPCODE FUNCTION <2*i> : (SE0) Long version of OP_CLOSURE.
+	OP_CLASS_LONG,					//* OPCODE INDEX INDEX INDEX : (SE0) Long version of OP_CLASS.
 #ifdef USE_STACK_PROPERTY_DELETE
 	OP_DEL_PROPERTY,				//* OPCODE: (SE-2) Deletes the top stack element (property) from the bottom stack element (instance).
 #else
 	OP_DEL_PROPERTY,				//* OPCODE INDEX: (SE-1) Deletes the indexed string representing a property from the top instance element.
-	OP_DEL_PROPERTY_LONG,		//* OPCODE INDEX INDEX INDEX : (SE-1) Deletes the indexed string representing a property from the top instance element.
+	OP_DEL_PROPERTY_LONG,		//* OPCODE INDEX INDEX INDEX : (SE-1) Long version of OP_DEL_PROPERTY.
 #endif
 	OP_GET_PROP_SAFE,				//* OPCODE INDEX : (SE+1) Retrieves a property identified by the index from the instance on top of the stack and replaces the top of the stack with that retrieved property.
-	OP_GET_PROP_SAFE_LONG,	//* OPCODE INDEX : (SE+1) Retrieves a property identified by the index from the instance on top of the stack and replaces the top of the stack with that retrieved property.
+	OP_GET_PROP_SAFE_LONG,	//* OPCODE INDEX INDEX INDEX : (SE+1) Long version of OP_GET_PROP_SAFE.
 	OP_CONDITIONAL,        	//* OPCODE : (SE-1) Pops 2 elements from the stack. If the 2nd element is truthy, the 1st element is pushed on the stack. Otherwise 'nil' is pushed.
 	OP_OPTIONAL,						//* OPCODE : (SE-1) Pops 2 elements from the stack. If the 2nd element is 'nil', the 1st element is pushed. Otherwise the 2nd element is pushed.
 	OP_POPN,								//* OPCODE NUMBER : (SE0) Pops n elements from the stack.
 	OP_POPREPL,							//* OPCODE : (SE-1) Pops 1 element from the stack and if in REPL mode, it is printed.
 	OP_INVOKE_SAFE,					//* OPCODE INDEX NUMBER : (SE+1) Takes the top element of the stack and gets a field using the index and immediately calls it with a number of arguments. If the field does not exist, nil is placed on the stack.
+	OP_INVOKE_SAFE_LONG,		//* OPCODE INDEX INDEX INDEX NUMBER : (SE+1) Long constant version of OP_INVOKE_SAFE.
+	OP_INVOKE_LONG,					//* OPCODE INDEX NUMBER : (SE+1) Long constant version of OP_INVOKE.
+	OP_METHOD_LONG,					//* OPCODE INDEX INDEX INDEX : (SE-1) Long version of OP_METHOD.
 	OP_DEFINE_CONST,				//* OPCODE INDEX : (SE-1) Defines a global constant and assigns the top element to it.
 	OP_DUP,									//* OPCODE : (SE+1) Duplicates the top element of the stack.
 	OP_CONSTANT,				//* OPCODE INDEX : (SE+1) Introduces a constant into the constant pool.
