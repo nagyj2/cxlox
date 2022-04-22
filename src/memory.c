@@ -53,18 +53,18 @@ static void freeObject(Obj* object) {
 #ifdef DEBUG_LOG_GC
 	printf("%p freed ", (void*) object);
 	switch (object->type) {
-		case OBJ_STRING: 				printf("string\n"); break;
-		case OBJ_FUNCTION: 			printf("function\n"); break;
-		case OBJ_CLOSURE: 			printf("closure\n"); break;
-		case OBJ_NATIVE: 				printf("native\n"); break;
-		case OBJ_UPVALUE: 			printf("upvalue\n"); break;
-		case OBJ_CLASS: 				printf("class\n"); break;
-		case OBJ_INSTANCE: 			printf("instance\n"); break;
-		case OBJ_BOUND_METHOD:	printf("bound method\n"); break;
-		default: 								printf("unknown\n"); break;
+		case OBJ_STRING: 				printf("string '"); break;
+		case OBJ_FUNCTION: 			printf("function '"); break;
+		case OBJ_CLOSURE: 			printf("closure '"); break;
+		case OBJ_NATIVE: 				printf("native '"); break;
+		case OBJ_UPVALUE: 			printf("upvalue '"); break;
+		case OBJ_CLASS: 				printf("class '"); break;
+		case OBJ_INSTANCE: 			printf("instance '"); break;
+		case OBJ_BOUND_METHOD:	printf("bound method '"); break;
+		default: 								printf("unknown '"); break;
 	}
-	// printObject(*((Value*) object));
-	printf("\n");
+	printObject(OBJ_VAL(object));
+	printf("'\n");
 #endif
 	
 	switch (object->type) {

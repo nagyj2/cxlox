@@ -65,11 +65,20 @@ void initVM() {
 }
 
 void freeVM() {
+#ifdef DEBUG_LOG_GC
+	printf("== Freeing VM ==\n");
+#endif
+	
 	vm.initString = NULL;
-	freeTable(&vm.strings);
 	freeTable(&vm.globals);
 	freeTable(&vm.constants);
+	freeTable(&vm.strings);
 	freeObjects();
+#ifdef DEBUG_LOG_GC
+	printf("%p freed rainy day\n", vm.rainyDay);
+#endif
+	free(vm.rainyDay);
+	vm.rainyDay = NULL;
 }
 
 //~ Error Reporting
