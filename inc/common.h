@@ -19,7 +19,7 @@
 // #define DEBUG_LOG_GC
 
 // Load the standard library. Muddies up GC output, so it can be disabled.
-// #define DEBUG_LOAD_STDLIB
+#define DEBUG_LOAD_STDLIB
 
 // If defined, the stack based OP_DEL_PROPERTY will be used.
 // #define USE_STACK_PROPERTY_DELETE
