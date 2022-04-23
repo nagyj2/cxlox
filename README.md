@@ -11,9 +11,9 @@ declaration   := varDecl
                | letDecl
                | classDecl
                | statement
-varDecl       := "var" IDENTIFIER TYPEHINT? ["=" expression] ";"
-funDecl       := "fun" IDENTIFIER "(" [IDENTIFIER TYPEHINT? ("," IDENTIFIER TYPEHINT?)*] ")" RETURNHINT? "{" declaration* "}"
-letDecl       := "let" IDENTIFIER TYPEHINT? "=" expression ";"
+varDecl       := "var" IDENTIFIER typehint? ["=" expression] ";"
+funDecl       := "fun" IDENTIFIER "(" [IDENTIFIER typehint? ("," IDENTIFIER typehint?)*] ")" returnhint? "{" declaration* "}"
+letDecl       := "let" IDENTIFIER typehint? "=" expression ";"
 classDecl     := "class" IDENTIFIER ["<-" IDENTIFIER] "{" methodDecl "}"
 methodDecl    := IDENT "(" [IDENTIFIER ("," IDENTIFIER)*] ")" "{" declaration* "}"
 statement     := exprStmt
@@ -52,7 +52,7 @@ addition      := multiply  (("+" | "-") multiply)*
 multiply 	    := unary (("*" | "/") unary)*
 unary         := ( "!" | "-") unary
                | call
-call          := primary ["(" [expr ("," expr)*)] ")" | ("." | "?.") expr]
+call          := primary [call | access]
 primary       := NUMBER
                | STRING
                | IDENTIFIER [(',' IDENTIFIER)* '=>' (expr | blockStmt)]
@@ -65,7 +65,11 @@ primary       := NUMBER
 NUMBER        := [0-9]+ ["." [0-9]+]
 STRING        := "\"" (CHARACTER)* "\""
 IDENTIFIER    := [a-zA-Z_][a-zA-Z0-9_]*
+typehint      := ":" IDENTIFIER
+returnhint    := "->" IDENTIFIER
 propAccess    := IDENT (("." | ".?") IDENT)+
+access        := ("." | "?.") expr
+call          := "(" [expr ("," expr)*)] ")"
 ```
 
 ## Details
