@@ -110,6 +110,7 @@ struct Compiler {
  */
 typedef struct ClassCompiler {
 	struct ClassCompiler* enclosing;
+	bool hasSuperclass;
 } ClassCompiler;
 
 // Parser singleton.
@@ -453,6 +454,17 @@ static void markInitialized() {
 	if (current->localCount == 0)
 		return;
 	current->locals[current->localCount - 1].depth = current->scopeDepth;
+}
+
+/** Creates a fake token struct from a string.
+ * @param[in] text The token to base the token off of.
+ * @return Token representing a string.
+ */
+static Token syntheticToken(const char* text) {
+	Token token;
+	token.start = text;
+	token.length = (int) strlen(text);
+	return token;
 }
 
 /** Emits 2 bytes to define a new variable for use. After this point the variable can be referenced.
@@ -897,6 +909,32 @@ static void this_(bool canAssign) {
 	variable(false); // simply create a variable called 'this'
 }
 
+static void super_(bool canAssign) {
+	if (currentClass == NULL) {
+		error("Cannot use 'super' outside of a class.");
+	} else if (!currentClass->hasSuperclass) {
+		error("Cannot use 'super' in a class with no superclass.");
+	}
+	
+	consume(TOKEN_DOT, "Expected '.' after 'super'.");
+	consume(TOKEN_IDENTIFIER, "Expected superclass method name.");
+	uint8_t name = identifierConstant(&parser.previous);
+
+	namedVariable(syntheticToken("this"), false); // Get 'this' variable on the stack
+	if (match(TOKEN_LEFT_PAREN)) {
+		uint8_t argCount = argumentList();
+		namedVariable(syntheticToken("super"), false); // Get 'super' variable on the stack. Required b/c we want to match 'this' class to the 'super' class
+		emitBytes(OP_SUPER_INVOKE, name);
+		emitByte(argCount);
+	} else {
+		namedVariable(syntheticToken("super"), false);
+		emitBytes(OP_GET_SUPER, name);
+	}
+}
+
+/** Parse a function (argument list and body) and emit bytecode to place a closure on the stack.
+ * @param[in] type The type of function to parse.
+ */
 static void function(FunctionType type) {
 	Compiler compiler;
 	initCompiler(&compiler, type);
@@ -973,7 +1011,7 @@ ParseRule rules[] = {  // PREFIX     INFIX    PRECIDENCE (INFIX) */
 	[TOKEN_OR]            = {NULL,     or_,    	PREC_OR},
 	[TOKEN_PRINT]         = {NULL,     NULL,    PREC_NONE},
 	[TOKEN_RETURN]        = {NULL,     NULL,    PREC_NONE},
-	[TOKEN_SUPER]         = {NULL,     NULL,    PREC_NONE},
+	[TOKEN_SUPER]         = {super_,     NULL,    PREC_NONE},
 	[TOKEN_THIS]          = {this_,    NULL,    PREC_NONE},
 	[TOKEN_TRUE]          = {literal,  NULL,    PREC_NONE},
 	[TOKEN_VAR]           = {NULL,     NULL,    PREC_NONE},
@@ -1138,6 +1176,26 @@ static void classDeclaration() {
 	ClassCompiler classCompiler; // Class compiler for this class
 	classCompiler.enclosing = currentClass; // Save old innermost class
 	currentClass = &classCompiler; // Set the current class compiler to be the innermost
+	classCompiler.hasSuperclass = false;
+
+	// Check for superclass
+	if (match(TOKEN_LESSER)) {
+		consume(TOKEN_IDENTIFIER, "Expected superclass name.");
+		// Create a new variable on stack for super (since variable() operates on parser.previous)
+		variable(false); // Load class we are inheriting from onto the stack
+
+		if (identifiersEqual(&parser.previous, &className)) {
+			error("A class cannot inherit from itself.");
+		}
+
+		beginScope(); // Begin scope to resolve super. Without a scope, all supers would collide
+		addLocal(syntheticToken("super")); // Name the variable() above 'super'
+		defineVariable(0); // Define variable
+
+		namedVariable(className, false);
+		emitByte(OP_INHERIT);
+		classCompiler.hasSuperclass = true;
+	}
 
 	namedVariable(className, false); // Place class name on the stack
 	consume(TOKEN_LEFT_CURLY, "Expected '{' before class body.");
@@ -1148,6 +1206,11 @@ static void classDeclaration() {
 
 	consume(TOKEN_RIGHT_CURLY, "Expected '}' after class body.");
 	emitByte(OP_POP); // Pop class name
+
+	if (classCompiler.hasSuperclass) {
+		endScope(); // End of super scope
+	}
+	
 	currentClass = currentClass->enclosing; // Restore innermost class
 }
 

@@ -12,7 +12,8 @@ declaration   := varDecl
                | statement
 varDecl       := "var" IDENTIFIER ["=" expression] ";"
 funDecl       := "fun" IDENTIFIER "(" [IDENTIFIER ("," IDENTIFIER)*] ")" "{" declaration* "}"
-classDecl     := "class" IDENTIFIER "{" "}"
+classDecl     := "class" IDENTIFIER "{" methodDecl "}"
+methodDecl    := IDENT "(" [IDENTIFIER ("," IDENTIFIER)*] ")" "{" declaration* "}"
 statement     := exprStmt
                | printStmt
                | blockStmt
@@ -43,6 +44,8 @@ primary       := NUMBER
                | "true"
                | "false"
                | "nil"
+               | "this"
+               | "super"
                | "(" expr ")"
 NUMBER        := [0-9]+ ("." [0-9]+)?
 STRING        := "\"" (CHARACTER)* "\""

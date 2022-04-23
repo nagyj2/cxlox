@@ -38,8 +38,11 @@ typedef enum {
 	OP_CLASS,						//* OPCODE INDEX : (SE0) Creates a new class using the indexed constant as a name.
 	OP_GET_PROPERTY,		//* OPCODE INDEX : (SE+1) Retrieves a property identified by the index from the instance on top of the stack and replaces the top of the stack with that retrieved property.
 	OP_SET_PROPERTY,		//* OPCODE INDEX : (SE0) Sets a property given by the indexed string to the top element of the stack.
-	OP_METHOD,					//* OPCODE INDEX : (SE-1) Sets the top stack element (closure) to a method of the 2nd top stack element (class) and calls the property the indexed string
+	OP_METHOD,					//* OPCODE INDEX : (SE-1) Sets the top stack element (closure) to a method of the 2nd top stack element (class) and calls the property the indexed string.
 	OP_INVOKE,					//* OPCODE INDEX NUMBER : (SE+1) Takes the top element of the stack and gets a field using the index and immediately calls it with a number of arguments.
+	OP_INHERIT,					//* OPCODE INDEX : (SE-2) Sets the top stack element to inherit from the bottom stack element.
+	OP_GET_SUPER,				//* OPCODE INDEX : (SE-1) Gets a method from the top superclass and applies it to the second-top subclass, replacing it as the top of the stack.
+	OP_SUPER_INVOKE,		//* OPCODE INDEX NUMBER : (SE+1) Takes an indexed method from the top element superclass and calls that method with the indexed number of arguments.
 } OpCode;
 
 /* Note that the entire AST structure from jlox has been recreated just by 3 dynamic arrays, the chunk, constant pool and source line numbers */
