@@ -60,7 +60,7 @@ primary       := NUMBER
                | "false"
                | "nil"
                | "this"
-               | "super"
+               | "super" "." expr
                | "(" expr ")"
 NUMBER        := [0-9]+ ["." [0-9]+]
 STRING        := "\"" (CHARACTER)* "\""
