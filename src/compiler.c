@@ -487,6 +487,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 	Local* local = &current->locals[current->localCount++];
 	local->depth = 0; // Save as a top level scoped local. Prevents it from getting removed from endScope
 	local->isCaptured = false;
+	local->constant = false;
 	if (type != TYPE_FUNCTION) {
 		local->name.start = "this";
 		local->name.length = 4;
