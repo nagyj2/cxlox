@@ -76,7 +76,7 @@ typedef enum {
 	PREC_TERM,				//> + -
 	PREC_FACTOR,			//> * /
 	PREC_UNARY,				//> - !
-	PREC_CALL,				//> . ()
+	PREC_CALL,				//> . () .?
 	PREC_PRIMARY
 } Precidence;
 
@@ -1825,7 +1825,7 @@ static void switchStatement() {
 			if (caseType == TOKEN_CASE) {
 				// See if the case is equal to the value.
 				emitByte(OP_DUP);
-				parsePrecidence(PREC_OPTIONAL + 1); // Exclude ':' from parsing
+				parsePrecidence(PREC_TERM); // Exclude ':' from parsing
 				emitByte(OP_EQUAL);
 
 				consume(TOKEN_COLON, "Expect ':' after case value.");
