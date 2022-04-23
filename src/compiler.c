@@ -590,8 +590,10 @@ static void markInitialized() {
  */
 static Token syntheticToken(const char* text) {
 	Token token;
+	token.type = TOKEN_IDENTIFIER;
 	token.start = text;
 	token.length = (int) strlen(text);
+	token.line = parser.previous.line;
 	return token;
 }
 
