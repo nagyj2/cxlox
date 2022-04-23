@@ -826,7 +826,6 @@ static void patchBreaks(int oldBreak) {
 }
 
 /** Retrieves the next available local variable slot and assigns a name and depth.
- * 
  * @param[in] name The name to assign to the local variable.
  */
 static void addLocal(Token name, bool isConstant) {
@@ -841,41 +840,17 @@ static void addLocal(Token name, bool isConstant) {
 	local->depth = -1;
 }
 
-/** Creates an unamed placeholder local variable. Used for when a stack element is created and must be maintained 
- * without bothering other local calls.
- * @details
- * Uses a name which cannot be created by the user so the user cannot access it.
- * @param[in] isConstant Whether the variable is constant or not. Has no effect because these constants cannot be named.
- */
-static void addUnnamedLocal(bool isConstant) {
-	if (current->localCount == UINT8_COUNT) {
-		error("Too many local variables in function.");
-		return;
-	}
-	Token token;
-	token.type = TOKEN_IDENTIFIER;
-	token.start = "?" + unamedVarCounter; // todo: check if greater than 255
-	token.length = 2;
-	token.line = -1;
-	
-	Local* local = &current->locals[current->localCount++];
-	local->name = token;
-	local->constant = isConstant;
-	local->depth = -1;
-	local->isCaptured = false;
-}
-
 /** Converts the (simulated) top stack element into a local variable if it isn't global.
  * Uses the last read token as the name. Will cause compile error if name is reused.
  * Adds variable to scope.
  */
-static void declareVariable(bool isConstant) {
+static void declareNamedVariable(Token* name, bool isConstant) {
 	// Globals are placed into the constant pool, so we don't need to do anything special here
 	if (current->scopeDepth == 0) {
 		return;
 	}
 
-	Token* name = &parser.previous;
+	// Token* name = &parser.previous;
 	// Ensure local isn't already defined. Start at back and decrease index b/c current scoped items are there
 	for (int i = current->localCount - 1; i >= 0; i--) {
 		Local* local = &current->locals[i]; // Get next local
@@ -891,12 +866,12 @@ static void declareVariable(bool isConstant) {
 	addLocal(*name, isConstant);
 }
 
-static void declareUnnamedVariable(bool isConstant) {
-	// Globals are placed into the constant pool, so we don't need to do anything special here
-	if (current->scopeDepth == 0) {
-		return;
-	}
-	addUnnamedLocal(isConstant);
+/** Declare the last parsed token to be a variable.
+ * @param[in] isConstant Whether the variable should be marked as a constant.
+ */
+static void declareVariable(bool isConstant) {
+	Token* name = &parser.previous;
+	declareNamedVariable(name, isConstant);
 }
 
 //~ Grammar Evaluation
@@ -1791,7 +1766,9 @@ static void breakStatement() {
 static void switchStatement() {
 	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'switch'.");
 	expression();
-	declareUnnamedVariable(true);
+	Token name = syntheticToken("$switch");
+	declareNamedVariable(&name, false);
+	
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after value.");
 	consume(TOKEN_LEFT_CURLY, "Expect '{' before switch cases.");
 
