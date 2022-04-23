@@ -11,9 +11,9 @@ declaration   := varDecl
                | letDecl
                | classDecl
                | statement
-varDecl       := "var" IDENTIFIER ["=" expression] ";"
-funDecl       := "fun" IDENTIFIER "(" [IDENTIFIER ("," IDENTIFIER)*] ")" "{" declaration* "}"
-letDecl       := "let" IDENTIFIER "=" expression ";"
+varDecl       := "var" IDENTIFIER TYPEHINT? ["=" expression] ";"
+funDecl       := "fun" IDENTIFIER "(" [IDENTIFIER TYPEHINT? ("," IDENTIFIER TYPEHINT?)*] ")" RETURNHINT? "{" declaration* "}"
+letDecl       := "let" IDENTIFIER TYPEHINT? "=" expression ";"
 classDecl     := "class" IDENTIFIER ["<-" IDENTIFIER] "{" methodDecl "}"
 methodDecl    := IDENT "(" [IDENTIFIER ("," IDENTIFIER)*] ")" "{" declaration* "}"
 statement     := exprStmt
@@ -65,6 +65,8 @@ primary       := NUMBER
 NUMBER        := [0-9]+ ["." [0-9]+]
 STRING        := "\"" (CHARACTER)* "\""
 IDENTIFIER    := [a-zA-Z_][a-zA-Z0-9_]*
+TYPEHINT      := ":" IDENTIFIER
+RETURNHINT    := "->" IDENTIFIER
 ```
 
 ## Details

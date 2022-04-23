@@ -1258,10 +1258,17 @@ static void function(FunctionType type) {
 				error("Cannot have more than 255 parameters.");
 			}
 			index_t constant = parseVariable("Expect parameter name.", constParams);
+			if (match(TOKEN_COLON))
+				consume(TOKEN_IDENTIFIER, "Expect a type name.");
 			defineVariable(constant, constParams); // Do not initialize. Initialization will occur when passing functions
 		} while (match(TOKEN_COMMA));
 	}
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
+
+	if (match(TOKEN_MINUS_GREATER)) {
+		consume(TOKEN_IDENTIFIER, "Expect a return type identifier.");
+	}
+	
 	consume(TOKEN_LEFT_CURLY, "Expect '{' before function body.");
 
 	// Compile the function body
@@ -1535,6 +1542,10 @@ static void varDeclaration() {
 	// If global, put identifier string on stack
 	index_t global = parseVariable("Expecteded variable name.", false);
 
+	if (match(TOKEN_COLON)) {
+		consume(TOKEN_IDENTIFIER, "Expected type identifier after ':'.");
+	}
+
 	// Check for initializer expression
 	if (match(TOKEN_EQUAL)) {
 		expression();
@@ -1553,6 +1564,10 @@ static void varDeclaration() {
  */
 static void letDeclaration() {
 	index_t global = parseVariable("Expecteded constant name.", true);
+	
+	if (match(TOKEN_COLON)) {
+		consume(TOKEN_IDENTIFIER, "Expected type identifier after ':'.");
+	}
 
 	// Check for initializer expression
 	if (match(TOKEN_EQUAL)) {
