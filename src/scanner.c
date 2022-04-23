@@ -380,7 +380,7 @@ Token scanToken() {
 		case '=':
 			return makeToken(match('=') ? TOKEN_EQUAL_EQUAL : match('>') ? TOKEN_EQUAL_GREATER : TOKEN_EQUAL);
 		case '<':
-			return makeToken(match('=') ? TOKEN_LESSER_EQUAL : TOKEN_LESSER);
+			return makeToken(match('=') ? TOKEN_LESSER_EQUAL : match('-') ? TOKEN_LESSER_MINUS : TOKEN_LESSER);
 		case '>':
 			return makeToken(match('=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
 

@@ -14,7 +14,8 @@ declaration   := varDecl
 varDecl       := "var" IDENTIFIER ["=" expression] ";"
 funDecl       := "fun" IDENTIFIER "(" [IDENTIFIER ("," IDENTIFIER)*] ")" "{" declaration* "}"
 letDecl       := "let" IDENTIFIER "=" expression ";"
-classDecl     := "class" IDENTIFIER "{" "}"
+classDecl     := "class" IDENTIFIER ["<-" IDENTIFIER] "{" methodDecl "}"
+methodDecl    := IDENT "(" [IDENTIFIER ("," IDENTIFIER)*] ")" "{" declaration* "}"
 statement     := exprStmt
                | printStmt
                | blockStmt
@@ -38,7 +39,7 @@ continueStmt  := "continue" ";"
 switchStmt    := "switch" "(" expr ")" "{" switchCase* defaultCase? "}"
 switchCase    := "case" conditional ":" statement*
 defaultCase   := "default" ":" statement*
-delStmt       := "del" IDENT ("." IDENT)+ ";"
+delStmt       := "del" IDENT (("." | ".?") IDENT)+ ";"
 expr          := comma
 comma         := optional ("," optional)*
 assignment    := IDENTIFIER ("=" | "+=" | "-=" | "*=" | "/=") assignment
@@ -58,6 +59,8 @@ primary       := NUMBER
                | "true"
                | "false"
                | "nil"
+               | "this"
+               | "super"
                | "(" expr ")"
 NUMBER        := [0-9]+ ["." [0-9]+]
 STRING        := "\"" (CHARACTER)* "\""

@@ -1,15 +1,3 @@
-class CoffeeMaker {
-  init(coffee){
-    this.coffee = coffee;
-  }
-  brew(){
-    return this.coffee;
-  }
-}
-
-var maker = CoffeeMaker("espresso");
-print maker.brew();
-
 // // fun mathops(){
 // // Test unary minus
 
@@ -300,4 +288,41 @@ print maker.brew();
 
 // print 4?.a == nil;
 
-// print "Done";
+// // Classes
+
+// class CoffeeMaker {
+//   init(coffee){
+//     this.coffee = coffee;
+//   }
+//   brew(){
+//     return this.coffee;
+//   }
+// }
+
+// var maker = CoffeeMaker("espresso");
+// print maker.brew();
+
+// Inheritance
+
+class Doughnut {
+  cook() {
+    print "Dunk in the fryer.";
+  }
+}
+
+class Cruller <- Doughnut {
+  finish() {
+    print "Glaze with icing.";
+  }
+
+  cook() {
+    super.cook();
+    print "Put in the oven.";
+  }
+}
+
+var c = Cruller();
+c.cook();
+c.finish();
+
+print "Done";

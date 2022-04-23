@@ -985,6 +985,39 @@ static InterpretResult run() {
 				ip = frame->ip;
 				break;
 			}
+			case OP_INHERIT: {
+				Value superclass = peek(1);
+				ObjClass* subclass = AS_CLASS(peek(0));
+				if (!IS_CLASS(superclass)) {
+					runtimeError("Superclass must be a class.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				tableAddAll(&AS_CLASS(superclass)->methods, &subclass->methods);
+				pop(); // subclass
+				break;
+			}
+			case OP_GET_SUPER: {
+				ObjString* name = READ_STRING(); // Name of the method to call
+				ObjClass* superclass = AS_CLASS(pop()); // Class to call method on -> use superclass instead of instance->klass
+
+				// Instance is on the top of the stack b/c thats the standard call behaviour
+				if (!bindMethod(superclass, name)) {
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				break;
+			}
+			case OP_SUPER_INVOKE: {
+				ObjString* method = READ_STRING();
+				int argCount = READ_BYTE();
+				ObjClass* superclass = AS_CLASS(pop());
+				frame->ip = ip;
+				if (!invokeFromClass(superclass, method, argCount, false)) {
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				frame = &vm.frames[vm.frameCount - 1]; // end call frame
+				ip = frame->ip;
+				break;
+			}
 		}
 	}
 
