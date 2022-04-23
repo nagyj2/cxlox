@@ -527,7 +527,9 @@ static void beginScope() {
  * @param[in] locals The number of locals to pop.
  */
 static void popLocals(int locals) {
-	if (locals == 1)
+	if (locals == 0)
+		return;
+	else if (locals == 1)
 		emitByte(OP_POP);
 	else
 		emitBytes(OP_POPN, (uint8_t) locals);
