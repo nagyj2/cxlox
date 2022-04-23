@@ -696,7 +696,7 @@ static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal, bool isCo
 	// Locality matters because the origin of the upvalue call can refer to different variables
 	for (int i = 0; i < upvalueCount; i++) {
 		Upvalue* upvalue = &compiler->upvalues[i];
-		if (upvalue->index == index && upvalue->isLocal == isLocal && upvalue->constant == isLocal) {
+		if (upvalue->index == index && upvalue->isLocal == isLocal && upvalue->constant == isConstant) { // ensure we find what we are looking for
 			return i; // Return the index in the array
 		}
 	}
