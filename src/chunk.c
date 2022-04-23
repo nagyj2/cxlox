@@ -78,21 +78,6 @@ index_t addConstant(Chunk* chunk, Value value) {
 	return chunk->constants.count - 1; // Return location to new constant
 }
 
-// void writeConstant(Chunk *chunk, Value value, int line) {
-// 	int index = addConstant(chunk, value);
-// 	if (index < 255) {
-// 		writeChunk(chunk, OP_CONSTANT, line); 		// Write the instruction
-// 		writeChunk(chunk, (uint8_t) index, line);	// Write the index
-// 	} else {
-// 		writeChunk(chunk, OP_CONSTANT_LONG, line);	// Write the instruction. Next is the number in small endian
-// 		// 0bxxxxxxxxxxxxxxxxxxxxxxxx < Binary index
-// 		// 0b333333332222222211111111 < Encoding order
-// 		writeChunk(chunk, (uint8_t) (index & 0xff), line); // Write the FIRST 8 (1-8) bytes
-// 		writeChunk(chunk, (uint8_t) ((index >> 8)  & 0xff), line); // Next 8 (9-16)...
-// 		writeChunk(chunk, (uint8_t) ((index >> 16) & 0xff), line); // Next 8 (17-24)...
-// 	}
-// }
-
 void freeChunk(Chunk *chunk) {
 	FREE_ARRAY(uint8_t, chunk->code, chunk->capacity);
 	FREE_ARRAY(LineStart, chunk->lines, chunk->lineCapacity);
