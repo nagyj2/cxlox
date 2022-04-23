@@ -367,7 +367,6 @@ Token scanToken() {
 		case '?':
 			return makeToken(match('.') ? TOKEN_QUESTION_DOT : TOKEN_QUESTION);
 		case '-':
-			if (match('>')) return errorToken("Lambda functions use '=>' only.");
 			return makeToken(match('=') ? TOKEN_MINUS_EQUAL : match('>') ? TOKEN_MINUS_GREATER : TOKEN_MINUS);
 		case '+': 
 			return makeToken(match('=') ? TOKEN_PLUS_EQUAL : TOKEN_PLUS);

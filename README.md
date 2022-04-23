@@ -39,7 +39,7 @@ continueStmt  := "continue" ";"
 switchStmt    := "switch" "(" expr ")" "{" switchCase* defaultCase? "}"
 switchCase    := "case" conditional ":" statement*
 defaultCase   := "default" ":" statement*
-delStmt       := "del" IDENT (("." | ".?") IDENT)+ ";"
+delStmt       := "del" propAccess ("," propAccess)* ";"
 expr          := comma
 comma         := optional ("," optional)*
 assignment    := IDENTIFIER ("=" | "+=" | "-=" | "*=" | "/=") assignment
@@ -65,8 +65,7 @@ primary       := NUMBER
 NUMBER        := [0-9]+ ["." [0-9]+]
 STRING        := "\"" (CHARACTER)* "\""
 IDENTIFIER    := [a-zA-Z_][a-zA-Z0-9_]*
-TYPEHINT      := ":" IDENTIFIER
-RETURNHINT    := "->" IDENTIFIER
+propAccess    := IDENT (("." | ".?") IDENT)+
 ```
 
 ## Details

@@ -1890,34 +1890,36 @@ static void emitDelProperty(Value value) {
  */
 static void delStatement() {
 	// Get initial variable
-	if (!match(TOKEN_IDENTIFIER)) {
-		error("Expect identifier after 'del'.");
-	}
-	namedVariable(parser.previous, false);
-
-	if (!check(TOKEN_DOT)) {
-		error("Expect '.' after identifier.");
-	}
-
-	// Keep getting until there is no more dots
-	while (match(TOKEN_DOT) && !check(TOKEN_EOF)) {
-		consume(TOKEN_IDENTIFIER, "Expected property name after '.'.");
-		if (!check(TOKEN_DOT)) {
-			break;
+	do {
+		if (!match(TOKEN_IDENTIFIER)) {
+			error("Expect identifier after 'del'.");
 		}
-		
-		index_t nameIndex = identifierConstant(&parser.previous); // property name
-		emitLongable(OP_GET_PROPERTY, OP_GET_PROPERTY_LONG, nameIndex);
-	}
-	
-	// Stack will have the instance on the top and the property we are interested in is parsed but NOT emitted yet
-	// Delete the property
+		namedVariable(parser.previous, false);
+
+		if (!check(TOKEN_DOT)) {
+			error("Expect '.' after identifier.");
+		}
+
+		// Keep getting until there is no more dots
+		while (match(TOKEN_DOT) && !check(TOKEN_EOF)) {
+			consume(TOKEN_IDENTIFIER, "Expected property name after '.'.");
+			if (!check(TOKEN_DOT)) {
+				break;
+			}
+
+			index_t nameIndex = identifierConstant(&parser.previous); // property name
+			emitLongable(OP_GET_PROPERTY, OP_GET_PROPERTY_LONG, nameIndex);
+		}
+
+		// Stack will have the instance on the top and the property we are interested in is parsed but NOT emitted yet
+		// Delete the property
 #ifdef USE_STACK_PROPERTY_DELETE
-	emitConstant(OBJ_VAL(copyString(parser.previous.start, parser.previous.length)));
-	emitByte(OP_DEL_PROPERTY);
+		emitConstant(OBJ_VAL(copyString(parser.previous.start, parser.previous.length)));
+		emitByte(OP_DEL_PROPERTY);
 #else
-	emitDelProperty(OBJ_VAL(copyString(parser.previous.start, parser.previous.length)));
+		emitDelProperty(OBJ_VAL(copyString(parser.previous.start, parser.previous.length)));
 #endif
+	} while (match(TOKEN_COMMA));
 
 	REPLSemicolon();
 }
