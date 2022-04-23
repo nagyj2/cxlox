@@ -1210,11 +1210,11 @@ static void super_(bool canAssign) {
 		// TODO add long version
 		uint8_t argCount = argumentList();
 		namedVariable(syntheticToken("super"), false); // Get 'super' variable on the stack. Required b/c we want to match 'this' class to the 'super' class
-		emitBytes(OP_SUPER_INVOKE, name);
+		emitLongable(OP_SUPER_INVOKE, OP_SUPER_INVOKE_LONG, name);
 		emitByte(argCount);
 	} else {
 		namedVariable(syntheticToken("super"), false);
-		emitBytes(OP_GET_SUPER, name);
+		emitLongable(OP_GET_SUPER, OP_GET_SUPER_LONG, name);
 	}
 }
 

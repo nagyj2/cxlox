@@ -1006,8 +1006,31 @@ static InterpretResult run() {
 				}
 				break;
 			}
+			case OP_GET_SUPER_LONG: {
+				ObjString* name = READ_STRING_LONG(); // Name of the method to call
+				ObjClass* superclass = AS_CLASS(pop()); // Class to call method on -> use superclass instead of instance->klass
+
+				// Instance is on the top of the stack b/c thats the standard call behaviour
+				if (!bindMethod(superclass, name)) {
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				break;
+			}
 			case OP_SUPER_INVOKE: {
 				ObjString* method = READ_STRING();
+				int argCount = READ_BYTE();
+				ObjClass* superclass = AS_CLASS(pop());
+				frame->ip = ip;
+				if (!invokeFromClass(superclass, method, argCount, false)) {
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				frame = &vm.frames[vm.frameCount - 1]; // end call frame
+				ip = frame->ip;
+				break;
+			}
+			
+			case OP_SUPER_INVOKE_LONG: {
+				ObjString* method = READ_STRING_LONG();
 				int argCount = READ_BYTE();
 				ObjClass* superclass = AS_CLASS(pop());
 				frame->ip = ip;

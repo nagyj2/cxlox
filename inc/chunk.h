@@ -34,6 +34,8 @@ typedef enum {
 	OP_INVOKE_SAFE_LONG,		//* OPCODE INDEX INDEX INDEX NUMBER : (SE+1) Long constant version of OP_INVOKE_SAFE.
 	OP_INVOKE_LONG,					//* OPCODE INDEX NUMBER : (SE+1) Long constant version of OP_INVOKE.
 	OP_METHOD_LONG,					//* OPCODE INDEX INDEX INDEX : (SE-1) Long version of OP_METHOD.
+	OP_GET_SUPER_LONG,			//* OPCODE INDEX INDEX INDEX : (SE-1) Long version of OP_GET_SUPER.
+	OP_SUPER_INVOKE_LONG,		//* OPCODE INDEX INDEX INDEX NUMBER : (SE+1) Long version of OP_SUPER_INVOKE.
 	OP_DEFINE_CONST,				//* OPCODE INDEX : (SE-1) Defines a global constant and assigns the top element to it.
 	OP_DUP,									//* OPCODE : (SE+1) Duplicates the top element of the stack.
 	OP_CONSTANT,				//* OPCODE INDEX : (SE+1) Introduces a constant into the constant pool.

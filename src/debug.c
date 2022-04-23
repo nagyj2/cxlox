@@ -125,6 +125,10 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return constantLongInstruction("OP_CLASS_LONG", chunk, offset);
 		case OP_METHOD_LONG:
 			return constantLongInstruction("OP_METHOD_LONG", chunk, offset);
+		case OP_GET_SUPER_LONG:
+			return constantLongInstruction("OP_GET_SUPER_LONG", chunk, offset);
+		case OP_SUPER_INVOKE_LONG:
+			return invokeLongInstruction("OP_SUPER_INVOKE_LONG", chunk, offset);
 		case OP_CLOSURE_LONG: {
 			offset++;
 			uint32_t constant = (chunk->code[offset + 0]) |
