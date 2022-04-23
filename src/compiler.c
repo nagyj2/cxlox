@@ -951,6 +951,7 @@ static void literal(bool canAssign) {
 			emitByte(OP_NIL);
 			break;
 		default:
+			error("Unknown literal.");
 			return;
 	}
 }
