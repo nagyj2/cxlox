@@ -1,306 +1,260 @@
-// // fun mathops(){
-// // Test unary minus
+// fun mathops(){
+// Test unary minus
 
-// -1 == -1;
-// --1 == 1;
-// -0 == 0;
-// 0 == -1;
+-1 == -1;
+--1 == 1;
+-0 == 0;
+0 == -1;
 
-// // Test addition sign
+// Test addition sign
 
-// 1 + 1 == 2;
-// 1.0 + 1 == 2;
-// 1 + 1.0 == 2;
-// 1.0 + 1.0 == 2;
-// -1 + 1 == 0;
-// 1.5 + 1.0 == 2.5;
-// 1.5 + 1.5 == 3.0;
-// 1 + 2 + 3 == 6;
-// 6 == 1 + 2 + 3;
+1 + 1 == 2;
+1.0 + 1 == 2;
+1 + 1.0 == 2;
+1.0 + 1.0 == 2;
+-1 + 1 == 0;
+1.5 + 1.0 == 2.5;
+1.5 + 1.5 == 3.0;
+1 + 2 + 3 == 6;
+6 == 1 + 2 + 3;
 
-// // Test subtraction sign
+// Test subtraction sign
 
-// 1 - 1 == 0;
-// 1.0 - 1 == 0;
-// 1 - 1.0 == 0;
-// 1.0 - 1.0 == 0;
-// -1 - 1 == -2;
-// -1 - -1 == 0;
-// 1.5 - 1.0 == 0.5;
-// 1.5 - 2.5 == 1.0;
-// 1 - 2 - 3 == -4;
-// 0 == 3 - 2 - 1;
+1 - 1 == 0;
+1.0 - 1 == 0;
+1 - 1.0 == 0;
+1.0 - 1.0 == 0;
+-1 - 1 == -2;
+-1 - -1 == 0;
+1.5 - 1.0 == 0.5;
+1.5 - 2.5 == 1.0;
+1 - 2 - 3 == -4;
+0 == 3 - 2 - 1;
 
-// // Test multiplication sign
+// Test multiplication sign
 
-// 1 * 1 == 1;
-// 1.0 * 2 == 2;
-// 2 * 2.0 == 4;
-// 1.5 * 4.0 == 6;
-// -1 * 1 == -1;
-// 1.5 * 1.0 == 1.5;
-// 1.5 * 1.5 == 2.25;
-// 1 * 2 * 3 == 6;
-// 1 * 2 * -3 == -6;
-// -2 * -3 == 6;
+1 * 1 == 1;
+1.0 * 2 == 2;
+2 * 2.0 == 4;
+1.5 * 4.0 == 6;
+-1 * 1 == -1;
+1.5 * 1.0 == 1.5;
+1.5 * 1.5 == 2.25;
+1 * 2 * 3 == 6;
+1 * 2 * -3 == -6;
+-2 * -3 == 6;
 
-// // Test division sign
+// Test division sign
 
-// 1 / 1 == 1;
-// 1.0 / 2 == 0.5;
-// 2 / 2.0 == 1;
-// 1.5 / 4.0 == 0.375;
-// -1 / 1 == -1;
-// 1.5 / 1.0 == 1.5;
-// 1.5 / 1.5 == 1;
-// 1 / 2 / 4 == 0.125;
-// 1 / -2 / 4 == -0.125;
-// // }
+1 / 1 == 1;
+1.0 / 2 == 0.5;
+2 / 2.0 == 1;
+1.5 / 4.0 == 0.375;
+-1 / 1 == -1;
+1.5 / 1.0 == 1.5;
+1.5 / 1.5 == 1;
+1 / 2 / 4 == 0.125;
+1 / -2 / 4 == -0.125;
+// }
 
-// // mathops();
+// mathops();
 
-// var a;
-// var b;
-// fun basicops(){
-//   // Printing
+var a;
+var b;
+fun basicops(){
+  // Printing
 
-//   print 4;
-//   print 4.0;
-//   print -4;
-//   print 2.0 + 2;
-//   print "2 + 2";
-//   print true;
+  print 4;
+  print 4.0;
+  print -4;
+  print 2.0 + 2;
+  print "2 + 2";
+  print true;
 
-//   // Variables
+  // Variables
 
-//   a= nil;
-//   a == nil;
-//   a == a;
-//   print a;
+  a= nil;
+  a == nil;
+  a == a;
+  print a;
 
-//   a = 2;
-//   print a == 2;
-//   print a == a;
-//   print a = true;
+  a = 2;
+  print a == 2;
+  print a == a;
+  print a = true;
 
-//   // Local Variables
+  // Local Variables
 
-//   a = 5;
-//   {
-//     print a == 5;
-//     var b = 10;
-//     print b == 10;
+  a = 5;
+  {
+    print a == 5;
+    var b = 10;
+    print b == 10;
 
-//     a = 20;
-//     print a == 20;
-//     b = 30;
-//     print b == 30;
+    a = 20;
+    print a == 20;
+    b = 30;
+    print b == 30;
 
-//     var c = a = b;
-//     print a == 30;
-//     print b == 30;
-//     print c == 30;
-//     // var b = 0; // error - already defined
-//   }
+    var c = a = b;
+    print a == 30;
+    print b == 30;
+    print c == 30;
+    // var b = 0; // error - already defined
+  }
 
-//   print a == 30;
+  print a == 30;
 
-//   // Logical operators
+  // Logical operators
 
-//   a = true;
-//   print a and true;
-//   print !(a and false);
-//   print a or true;
-//   print a or false;
+  a = true;
+  print a and true;
+  print !(a and false);
+  print a or true;
+  print a or false;
 
-//   a = false;
-//   print (a and true) == false;
-//   print !(a and false) == true;
-//   print (a or true) == true;
-//   print (a or false) == false;
+  a = false;
+  print (a and true) == false;
+  print !(a and false) == true;
+  print (a or true) == true;
+  print (a or false) == false;
 
-//   // Branching
+  // Branching
 
-//   a = true;
-//   if (a) {
-//     print a;
-//   }
+  a = true;
+  if (a) {
+    print a;
+  }
 
-//   a = false;
-//   if (a == false) {
-//     print a == false;
-//   }
+  a = false;
+  if (a == false) {
+    print a == false;
+  }
 
-//   if (a) {
-//     print !a;
-//   } else {
-//     print !a;
-//   }
+  if (a) {
+    print !a;
+  } else {
+    print !a;
+  }
 
-//   a = 2;
-//   if (a == 1) {
-//     print a != 2;
-//   } else if (a == 2) {
-//     print a == 2;
-//   } else {
-//     print a != 2;
-//   }
+  a = 2;
+  if (a == 1) {
+    print a != 2;
+  } else if (a == 2) {
+    print a == 2;
+  } else {
+    print a != 2;
+  }
 
-//   a = true;
-//   b = false;
-//   if (a) {
-//     if (b)
-//       print a and b;
-//     else
-//       print a and !b;
-//   } else {
-//     if (b)
-//       print !a and b;
-//     else
-//       print !a and !b;
-//   }
+  a = true;
+  b = false;
+  if (a) {
+    if (b)
+      print a and b;
+    else
+      print a and !b;
+  } else {
+    if (b)
+      print !a and b;
+    else
+      print !a and !b;
+  }
 
-//   // While loops
+  // While loops
 
-//   a = 0;
-//   while (a < 10) {
-//     print a;
-//     a = a + 1;
-//   }
-
+  a = 0;
+  while (a < 10) {
+    print a;
+    a = a + 1;
+  }
+}
   
+fun min(a,b){
+  if (a < b) {
+    return a;
+  } else {
+    return b;
+  }
+}
 
-// fun fib(n) {
-// 	if (n <= 1) {
-// 		return 1;
-// 	} else {
-// 		return fib(n-1) + fib(n-2);
-// 	}
-// }
+fun fib(n) {
+	if (n <= 1) {
+		return 1;
+	} else {
+		return fib(n-1) + fib(n-2);
+	}
+}
 
-// print max(8,2);
-// print fib(6);
+print min(8,2);
+print fib(6);
 
-// class CoffeeMaker{
-//   init(coffee){
-//     this.coffee = coffee;
-//   }
-//   brew() {
-//     print "Enjoy your cup of " + this.coffee;
-//     this.coffee = nil;
-//   }
-// }
+// Expanded Native Functions
 
-// var coffee = CoffeeMaker("coffee");
-// coffee.brew();
+print type(8) == "num";
+print type(8.0) == "num";
+print type("8") != "num";
 
-// class Oops {
-//   init() {
-//     fun f() {
-//       print "NOT A METHOD";
-//     }
-//     this.field = f;
-//   }
-// }
+print type("8") == "str" and type(8) != "str" and type(true) == "bool";
+ticks();
+print "Date is now " + date();
 
-// var oops = Oops();
-// oops.field();
+print ticks();
 
-// // Expanded Native Functions
+fun makeVector(x,y){
+  var z = 9;
+  fun vector(method){
+    z = method;
+    switch (method){
+      case "x":     return x; // return {->x};
+      case "y":     return y; // return {->y};
+      case "set-x": return newx => x = newx;
+      case "set-y": return newy => y = newy;
+      case "add":   return (other => makeVector(x + other("x"), y + other("y")));
+      // case "mult":  return other => makeVector(x * other("x"), y * other("y"));
+      default:      return nil;
+    }
+  }
+  return vector;
+}
 
-// print type(8) == "num";
-// print type(8.0) == "num";
-// print type("8") != "num";
+let v1 = makeVector(2,6);
+let v2 = makeVector(3,-2);
 
-// print type("8") == "str" and type(8) != "str" and type(true) == "bool";
-// ticks();
-// print "Date is now " + date();
+let v3 = v1("add")(v2);
+print v3("x") == 5;
+print v3("y") == 4;
 
-// print ticks();
+v3("set-x")(10);
+print v3("x") == 10;
+print v3("y") == 4;
 
-// var m = makeMultiplier(1,5);
-// m("add-a")(5);
-// print m("resule") == 30;
-// m("add-b")(-6);
-// print m("resule") == -6;
+print v2("error") == nil;
 
-// fun makeVector(x,y){
-//   var z = 9;
-//   fun vector(method){
-//     z = method;
-//     switch (method){
-//       case "x":     return x; // return {->x};
-//       case "y":     return y; // return {->y};
-//       case "set-x": return newx => x = newx;
-//       case "set-y": return newy => y = newy;
-//       case "add":   return other => makeVector(x + other("x"), y + other("y"));
-//       case "mult":  return other => makeVector(x * other("x"), y * other("y"));
-//       default:      return nil;
-//     }
-//   }
-// }
+// Classes
 
-// let v1 = makeVector(2,6);
-// let v2 = makeVector(3,-2);
+class CoffeeMaker {
+  init(coffee){
+    this.coffee = coffee;
+  }
+  brew(){
+    return this.coffee;
+  }
+}
 
-// let v3 = v1("add")(v2);
-// print v3("x") == 5;
-// print v3("y") == 4;
+var maker = CoffeeMaker("espresso");
+print maker.brew();
 
-// v3("set-x")(10);
-// print v3("x") == 10;
-// print v3("y") == 4;
+class Oops {
+  init() {
+    fun f() {
+      print "NOT A METHOD";
+    }
+    this.field = f;
+  }
+}
 
-// print v2("error") == nil;
-
-// // Attribute deletion
-
-// class Pie{} 
-// var p = Pie(); 
-// p.A = "test";
-
-// print hasattr(p, "A") == true;
-// del p.A;
-// print hasattr(p, "A") == false;
-
-// var s = Pie(); 
-// p.B = s; 
-// s.C = "test";
-// print hasattr(p.B, "C") == true;
-// print p.B.C == s.C;
-// del p.B.C;
-// print hasattr(p.B, "C") == false;
-// print hasattr(s, "C") == false;
-// print p.B == s;
-// del p.B;
-// print hasattr(p, "B") == false;
-
-// // Safe Property Access
-
-// class Pie{}
-// var p = Pie();
-// p.a = "hi";
-// print p.a == "hi";
-// print p?.a == "hi";
-// print p?.b == nil;
-// print p?.b?.c == nil;
-// print p?.b?.c?.f?.g?.h?.j == nil;
-
-// print 4?.a == nil;
-
-// // Classes
-
-// class CoffeeMaker {
-//   init(coffee){
-//     this.coffee = coffee;
-//   }
-//   brew(){
-//     return this.coffee;
-//   }
-// }
-
-// var maker = CoffeeMaker("espresso");
-// print maker.brew();
+var oops = Oops();
+oops.field();
 
 // Inheritance
 
@@ -324,5 +278,65 @@ class Cruller <- Doughnut {
 var c = Cruller();
 c.cook();
 c.finish();
+
+// Attribute deletion
+
+class Pie{} 
+var p = Pie(); 
+p.A = "test";
+
+print hasattr(p, "A") == true;
+del p.A;
+print hasattr(p, "A") == false;
+
+var s = Pie(); 
+p.B = s; 
+s.C = "test";
+print hasattr(p.B, "C") == true;
+print p.B.C == s.C;
+del p.B.C;
+print hasattr(p.B, "C") == false;
+print hasattr(s, "C") == false;
+print p.B == s;
+del p.B;
+print hasattr(p, "B") == false;
+
+// Safe Property Access
+
+// class Pie{}
+var p = Pie();
+p.a = "hi";
+print p.a == "hi";
+print p?.a == "hi";
+print p?.b == nil;
+print p?.b?.c == nil;
+print p?.b?.c?.f?.g?.h?.j == nil;
+
+print 4?.a == nil;
+
+// Type hints
+
+fun max(a: int, b:int) -> int {
+  return a > b ? a : b;
+}
+
+print max(1,2);
+
+var a : int = 8;
+let b : bool = true;
+
+// Multiple property deletions
+
+class P{}
+
+var p = P();
+p.a = 1;
+p.b = 2;
+p.c = 3;
+
+del p.a, p.c;
+print p?.a == nil;
+print p?.b != nil;
+print p?.c == nil;
 
 print "Done";
