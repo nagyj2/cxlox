@@ -28,6 +28,17 @@ void freeValueArray(ValueArray *array) {
 }
 
 void printValue(Value value) {
+#ifdef NAN_BOXING
+	if (IS_BOOL(value)) {
+    printf(AS_BOOL(value) ? "true" : "false");
+  } else if (IS_NIL(value)) {
+    printf("nil");
+  } else if (IS_NUMBER(value)) {
+    printf("%g", AS_NUMBER(value));
+  } else if (IS_OBJ(value)) {
+    printObject(value);
+  }
+#else
 	switch (value.type) {
 		case VAL_BOOL :
 			printf(AS_BOOL(value) ? "true" : "false");
@@ -42,11 +53,21 @@ void printValue(Value value) {
 			printObject(value);
 			break;
 	}
+#endif
 }
 
 //~ Lox Semantics
 
 bool valuesEqual(Value a, Value b) {
+#ifdef NAN_BOXING
+	// singleton true, false and nil have 1 representation, so we check if they are the same
+	// objs check for pointer equality and these will be singletons with regards to where they point (in sign_bit | qnan form with the rest of the mantissa rep. the pointer -> same obj, same pointer)
+	// For numbers, we need to ensure nan != nan (`var nan = 0/0; print nan == nan;`). To avoid, simply check for both equal to numbers and then convert as needed
+	if (IS_NUMBER(a) && IS_NUMBER(b)) {
+		return AS_NUMBER(a) == AS_NUMBER(b);
+	}
+	return a == b;
+#else
 	if (a.type != b.type)
 		return false;
 
@@ -62,4 +83,5 @@ bool valuesEqual(Value a, Value b) {
 		default: // IMPOSSIBLE
 			return false;
 	}
+#endif
 }

@@ -5,6 +5,9 @@
 #include <stddef.h> // NULL, size_t
 #include <stdint.h> // uint8_t
 
+// Enable NaN boxing -> Using 64 bit floats to contain either a float, nil, true, false or pointer to a Obj
+#define NAN_BOXING
+
 // Enables chunk dumping when the compiler finishes with the chunk.
 // #define DEBUG_PRINT_CODE
 
