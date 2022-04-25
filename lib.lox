@@ -1,0 +1,14 @@
+var one = 1;
+var string = "string";
+
+fun function() {
+	print "function";
+}
+
+class Class {
+	method() {
+		print "method";
+	}
+}
+
+print "Ran library.lox";

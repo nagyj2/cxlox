@@ -75,6 +75,7 @@ typedef enum {
 	OP_INHERIT,					//* OPCODE INDEX : (SE-2) Sets the top stack element to inherit from the bottom stack element.
 	OP_GET_SUPER,				//* OPCODE INDEX : (SE-1) Gets a method from the top superclass and applies it to the second-top subclass, replacing it as the top of the stack.
 	OP_SUPER_INVOKE,		//* OPCODE INDEX NUMBER : (SE+1) Takes an indexed method from the top element superclass and calls that method with the indexed number of arguments.
+	OP_IMPORT,					//* OPCODE INDEX : (SE0) Takes a string from the stack, opens the file of the same name and places its bytecode contents as a closure on the stack.
 } OpCode;
 
 // OP_SET_PROP_SAFE,				//* OPCODE INDEX : (SE0) Sets a property given by the indexed string to the top element of the stack.

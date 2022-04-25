@@ -377,4 +377,14 @@ print p?.c == nil;
 // print times;
 // print sum;
 
-// print "Done";
+// Importing Files
+
+include "lib.lox";
+
+one = "one";
+string = "string";
+function;
+// function();
+Class;
+
+print "Done";

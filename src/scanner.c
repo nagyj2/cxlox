@@ -238,7 +238,13 @@ static TokenType identifierType() {
 			}
 			break;
 		}
-		case 'i': return checkKeyword(1, 1, "f", TOKEN_IF);
+		case 'i':
+			if (scanner.current - scanner.start > 1) {
+				switch (scanner.start[1]) {
+					case 'f': return checkKeyword(2, 0, "", TOKEN_IF);
+					case 'n': return checkKeyword(2, 5, "clude", TOKEN_IMPORT);
+				}
+			}
 		case 'l': return checkKeyword(1, 2, "et", TOKEN_LET);
 		case 'n': return checkKeyword(1, 2, "il", TOKEN_NIL);
 		case 'o': return checkKeyword(1, 1, "r", TOKEN_OR);

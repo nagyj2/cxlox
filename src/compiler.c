@@ -180,6 +180,7 @@ static void declaration();
 static void varDeclaration();
 static void funDeclaration();
 static void classDeclaration();
+static void importDeclaration();
 static void expressionStatement();
 static void printStatement();
 static void ifStatement();
@@ -1377,6 +1378,7 @@ ParseRule rules[] = {  // 	PREFIX				INFIX					PRECIDENCE (INFIX) */
   [TOKEN_FOR]							= {NULL,				NULL,					PREC_NONE},
   [TOKEN_FUN]							= {NULL,				NULL,					PREC_NONE},
   [TOKEN_IF]							= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_IMPORT]					= {NULL,				NULL,					PREC_NONE},
   [TOKEN_NIL]							= {literal,			NULL,					PREC_NONE},
   [TOKEN_OR]							= {NULL,				or_,					PREC_OR},
   [TOKEN_PRINT]						= {NULL,				NULL,					PREC_NONE},
@@ -1642,6 +1644,22 @@ static void method() {
 
 	// Bind method to class
 	emitLongable(OP_METHOD, OP_METHOD_LONG, constant);
+}
+
+/** Parses an import statement.
+ * @pre Assumes that the 'import' keyword has already been consumed.
+ * @param[in] canAssign unused.
+ */
+static void importDeclaration() {
+	// if (!match(TOKEN_STRING)) {
+	// 	error("Expected string after 'include'.");
+	// }
+	// string(false); // Place library string on stack
+	expression();
+
+	emitBytes(OP_IMPORT, OP_POP); // Function has implicit return due to endCompiler. include is a declaration, so we dont care about the output
+
+	REPLSemicolon();
 }
 
 /** Parses an while statement.
@@ -1969,6 +1987,8 @@ static void declaration() {
 		funDeclaration();
 	} else if (match(TOKEN_CLASS)) {
 		classDeclaration();
+	} else if (match(TOKEN_IMPORT)) {
+		importDeclaration();
 	} else {
 		statement();
 	}

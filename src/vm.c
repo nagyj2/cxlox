@@ -10,6 +10,7 @@
 #include "object.h"
 #include "memory.h"
 #include "xstdlib.h"
+#include "util.h"
 
 /*
  ~ When adding new instructions, modify:
@@ -989,6 +990,7 @@ static InterpretResult run() {
 				Value superclass = peek(1);
 				ObjClass* subclass = AS_CLASS(peek(0));
 				if (!IS_CLASS(superclass)) {
+					frame->ip = ip;
 					runtimeError("Superclass must be a class.");
 					return INTERPRET_RUNTIME_ERROR;
 				}
@@ -1028,7 +1030,6 @@ static InterpretResult run() {
 				ip = frame->ip;
 				break;
 			}
-			
 			case OP_SUPER_INVOKE_LONG: {
 				ObjString* method = READ_STRING_LONG();
 				int argCount = READ_BYTE();
@@ -1039,6 +1040,47 @@ static InterpretResult run() {
 				}
 				frame = &vm.frames[vm.frameCount - 1]; // end call frame
 				ip = frame->ip;
+				break;
+			}
+			case OP_IMPORT: {
+				// Ensure value is a string
+				Value name = pop();
+				frame->ip = ip; // Update frame ip for possible errors
+				if (!IS_STRING(name)) {
+					runtimeError("Expected library name.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
+
+				// Ensure ".lox" or ".xlox" prefix
+				const char* xloxsuffix = &AS_CSTRING(name)[AS_STRING(name)->length - 5];
+				if (!((AS_STRING(name)->length >= 4 && strcmp(xloxsuffix + 1, ".lox" ) == 0) ||
+						 ( AS_STRING(name)->length >= 5 && strcmp(xloxsuffix,     ".xlox") == 0))) {
+					runtimeError("Library name must have 'lox' or 'xlox' file extension.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
+
+				char* source = readFile(AS_STRING(name)->chars);
+
+				ObjFunction* function = compile(source);
+				if (function == NULL) {
+					printValue(name);
+					runtimeError(" failed to compile.");
+					return INTERPRET_COMPILE_ERROR;
+				}
+			
+				// Simulate the main script as a function call
+				push(OBJ_VAL(function));
+				ObjClosure* closure = newClosure(function);
+				pop();
+
+				frame = &vm.frames[vm.frameCount++];
+				frame->ip = closure->function->chunk.code;
+				frame->closure = closure;
+				frame->slots = vm.stackTop;
+				ip = frame->ip;
+
+				// Actually run the code
+				// createFrame(closure, 1);
 				break;
 			}
 		}

@@ -10,12 +10,14 @@ declaration   := varDecl
                | funDecl
                | letDecl
                | classDecl
+               | importDecl
                | statement
 varDecl       := "var" IDENTIFIER typehint? ["=" expression] ";"
 funDecl       := "fun" IDENTIFIER "(" [IDENTIFIER typehint? ("," IDENTIFIER typehint?)*] ")" returnhint? "{" declaration* "}"
 letDecl       := "let" IDENTIFIER typehint? "=" expression ";"
 classDecl     := "class" IDENTIFIER ["<-" IDENTIFIER] "{" methodDecl "}"
 methodDecl    := IDENT "(" [IDENTIFIER typehint? ("," IDENTIFIER typehint?)*] ")" "{" declaration* "}"
+importDecl    := "include" IDENTIFIER ";"
 statement     := exprStmt
                | printStmt
                | blockStmt
