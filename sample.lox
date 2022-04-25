@@ -339,4 +339,42 @@ print p?.a == nil;
 print p?.b != nil;
 print p?.c == nil;
 
-print "Done";
+// Benchmark Hash Table Probing
+// class Zoo{
+// 	init(){
+// 		this.aardvark = 1;
+// 		this.baboon		= 1;
+// 		this.cat			= 1;
+// 		this.donkey		= 1;
+// 		this.elephant	= 1;
+// 		this.fox			= 1;
+// 	}
+
+// 	ant()			{ return this.aardvark; }
+// 	banana()	{ return this.baboon; }
+// 	tuna()		{ return this.cat; }
+// 	hay()			{ return this.donkey; }
+// 	grass()		{ return this.elephant; }
+// 	mouse()		{ return this.fox; }
+// }
+
+// var zoo = Zoo();
+// var sum = 0;
+// var times = 0;
+// var start = ticks();
+
+// while (ticks() - start < 10) {
+// 	sum = sum + zoo.ant()
+// 						+ zoo.banana()
+// 						+ zoo.tuna()
+// 						+ zoo.hay()
+// 						+ zoo.grass()
+// 						+ zoo.mouse();
+// 	times = times + 1;
+// }
+
+// print ticks() - start;
+// print times;
+// print sum;
+
+// print "Done";

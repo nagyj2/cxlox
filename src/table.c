@@ -34,7 +34,7 @@ void freeTable(Table* table) {
  * @return Entry* pointer to the found entry, or NULL if not found. NULL means an empty slot was found.
  */
 static Entry* findEntry(Entry* entries, int capacity, Value key) {
-	uint32_t index = hashValue(key) % capacity;
+	uint32_t index = hashValue(key) & (capacity - 1); // \1 AND (cap - 1) === \1 MOD cap if \1 is a power of 2
 	Entry* tombstone = NULL; // Store the last tombstone
 	for (;;) {
 		Entry* entry = &entries[index];
@@ -55,7 +55,7 @@ static Entry* findEntry(Entry* entries, int capacity, Value key) {
 		}
 
 		// Linear probing
-		index = (index + 1) % capacity;
+		index = (index + 1) & (capacity - 1);
 	}
 }
 
@@ -161,7 +161,7 @@ ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t
 		return NULL;
 
 	// Set starting index
-	uint32_t index = hash % table->capacity;
+	uint32_t index = hash & (table->capacity - 1);
 	for (;;) {
 		// Get the entry at the current index
 		Entry* entry = &table->entries[index];
@@ -175,7 +175,7 @@ ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t
 			return string;
 		}
 
-		index = (index + 1) % table->capacity;
+		index = (index + 1) & (table->capacity - 1);
 	}
 }
 

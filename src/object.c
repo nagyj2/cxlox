@@ -214,6 +214,42 @@ void printObject(Value value) {
 }
 
 ObjString* toObjString(Value value) {
+#ifdef NAN_BOXING
+	if (IS_NUMBER(value)) {
+		int nchars = 1; // Default to 1 character for 0
+		if (AS_NUMBER(value) != 0) {
+			nchars = floor(log10(fabs(AS_NUMBER(value))));
+		}
+		if (AS_NUMBER(value) < 0) nchars++; // Add 1 for negative sign
+
+		// Prepend ++ to allow for the terminating null character
+		char* buffer = malloc(sizeof(char) * ++nchars); // allocate room for new text
+		// todo : memory leak?
+		int size = snprintf(buffer, nchars, "%g", AS_NUMBER(value)); // copy over number text
+
+		return takeString(buffer, size); //take b/c we are allocating the string here
+	} else if (IS_BOOL(value)) {
+		if (AS_BOOL(value))
+			return copyString("true", 4);
+		else
+			return copyString("false", 5);
+	} else if (IS_NIL(value)) {
+		return copyString("nil", 3);
+	} else if (IS_OBJ(value)) {
+		switch (OBJ_TYPE(value)) {
+			case OBJ_STRING:
+				return AS_STRING(value);
+			default: // Impossible
+				printf("Cannot convert to a string: %d\n'", OBJ_TYPE(value));
+				return copyString("<not stringable>", 16);
+		}
+	} else {
+			printf("Expected a string, but got ");
+			printValue(value);
+			printf("\n");
+			return NULL;
+	}
+#else
 	switch (value.type) {
 		case VAL_NUMBER: {
 			int nchars = 1; // Default to 1 character for 0
@@ -252,4 +288,5 @@ ObjString* toObjString(Value value) {
 			printf("\n");
 			return NULL;
 	}
+#endif
 }
