@@ -529,13 +529,9 @@ static InterpretResult run() {
 				ip = frame->ip; // Restore ip
 				break;
 			}
-			case OP_CONSTANT: {
-				Value constant = READ_CONSTANT();
-				push(constant);
-				break;
-			}
+			case OP_CONSTANT:
 			case OP_CONSTANT_LONG: {
-				Value constant = READ_CONSTANT_LONG();
+				Value constant = (instruction == OP_CONSTANT) ? READ_CONSTANT() : READ_CONSTANT_LONG();
 				push(constant);
 				break;
 			}
@@ -580,36 +576,25 @@ static InterpretResult run() {
 				pop();
 				break;
 			}
-			case OP_DEFINE_GLOBAL: {
-				Value name = READ_CONSTANT();
-				ERROR_IF_CONST(name);
-				tableSet(&vm.globals, name, peek(0)); // Place the value into the hash table BEFORE popping it so it doesnt get picked up by garbage collection
-				pop();
-				break;
-			}
+			case OP_DEFINE_GLOBAL:
 			case OP_DEFINE_GLOBAL_LONG: {
-				Value name = READ_CONSTANT_LONG();
+				Value name = (instruction == OP_DEFINE_GLOBAL) ? READ_CONSTANT() : READ_CONSTANT_LONG();
 				ERROR_IF_CONST(name);
 				tableSet(&vm.globals, name, peek(0)); // Place the value into the hash table BEFORE popping it so it doesnt get picked up by garbage collection
 				pop();
 				break;
 			}
-			case OP_DEFINE_CONST: {
-				Value name = READ_CONSTANT();
-				ERROR_IF_CONST(name);
-				tableSet(&vm.constants, name, peek(0)); // Place the value into the hash table BEFORE popping it so it doesnt get picked up by garbage collection
-				pop();
-				break;
-			}
+			case OP_DEFINE_CONST:
 			case OP_DEFINE_CONST_LONG: {
-				Value name = READ_CONSTANT_LONG();
+				Value name = (instruction == OP_DEFINE_CONST) ? READ_CONSTANT() : READ_CONSTANT_LONG();
 				ERROR_IF_CONST(name);
 				tableSet(&vm.constants, name, peek(0)); // Place the value into the hash table BEFORE popping it so it doesnt get picked up by garbage collection
 				pop();
 				break;
 			}
-			case OP_GET_GLOBAL: {
-				Value name = READ_CONSTANT(); // Will always be a string
+			case OP_GET_GLOBAL: 
+			case OP_GET_GLOBAL_LONG: {
+				Value name = (instruction == OP_GET_GLOBAL) ? READ_CONSTANT() : READ_CONSTANT_LONG(); // Will always be a string
 				Value value; // Output value
 				if (!(tableGet(&vm.globals, name, &value) || tableGet(&vm.constants, name, &value))) { // Unlike string internment, globals is simply indexed by strings.
 					frame->ip = ip;
@@ -619,30 +604,9 @@ static InterpretResult run() {
 				push(value);
 				break;
 			}
-			case OP_GET_GLOBAL_LONG: {
-				Value name = READ_CONSTANT_LONG(); // Will always be a string
-				Value value;
-				if (!(tableGet(&vm.globals, name, &value) || tableGet(&vm.constants, name, &value))) { // If neither return a value, error
-					frame->ip = ip;
-					runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
-					return INTERPRET_RUNTIME_ERROR;
-				}
-				push(value);
-				break;
-			}
-			case OP_SET_GLOBAL: {
-				Value name = READ_CONSTANT();
-				ERROR_IF_CONST(name);
-				if (tableSet(&vm.globals, name, peek(0))) { // If this was a new entry, the variable didnt exist
-					tableDelete(&vm.globals, name); // Roll back change (important for REPL)
-					frame->ip = ip;
-					runtimeError("Undefined variable '%s'.", AS_STRING(name)->chars);
-					return INTERPRET_RUNTIME_ERROR;
-				}
-				break;
-			}								
+			case OP_SET_GLOBAL:
 			case OP_SET_GLOBAL_LONG: {
-				Value name = READ_CONSTANT_LONG();
+				Value name = (instruction == OP_SET_GLOBAL) ? READ_CONSTANT() : READ_CONSTANT_LONG();
 				ERROR_IF_CONST(name);
 				if (tableSet(&vm.globals, name, peek(0))) { // If this was a new entry, the variable didnt exist
 					tableDelete(&vm.globals, name); // Roll back change (important for REPL)
@@ -721,26 +685,10 @@ static InterpretResult run() {
 				ip = frame->ip; // Restore the old ip to the register variable
 				break;
 			}
-			case OP_CLOSURE: {
-				ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
-				ObjClosure* closure = newClosure(function);
-				push(OBJ_VAL(closure));
-				// Walk through each captured element and place them into the closure's upvalues
-				for (int i = 0; i < closure->upvalueCount; i++) {
-					uint8_t isLocal = READ_BYTE();
-					uint8_t index = READ_BYTE(); // Location of the captured variable (if local, stack position. Otherwise, the saved location from compilation)
-					if (isLocal) {
-						// Capture an element on the stack with given index
-						closure->upvalues[i] = captureUpvalue(frame->slots + index); // Find the upvalue source from the frame base and read index
-					} else {
-						// Capture from the surrounding function (this one), so use index to grab from my array
-						closure->upvalues[i] = frame->closure->upvalues[index]; // Retrieve stored position from the upvalues
-					}
-				}
-				break;
-			}
+			case OP_CLOSURE:
 			case OP_CLOSURE_LONG: {
-				ObjFunction* function = AS_FUNCTION(READ_CONSTANT_LONG());
+				Value constant = (instruction == OP_CLOSURE) ? READ_CONSTANT() : READ_CONSTANT_LONG();
+				ObjFunction* function = AS_FUNCTION(constant);
 				ObjClosure* closure = newClosure(function);
 				push(OBJ_VAL(closure));
 				// Walk through each captured element and place them into the closure's upvalues
@@ -826,7 +774,8 @@ static InterpretResult run() {
 				break;
 			}
 #endif
-			case OP_GET_PROPERTY: {
+			case OP_GET_PROPERTY:
+			case OP_GET_PROPERTY_LONG: {
 				// Ensure a valid recipient is on the top of the stack
 				// This instruction ONLY operates on the SPECIFIC instance on the top of the stack
 				if (!IS_INSTANCE(peek(0))) {
@@ -836,7 +785,7 @@ static InterpretResult run() {
 				}
 				
 				ObjInstance* instance = AS_INSTANCE(peek(0));
-				ObjString* name = READ_STRING();
+				ObjString* name = (instruction == OP_GET_PROPERTY) ? READ_STRING() : READ_STRING_LONG();
 
 				Value value;
 				// If property exists, replace the top of the stack with it. Higher precidence than a method call
@@ -847,32 +796,17 @@ static InterpretResult run() {
 				}
 
 				if (!bindMethod(instance->klass, name)) {
+					frame->ip = ip;
+					runtimeError("Undefined property '%s'.", name->chars);
 					return INTERPRET_RUNTIME_ERROR;
 				}
 				break;
 			}
-			case OP_GET_PROPERTY_LONG: {
-				if (!IS_INSTANCE(peek(0))) {
-					frame->ip = ip;
-					runtimeError("Only instances have properties.");
-					return INTERPRET_RUNTIME_ERROR;
-				}
-				ObjInstance* instance = AS_INSTANCE(peek(0));
-				ObjString* name = READ_STRING_LONG();
-				Value value;
-				if (tableGet(&instance->fields, OBJ_VAL(name), &value)) {
-					pop();
-					push(value);
-					break;
-				}
-				frame->ip = ip;
-				runtimeError("Undefined property '%s'.", name->chars);
-				return INTERPRET_RUNTIME_ERROR;
-			}
-			case OP_GET_PROP_SAFE: {
+			case OP_GET_PROP_SAFE: 
+			case OP_GET_PROP_SAFE_LONG: {
 				// b/c safe, we want '?.' to be chainable. If a non-instance is on top of the stack, we replace it with nil;
 				if (!IS_INSTANCE(peek(0))) {
-					READ_STRING(); // Skip the string. We dont use it, but it needs to be passed over by the VM
+					(instruction == OP_GET_PROP_SAFE) ? READ_STRING() : READ_STRING_LONG(); // Skip the string. We dont use it, but it needs to be passed over by the VM
 					if (!IS_NIL(peek(0))) {  // Avoiding this op does give a performance boost
 						pop(); // Remove top and replace with nil
 						push(NIL_VAL);
@@ -880,7 +814,7 @@ static InterpretResult run() {
 					break;
 				}
 				ObjInstance* instance = AS_INSTANCE(peek(0));
-				ObjString* name = READ_STRING();
+				ObjString* name = (instruction == OP_GET_PROP_SAFE) ? READ_STRING() : READ_STRING_LONG();
 				Value value;
 				if (tableGet(&instance->fields, OBJ_VAL(name), &value)) {
 					pop(); // Keep until tableGet is done to prevent GC from snatching it
@@ -891,28 +825,8 @@ static InterpretResult run() {
 				push(NIL_VAL);
 				break;
 			}
-			case OP_GET_PROP_SAFE_LONG: {
-				if (!IS_INSTANCE(peek(0))) {
-					READ_STRING_LONG();
-					if (!IS_NIL(peek(0))) {
-						pop();
-						push(NIL_VAL);
-					}
-					break;
-				}
-				ObjInstance* instance = AS_INSTANCE(peek(0));
-				ObjString* name = READ_STRING_LONG();
-				Value value;
-				if (tableGet(&instance->fields, OBJ_VAL(name), &value)) {
-					pop();
-					push(value);
-					break;
-				}
-				pop();
-				push(NIL_VAL);
-				break;
-			}
-			case OP_SET_PROPERTY: {
+			case OP_SET_PROPERTY:
+			case OP_SET_PROPERTY_LONG: {
 				// Ensure a valid recipient is under the top element of the stack
 				// This instruction ONLY operates on the SPECIFIC instance on the top of the stack
 				if (!IS_INSTANCE(peek(1))) {
@@ -927,24 +841,9 @@ static InterpretResult run() {
 				 * ....
 				 */
 
-				ObjInstance* instance = AS_INSTANCE(peek(1)); 				// Instance to set the property on
-				// ObjString* name = READ_STRING();										// Name of the property to set -> Can be inlined, like in _LONG version
-				
-				tableSet(&instance->fields, OBJ_VAL(READ_STRING()), peek(0)); 	// Set the proeprty indexed by the opcode to the value on the top of the stack
-				Value value = pop(); // property
-				pop(); // instance
-				push(value); // put the value assigned back on the stack
-				break;
-			}
-			case OP_SET_PROPERTY_LONG: {
-				if (!IS_INSTANCE(peek(1))) {
-					frame->ip = ip;
-					runtimeError("Only instances have fields.");
-					return INTERPRET_RUNTIME_ERROR;
-				}
-
-				ObjInstance* instance = AS_INSTANCE(peek(1)); 				// Instance to set the property on
-				tableSet(&instance->fields, OBJ_VAL(READ_STRING_LONG()), peek(0)); 	// Set the proeprty indexed by the opcode to the value on the top of the stack
+				ObjInstance* instance = AS_INSTANCE(peek(1)); // Instance to set the property on
+				ObjString* name = (instruction == OP_SET_PROPERTY) ? READ_STRING() : READ_STRING_LONG();
+				tableSet(&instance->fields, OBJ_VAL(name), peek(0)); 	// Set the proeprty indexed by the opcode to the value on the top of the stack
 				Value value = pop(); // property
 				pop(); // instance
 				push(value); // put the value assigned back on the stack
@@ -958,44 +857,15 @@ static InterpretResult run() {
 				defineMethod(READ_STRING_LONG());
 				break;
 			}
-			case OP_INVOKE: {
-				ObjString* method = READ_STRING();
-				int argCount = READ_BYTE();
-				frame->ip = ip;
-				if (!invoke(method, argCount, false)) {
-					return INTERPRET_RUNTIME_ERROR;
-				}
-				frame = &vm.frames[vm.frameCount - 1];
-				ip = frame->ip;
-				break;
-			}
-			case OP_INVOKE_SAFE: {
-				ObjString* method = READ_STRING();
-				int argCount = READ_BYTE();
-				frame->ip = ip;
-				if (!invoke(method, argCount, true)) {
-					return INTERPRET_RUNTIME_ERROR;
-				}
-				frame = &vm.frames[vm.frameCount - 1];
-				ip = frame->ip;
-				break;
-			}
-			case OP_INVOKE_LONG: {
-				ObjString* method = READ_STRING_LONG();
-				int argCount = READ_BYTE();
-				frame->ip = ip;
-				if (!invoke(method, argCount, false)) {
-					return INTERPRET_RUNTIME_ERROR;
-				}
-				frame = &vm.frames[vm.frameCount - 1];
-				ip = frame->ip;
-				break;
-			}
+			case OP_INVOKE:
+			case OP_INVOKE_LONG:
+			case OP_INVOKE_SAFE:
 			case OP_INVOKE_SAFE_LONG: {
-				ObjString* method = READ_STRING_LONG();
+				ObjString* method = (instruction == OP_INVOKE || instruction == OP_INVOKE_SAFE) ? READ_STRING() : READ_STRING_LONG();
 				int argCount = READ_BYTE();
+				bool safety = (instruction == OP_INVOKE_SAFE || instruction == OP_INVOKE_SAFE_LONG) ? true : false;
 				frame->ip = ip;
-				if (!invoke(method, argCount, true)) {
+				if (!invoke(method, argCount, safety)) {
 					return INTERPRET_RUNTIME_ERROR;
 				}
 				frame = &vm.frames[vm.frameCount - 1];
@@ -1014,18 +884,9 @@ static InterpretResult run() {
 				pop(); // subclass
 				break;
 			}
-			case OP_GET_SUPER: {
-				ObjString* name = READ_STRING(); // Name of the method to call
-				ObjClass* superclass = AS_CLASS(pop()); // Class to call method on -> use superclass instead of instance->klass
-
-				// Instance is on the top of the stack b/c thats the standard call behaviour
-				if (!bindMethod(superclass, name)) {
-					return INTERPRET_RUNTIME_ERROR;
-				}
-				break;
-			}
+			case OP_GET_SUPER:
 			case OP_GET_SUPER_LONG: {
-				ObjString* name = READ_STRING_LONG(); // Name of the method to call
+				ObjString* name = (instruction == OP_GET_SUPER) ? READ_STRING() : READ_STRING_LONG(); // Name of the method to call
 				ObjClass* superclass = AS_CLASS(pop()); // Class to call method on -> use superclass instead of instance->klass
 
 				// Instance is on the top of the stack b/c thats the standard call behaviour
@@ -1034,20 +895,9 @@ static InterpretResult run() {
 				}
 				break;
 			}
-			case OP_SUPER_INVOKE: {
-				ObjString* method = READ_STRING();
-				int argCount = READ_BYTE();
-				ObjClass* superclass = AS_CLASS(pop());
-				frame->ip = ip;
-				if (!invokeFromClass(superclass, method, argCount, false)) {
-					return INTERPRET_RUNTIME_ERROR;
-				}
-				frame = &vm.frames[vm.frameCount - 1]; // end call frame
-				ip = frame->ip;
-				break;
-			}
+			case OP_SUPER_INVOKE: 
 			case OP_SUPER_INVOKE_LONG: {
-				ObjString* method = READ_STRING_LONG();
+				ObjString* method = (instruction == OP_SUPER_INVOKE_LONG) ? READ_STRING() : READ_STRING_LONG();
 				int argCount = READ_BYTE();
 				ObjClass* superclass = AS_CLASS(pop());
 				frame->ip = ip;
