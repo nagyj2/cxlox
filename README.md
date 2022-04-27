@@ -13,9 +13,9 @@ declaration   := varDecl
                | importDecl
                | statement
 
-varDecl       := "var" IDENTIFIER typehint? ["=" expression] ";"
+varDecl       := "var" IDENTIFIER typehint? ["=" expr | "[" expr "]"] ";"
 funDecl       := "fun" IDENTIFIER "(" [IDENTIFIER typehint? ("," IDENTIFIER typehint?)*] ")" returnhint? "{" declaration* "}"
-letDecl       := "let" IDENTIFIER typehint? "=" expression ";"
+letDecl       := "let" IDENTIFIER typehint? "=" (expr | "[" expr "]") ";"
 classDecl     := "class" IDENTIFIER ["<-" IDENTIFIER] "{" methodDecl "}"
 methodDecl    := IDENT "(" [IDENTIFIER typehint? ("," IDENTIFIER typehint?)*] ")" "{" declaration* "}"
 importDecl    := "include" IDENTIFIER ";"

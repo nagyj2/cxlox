@@ -1360,7 +1360,8 @@ static void list(bool canAssign) {
 	}
 	current->inCall = oldCallStatus;
 
-	emitBytes(OP_CREATE_LIST, (uint8_t) elements);
+	emitConstant(NUMBER_VAL(elements)); // so it works like OP_NIL_LIST
+	emitByte(OP_CREATE_LIST);
 }
 
 /** Parses an infix indexing operation.
@@ -1570,14 +1571,25 @@ static void varDeclaration() {
 		consume(TOKEN_IDENTIFIER, "Expected type identifier after ':'.");
 	}
 
-	// Check for initializer expression
-	if (match(TOKEN_EQUAL)) {
+	if (match(TOKEN_LEFT_BRACE)) {
+		expression();
+		
+		consume(TOKEN_RIGHT_BRACE, "Expected ']' after array size.");
+		if (match(TOKEN_EQUAL)) {
+			error("List size declarations cannot have an initializer.");
+		}
+
+		emitByte(OP_NIL_LIST);
+
+	} else if (match(TOKEN_EQUAL)) {
+		// Check for initializer expression
 		expression();
 	} else {
 		emitByte(OP_NIL);
 	}
 
-	REPLSemicolon(); // consume(TOKEN_SEMICOLON, "Expected ';' after variable declaration.");
+
+	REPLSemicolon();
 	// If local, do nothing
 	// If global, emit bytecode to store the value in the global table
 	defineVariable(global, false);
@@ -1593,14 +1605,22 @@ static void letDeclaration() {
 		consume(TOKEN_IDENTIFIER, "Expected type identifier after ':'.");
 	}
 
-	// Check for initializer expression
-	if (match(TOKEN_EQUAL)) {
+	if (match(TOKEN_LEFT_BRACE)) {
 		expression();
+
+		consume(TOKEN_RIGHT_BRACE, "Expected ']' after array size.");
+		if (match(TOKEN_EQUAL)) {
+			error("List size declarations cannot have an initializer.");
+		}
+
+		emitByte(OP_NIL_LIST);
+	} else if (match(TOKEN_EQUAL)) {
+			expression();
 	} else {
-		error("Expected constant initializer.");
+		error("Expected constant initializer or list size.");
 	}
 
-	REPLSemicolon(); // consume(TOKEN_SEMICOLON, "Expected ';' after variable declaration.");
+	REPLSemicolon();
 	defineVariable(global, true);
 }
 

@@ -36,6 +36,7 @@ typedef uint64_t Value;
 
 #define AS_BOOL(value) ((value) == TRUE_VAL) // Of all Values, only true is true
 #define AS_NUMBER(value) valueToNum(value)
+#define AS_INTEGER(value) ((int) valueToNum(value))
 #define AS_OBJ(value) \
 	((Obj*) (uintptr_t) ((value) & ~(SIGN_BIT | QNAN))) // Removes sign and qnan bits from value to leave pointer
 
@@ -94,6 +95,7 @@ typedef struct {
 // Convert a dynamically typed lox value to a statically typed C value. Only safe when the lox type is known.
 #define AS_BOOL(value) 		((value).as.boolean)
 #define AS_NUMBER(value) 	((value).as.number)
+#define AS_INTEGER(value) ((int) (value).as.number)
 #define AS_OBJ(value) 		((value).as.obj)
 
 // Checks whether a lox value has a specific type.
@@ -111,7 +113,7 @@ typedef struct {
 #define IS_INTEGER(value) (isInt(value))
 
 static inline bool isInt(Value value) {
-	return floorf(AS_NUMBER(value)) != AS_NUMBER(value);
+	return IS_NUMBER(value) && floorf(AS_NUMBER(value)) == AS_NUMBER(value);
 }
 
 /* Dynamic array to hold values. Used by chunks to store literals which appear in the bytecode. */

@@ -282,6 +282,8 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return invokeInstruction("OP_SUPER_INVOKE", chunk, offset);
 		case OP_IMPORT:
 			return simpleInstruction("OP_IMPORT", offset);
+		case OP_NIL_LIST:
+			return simpleInstruction("OP_NIL_LIST", offset);
 		case OP_CREATE_LIST:
 			return integerInstruction("OP_CREATE_LIST", chunk, offset);
 		case OP_GET_LIST:

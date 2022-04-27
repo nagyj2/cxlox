@@ -376,7 +376,6 @@ static bool invokeFromClass(ObjClass* klass, ObjString* name, int argCount, bool
 static bool invoke(ObjString* name, int argCount, bool safe) {
 	Value receiver = peek(argCount); // instance we are calling on
 	if (!IS_INSTANCE(receiver)) {
-		printf("Safety: %d", safe);
 		if (safe) {
 			resolveSafeCall(argCount);
 			return true;
@@ -402,7 +401,7 @@ static inline bool ensureValidArrayAccess(Value list, Value index) {
 		runtimeError("Only lists can be indexed.");
 		return false;
 	}
-	if (!IS_NUMBER(index) || IS_INTEGER(index)) {
+	if (!IS_INTEGER(index)) {
 		runtimeError("List index must be an integer.");
 		return false;
 	}
@@ -579,8 +578,9 @@ static InterpretResult run() {
 			case OP_DEFINE_GLOBAL:
 			case OP_DEFINE_GLOBAL_LONG: {
 				Value name = (instruction == OP_DEFINE_GLOBAL) ? READ_CONSTANT() : READ_CONSTANT_LONG();
+				Value value = peek(0);
 				ERROR_IF_CONST(name);
-				tableSet(&vm.globals, name, peek(0)); // Place the value into the hash table BEFORE popping it so it doesnt get picked up by garbage collection
+				tableSet(&vm.globals, name, value); // Place the value into the hash table BEFORE popping it so it doesnt get picked up by garbage collection
 				pop();
 				break;
 			}
@@ -949,11 +949,31 @@ static InterpretResult run() {
 				// createFrame(closure, 1);
 				break;
 			}
+			case OP_NIL_LIST: {
+				Value size = peek(0); // Keep on stack b/c newList may run GC
+				frame->ip = ip;
+				if (!IS_INTEGER(size)) {
+					runtimeError("Expected integer for list size.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				ObjList* list = newList(NULL, 0); // Create empty list
+				for (int i = 0; i < AS_INTEGER(size); i++) {
+					writeValueArray(&list->entries, NIL_VAL);
+				}
+				pop(); // size
+				push(OBJ_VAL(list));
+				break;
+			}
 			case OP_CREATE_LIST: {
-				int count = READ_BYTE();
-				Value* values = vm.stackTop - count;
-				ObjList* list = newList(values, count);
-				popn(count);
+				Value count = pop(); // READ_BYTE();
+				frame->ip = ip;
+				if (!IS_INTEGER(count)) {
+					runtimeError("Expected integer for list size.");
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				Value* values = vm.stackTop - AS_INTEGER(count);
+				ObjList* list = newList(values, AS_INTEGER(count));
+				popn(AS_INTEGER(count));
 				push(OBJ_VAL(list));
 				break;
 			}
