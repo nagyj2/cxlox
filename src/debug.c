@@ -90,6 +90,20 @@ static int invokeLongInstruction(const char* name, Chunk* chunk, int offset) {
 	return offset + 5;
 }
 
+/** Decodes an 8-byte instruction with an 8-byte integer operand immediately following.
+ * 
+ * @param[in] name Name to give the decoded instruction.
+ * @param[in] chunk Chunk to retrieve the operand from.
+ * @param[in] offset Offset position of this instruction opcode.
+ * @return int index of the next instruction's opcode.
+ */
+static int integerInstruction(const char *name, Chunk *chunk, int offset) {
+	int number = chunk->code[offset + 1];
+	printf("%-24s %4d\n", name, number);
+
+	return offset + 2; // Return forward 2 spaces b/c opcode and index need to be skipped
+}
+
 int disassembleInstruction(Chunk *chunk, int offset) {
 	printf("%04d ", offset); // Display instruction offset
 	int line = getLine(chunk, offset); // B/c we now have a helper, we need to use that to get the proper line number
@@ -268,6 +282,13 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return invokeInstruction("OP_SUPER_INVOKE", chunk, offset);
 		case OP_IMPORT:
 			return simpleInstruction("OP_IMPORT", offset);
+		case OP_CREATE_ARRAY:
+			return integerInstruction("OP_CREATE_ARRAY", chunk, offset);
+		case OP_GET_ARRAY:
+			return simpleInstruction("OP_GET_ARRAY", offset);
+		case OP_SET_ARRAY:
+			return simpleInstruction("OP_SET_ARRAY", offset);
+			
 		default:
 			printf("Unknown opcode %d\n", instruction);
 			return offset + 1;
