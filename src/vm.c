@@ -897,7 +897,7 @@ static InterpretResult run() {
 			}
 			case OP_SUPER_INVOKE: 
 			case OP_SUPER_INVOKE_LONG: {
-				ObjString* method = (instruction == OP_SUPER_INVOKE_LONG) ? READ_STRING() : READ_STRING_LONG();
+				ObjString* method = (instruction == OP_SUPER_INVOKE) ? READ_STRING() : READ_STRING_LONG();
 				int argCount = READ_BYTE();
 				ObjClass* superclass = AS_CLASS(pop());
 				frame->ip = ip;
