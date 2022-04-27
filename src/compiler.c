@@ -1339,6 +1339,47 @@ static void grouping(bool canAssign) {
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
 }
 
+/** Parses an array literal.
+ * @pre The initial '[' has already been consumed.
+ * @param[in] canAssign unused.
+ */
+static void array(bool canAssign) {
+
+	int elements = 0;
+	if (!match(TOKEN_RIGHT_BRACE)) {
+		do {
+			// Pile expressions on the stack and count how many there are
+			// expression();
+			parsePrecidence(PREC_COMMA + 1);
+			elements++;
+		} while (match(TOKEN_COMMA));
+
+		consume(TOKEN_RIGHT_BRACE, "Expected ']' after list.");
+	}
+
+	if (elements == 0)
+		error("Array must have at least 1 element.");
+	
+	emitBytes(OP_CREATE_ARRAY, (uint8_t) elements);
+}
+
+/** Parses an infix indexing operation.
+ * @pre The initial '[' has already been consumed.
+ * @param[in] canAssign unused.
+ */
+static void indexop(bool canAssign) {
+	parsePrecidence(PREC_COMMA + 1);
+	consume(TOKEN_RIGHT_BRACE, "Expected ']' after index.");
+
+	if (canAssign && match(TOKEN_EQUAL)) {
+		parsePrecidence(PREC_COMMA + 1);
+		emitByte(OP_SET_ARRAY);
+	} else {
+		emitByte(OP_GET_ARRAY);
+	}
+
+}
+
 // Declared after all function declarations so they can be placed into the table.
 /** Singleton representing the functions to call when a token is encountered when parsing an expression and the precidence level to parse for binary expressions. 
  * Literals are included in this table with the 'unary' slot representing the function to parse the literal.
@@ -1347,8 +1388,8 @@ static void grouping(bool canAssign) {
  */
 ParseRule rules[] = {  // 	PREFIX				INFIX					PRECIDENCE (INFIX) */
 	[TOKEN_LEFT_PAREN]			= {grouping,		call,					PREC_CALL},
-  [TOKEN_RIGHT_PAREN]			= {NULL,				NULL,					PREC_NONE},
-  [TOKEN_RIGHT_CURLY]			= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_LEFT_CURLY]			= {NULL,				NULL,					PREC_NONE},
+  [TOKEN_LEFT_BRACE]			= {array,				indexop,		PREC_CALL},
 	[TOKEN_DOT]           	= {NULL,     		dot,    			PREC_CALL},
   [TOKEN_MINUS]						= {unary,				binary,				PREC_TERM},
   [TOKEN_PLUS]						= {NULL,				binary,				PREC_TERM},

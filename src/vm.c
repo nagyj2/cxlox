@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <math.h>
 
 #include "common.h"
 #include "vm.h"
@@ -395,6 +396,22 @@ static bool invoke(ObjString* name, int argCount, bool safe) {
 	}
 				
 	return invokeFromClass(instance->klass, name, argCount, safe);
+}
+
+static inline bool ensureValidArrayAccess(Value array, Value index) {
+	if (!IS_ARRAY(array)) {
+		runtimeError("Only arrays can be indexed.");
+		return false;
+	}
+	if (!IS_NUMBER(index) || floorf(AS_NUMBER(index)) != AS_NUMBER(index)) {
+		runtimeError("Array index must be an integer.");
+		return false;
+	}
+	if (AS_NUMBER(index) > AS_ARRAY(array)->entries.count || AS_NUMBER(index) < 0) {
+		runtimeError("Array index out of bounds.");
+		return false;
+	}
+	return true;
 }
 
 //~ VM Execution
@@ -1081,6 +1098,34 @@ static InterpretResult run() {
 
 				// Actually run the code
 				// createFrame(closure, 1);
+				break;
+			}
+			case OP_CREATE_ARRAY: {
+				int count = READ_BYTE();
+				Value* values = vm.stackTop - count;
+				ObjArray* array = newArray(values, count);
+				popn(count);
+				push(OBJ_VAL(array));
+				break;
+			}
+			case OP_GET_ARRAY: {
+				Value index = pop();
+				Value array = pop();
+				frame->ip = ip;
+				ensureValidArrayAccess(array, index);
+				push(AS_ARRAY(array)->entries.values[(int) AS_NUMBER(index)]);
+				break;
+			}
+			case OP_SET_ARRAY: {
+				Value expr = pop();
+				Value index = pop();
+				Value array = pop();
+				frame->ip = ip;
+				if (!ensureValidArrayAccess(array, index)) {
+					return INTERPRET_RUNTIME_ERROR;
+				}
+				AS_ARRAY(array)->entries.values[(int) AS_NUMBER(index)] = expr;
+				push(expr);
 				break;
 			}
 		}

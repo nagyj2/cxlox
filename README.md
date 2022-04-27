@@ -12,12 +12,14 @@ declaration   := varDecl
                | classDecl
                | importDecl
                | statement
+
 varDecl       := "var" IDENTIFIER typehint? ["=" expression] ";"
 funDecl       := "fun" IDENTIFIER "(" [IDENTIFIER typehint? ("," IDENTIFIER typehint?)*] ")" returnhint? "{" declaration* "}"
 letDecl       := "let" IDENTIFIER typehint? "=" expression ";"
 classDecl     := "class" IDENTIFIER ["<-" IDENTIFIER] "{" methodDecl "}"
 methodDecl    := IDENT "(" [IDENTIFIER typehint? ("," IDENTIFIER typehint?)*] ")" "{" declaration* "}"
 importDecl    := "include" IDENTIFIER ";"
+
 statement     := exprStmt
                | printStmt
                | blockStmt
@@ -29,6 +31,7 @@ statement     := exprStmt
                | continueStmt
                | switchStmt
                | delStmt
+
 exprStmt      := expr ";"
 printStmt     := "print" expr ";"
 blockStmt     := "{" declaration* "}"
@@ -42,6 +45,7 @@ switchStmt    := "switch" "(" expr ")" "{" switchCase* defaultCase? "}"
 switchCase    := "case" addition ":" statement*
 defaultCase   := "default" ":" statement*
 delStmt       := "del" propAccess ("," propAccess)* ";"
+
 expr          := comma
 comma         := optional ("," optional)*
 assignment    := IDENTIFIER ("=" | "+=" | "-=" | "*=" | "/=") assignment
@@ -52,9 +56,11 @@ equality      := comparison (("==" | "!=") comparison)*
 comparison    := addition (("<" | ">" | "<=" | ">=") addition)*
 addition      := multiply  (("+" | "-") multiply)*
 multiply 	    := unary (("*" | "/") unary)*
-unary         := ( "!" | "-") unary
+unary         := ("!" | "-") call
                | call
-call          := primary [call | access]
+call          := primary [ "(" [expr ("," expr)*)] ")" 
+                         | ("." | "?.") expr 
+                         | "[" [expr ("," expr)*)] "]" ]
 primary       := NUMBER
                | STRING
                | IDENTIFIER [(',' IDENTIFIER)* '=>' (expr | blockStmt)]
@@ -64,14 +70,14 @@ primary       := NUMBER
                | "this"
                | "super" "." expr
                | "(" expr ")"
+               | "[" expr ("," expr)* "]"
 NUMBER        := [0-9]+ ["." [0-9]+]
 STRING        := "\"" (CHARACTER)* "\""
 IDENTIFIER    := [a-zA-Z_][a-zA-Z0-9_]*
+
 typehint      := ":" IDENTIFIER
 returnhint    := "->" IDENTIFIER
 propAccess    := IDENT (("." | ".?") IDENT)+
-access        := ("." | "?.") expr
-call          := "(" [expr ("," expr)*)] ")"
 ```
 
 ## Details
@@ -92,10 +98,16 @@ call          := "(" [expr ("," expr)*)] ")"
 - Properties can be accessed in a safe way with the `?.` operator.
   - If the left operand is not an instance, the result will be `nil`.
   - If the left operand is an instance and the right operand is a property that instance has, the result will be that property. Otherwise, `nil` will be returned.
+- `include` can be used to run another `.lox` or `.xlox` file and add the results of that file into the current VM
+  - A guard system is on the todo list
+- Arrays can be created from literals
+  - Arrays can be indexed and proper bounds checking is performed.
 
 ## Todo
 - Assert statement
   - `assert EXPR : 'MSG'`
+- Guard system from including the same file multiple times
+  - Ideally not a statement if possible
 
 ## Build
 

@@ -76,6 +76,9 @@ typedef enum {
 	OP_GET_SUPER,				//* OPCODE INDEX : (SE-1) Gets a method from the top superclass and applies it to the second-top subclass, replacing it as the top of the stack.
 	OP_SUPER_INVOKE,		//* OPCODE INDEX NUMBER : (SE+1) Takes an indexed method from the top element superclass and calls that method with the indexed number of arguments.
 	OP_IMPORT,					//* OPCODE INDEX : (SE0) Takes a string from the stack, opens the file of the same name and places its bytecode contents as a closure on the stack.
+	OP_CREATE_ARRAY,		//* OPCODE NUMBER : (SE-(NUMBER-1)) Creates a list of the given size and places it on the stack.
+	OP_GET_ARRAY,				//* OPCODE : (SE-1) Places the element in the 2nd top stack element from the top elements stack position, replacing both.
+	OP_SET_ARRAY,				//* OPCODE : (SE-2) Sets the 3rd top element's array entry at the 2nd top element to the top element. Pops the array and index, placing the expression on top.
 } OpCode;
 
 // OP_SET_PROP_SAFE,				//* OPCODE INDEX : (SE0) Sets a property given by the indexed string to the top element of the stack.

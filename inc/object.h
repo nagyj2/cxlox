@@ -34,6 +34,8 @@
 #define IS_INSTANCE(value) isObjType(value, OBJ_INSTANCE)
 // Returns whether the object is a bounded method (method taken from an instance.
 #define IS_BOUND_METHOD(value) isObjType(value, OBJ_BOUND_METHOD)
+// Returns whether the object is a value array.
+#define IS_ARRAY(value) isObjType(value, OBJ_ARRAY)
 
 // Convert a lox value to a lox string. Returns ObjString pointer.
 #define AS_STRING(value) ((ObjString*) AS_OBJ(value))
@@ -61,6 +63,8 @@
 #define AS_INSTANCE(value) ((ObjInstance*) AS_OBJ(value))
 // Convert a lox value into a bound method. Returns a bounded method pointer.
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod*) AS_OBJ(value))
+// Convert a lox value to a value array
+#define AS_ARRAY(value) ((ObjArray*) AS_OBJ(value))
 
 /* Available types for lox objects. */
 typedef enum {
@@ -72,6 +76,7 @@ typedef enum {
 	OBJ_CLASS,
 	OBJ_INSTANCE,
 	OBJ_BOUND_METHOD,
+	OBJ_ARRAY,
 } ObjType;
 
 /* Heap allocated lox object. Base 'class' for lox values. Typedef-ed in 'value.h'. */
@@ -154,6 +159,13 @@ typedef struct {
 	ObjClosure* method;		//* The method closure.
 } ObjBoundMethod;
 
+/** Represents a dynamic array.
+ */
+typedef struct {
+	Obj obj;
+	ValueArray entries;		//* The map of values in the array.
+} ObjArray;
+
 //~ Semantics
 
 /** Returns whether or not a value is an object of a specific type.
@@ -219,6 +231,13 @@ ObjInstance* newInstance(ObjClass* klass);
  * @return ObjBoundMethod* pointer to a newly created bound method.
  */
 ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method);
+
+/** Creates a array.
+ * @param[in] receiver The instance to bind to the method
+ * @param[in] ObjClosure* The method to extract
+ * @return ObjBoundMethod* pointer to a newly created bound method.
+ */
+ObjArray* newArray();
 
 /** Create a new lox string value by 'taking ownership' of the input character array.
  * @details

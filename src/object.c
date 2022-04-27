@@ -61,6 +61,7 @@ static Obj* allocateObject(size_t size, ObjType type) {
 		case OBJ_CLASS: 				printf("class\n"); break;
 		case OBJ_INSTANCE: 			printf("instance\n"); break;
 		case OBJ_BOUND_METHOD:	printf("bound method\n"); break;
+		case OBJ_ARRAY:					printf("array\n"); break;
 	}
 #endif
 
@@ -124,6 +125,15 @@ ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method) {
 	return boundMethod;
 }
 
+ObjArray* newArray(Value* values, int count) {
+	ObjArray* array = ALLOCATE_OBJ(ObjArray, OBJ_ARRAY);
+	initValueArray(&array->entries);
+	for (int i = 0; i < count; i++) {
+		writeValueArray(&array->entries, values[i]);
+	}
+	return array;
+}
+
 /** Create a lox string object from a character array and length. The string is only pointed to by this object, so it must be freed by the string. 
  * Assumes that the input char array is null terminated and is not shared with any other pointer.
  *
@@ -184,6 +194,18 @@ static void printFunction(ObjFunction* function) {
 	printf("<fn %s>", function->name->chars);
 }
 
+static void printArray(ObjArray* array) {
+	printf("[");
+	if (array->entries.count > 0) {
+		printValue(array->entries.values[0]);
+		for (int count = 1; count < array->entries.count; count++) {
+			printf(",");
+			printValue(array->entries.values[count]);
+		}
+	}
+	printf("]");
+}
+
 void printObject(Value value) {
 	switch (OBJ_TYPE(value)) {
 		case OBJ_FUNCTION:
@@ -209,6 +231,9 @@ void printObject(Value value) {
 			break;
 		case OBJ_BOUND_METHOD:
 			printFunction(AS_BOUND_METHOD(value)->method->function);
+			break;
+		case OBJ_ARRAY:
+			printArray(AS_ARRAY(value));
 			break;
 	}
 }
