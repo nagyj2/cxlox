@@ -4,6 +4,7 @@
 #define clox_value_h
 
 #include <string.h> // memcpy for NAN_BOXING
+#include <math.h> // floorf
 
 #include "common.h"
 
@@ -106,6 +107,12 @@ typedef struct {
 // #define TO_BOOL(value)		(Value) toBoolean(value);
 
 #endif
+
+#define IS_INTEGER(value) (isInt(value))
+
+static inline bool isInt(Value value) {
+	return floorf(AS_NUMBER(value)) != AS_NUMBER(value);
+}
 
 /* Dynamic array to hold values. Used by chunks to store literals which appear in the bytecode. */
 typedef struct {

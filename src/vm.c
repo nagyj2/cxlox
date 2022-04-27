@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
-#include <math.h>
 
 #include "common.h"
 #include "vm.h"
@@ -403,7 +402,7 @@ static inline bool ensureValidArrayAccess(Value array, Value index) {
 		runtimeError("Only arrays can be indexed.");
 		return false;
 	}
-	if (!IS_NUMBER(index) || floorf(AS_NUMBER(index)) != AS_NUMBER(index)) {
+	if (!IS_NUMBER(index) || IS_INTEGER(index)) {
 		runtimeError("Array index must be an integer.");
 		return false;
 	}
