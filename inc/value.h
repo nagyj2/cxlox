@@ -116,9 +116,11 @@ static inline bool isInt(Value value) {
 
 /* Dynamic array to hold values. Used by chunks to store literals which appear in the bytecode. */
 typedef struct {
-	int count; 			//* Number of elements within the ValueArray.
-	int capacity; 	//* The maximum capacity of the ValueArray.
-	Value *values; 	//* Pointer to an array of Values.
+	int count; 				//* Number of elements within the ValueArray.
+	int capacity; 		//* The maximum capacity of the ValueArray.
+	bool constValue;	//* Whether the structure as a whole is constant
+	bool constSize;		//* Whether the size of the structure is constant.
+	Value* values; 		//* Pointer to an array of Values.
 } ValueArray;
 
 /** Computes the hash value of a Value.

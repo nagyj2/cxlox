@@ -54,6 +54,8 @@ uint32_t hashValue(Value value) {
 void initValueArray(ValueArray *array) {
 	array->count = 0;
 	array->capacity = 0;
+	array->constValue = false;
+	array->constSize = false;
 	array->values = NULL;
 }
 

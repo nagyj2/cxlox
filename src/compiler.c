@@ -1342,7 +1342,10 @@ static void grouping(bool canAssign) {
  * @pre The initial '[' has already been consumed.
  * @param[in] canAssign unused.
  */
-static void array(bool canAssign) {
+static void list(bool canAssign) {
+	
+	bool oldCallStatus = current->inCall;
+	current->inCall = true; // Disallow lambdas in array literals
 
 	int elements = 0;
 	if (!match(TOKEN_RIGHT_BRACE)) {
@@ -1355,8 +1358,9 @@ static void array(bool canAssign) {
 
 		consume(TOKEN_RIGHT_BRACE, "Expected ']' after list.");
 	}
-	
-	emitBytes(OP_CREATE_ARRAY, (uint8_t) elements);
+	current->inCall = oldCallStatus;
+
+	emitBytes(OP_CREATE_LIST, (uint8_t) elements);
 }
 
 /** Parses an infix indexing operation.
@@ -1369,9 +1373,9 @@ static void indexop(bool canAssign) {
 
 	if (canAssign && match(TOKEN_EQUAL)) {
 		parsePrecidence(PREC_COMMA + 1);
-		emitByte(OP_SET_ARRAY);
+		emitByte(OP_SET_LIST);
 	} else {
-		emitByte(OP_GET_ARRAY);
+		emitByte(OP_GET_LIST);
 	}
 
 }
@@ -1385,7 +1389,7 @@ static void indexop(bool canAssign) {
 ParseRule rules[] = {  // 	PREFIX				INFIX					PRECIDENCE (INFIX) */
 	[TOKEN_LEFT_PAREN]			= {grouping,		call,					PREC_CALL},
   [TOKEN_LEFT_CURLY]			= {NULL,				NULL,					PREC_NONE},
-  [TOKEN_LEFT_BRACE]			= {array,				indexop,		PREC_CALL},
+  [TOKEN_LEFT_BRACE]			= {list,				indexop,		PREC_CALL},
 	[TOKEN_DOT]           	= {NULL,     		dot,    			PREC_CALL},
   [TOKEN_MINUS]						= {unary,				binary,				PREC_TERM},
   [TOKEN_PLUS]						= {NULL,				binary,				PREC_TERM},

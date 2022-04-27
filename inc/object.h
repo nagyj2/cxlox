@@ -35,7 +35,7 @@
 // Returns whether the object is a bounded method (method taken from an instance.
 #define IS_BOUND_METHOD(value) isObjType(value, OBJ_BOUND_METHOD)
 // Returns whether the object is a value array.
-#define IS_ARRAY(value) isObjType(value, OBJ_ARRAY)
+#define IS_LIST(value) isObjType(value, OBJ_LIST)
 
 // Convert a lox value to a lox string. Returns ObjString pointer.
 #define AS_STRING(value) ((ObjString*) AS_OBJ(value))
@@ -64,7 +64,7 @@
 // Convert a lox value into a bound method. Returns a bounded method pointer.
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod*) AS_OBJ(value))
 // Convert a lox value to a value array
-#define AS_ARRAY(value) ((ObjArray*) AS_OBJ(value))
+#define AS_LIST(value) ((ObjList*) AS_OBJ(value))
 
 /* Available types for lox objects. */
 typedef enum {
@@ -76,7 +76,7 @@ typedef enum {
 	OBJ_CLASS,
 	OBJ_INSTANCE,
 	OBJ_BOUND_METHOD,
-	OBJ_ARRAY,
+	OBJ_LIST,
 } ObjType;
 
 /* Heap allocated lox object. Base 'class' for lox values. Typedef-ed in 'value.h'. */
@@ -164,7 +164,7 @@ typedef struct {
 typedef struct {
 	Obj obj;
 	ValueArray entries;		//* The map of values in the array.
-} ObjArray;
+} ObjList;
 
 //~ Semantics
 
@@ -232,12 +232,12 @@ ObjInstance* newInstance(ObjClass* klass);
  */
 ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method);
 
-/** Creates a array.
+/** Creates a xlox list.
  * @param[in] receiver The instance to bind to the method
  * @param[in] ObjClosure* The method to extract
  * @return ObjBoundMethod* pointer to a newly created bound method.
  */
-ObjArray* newArray();
+ObjList* newList(Value* values, int count);
 
 /** Create a new lox string value by 'taking ownership' of the input character array.
  * @details

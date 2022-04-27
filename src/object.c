@@ -61,7 +61,7 @@ static Obj* allocateObject(size_t size, ObjType type) {
 		case OBJ_CLASS: 				printf("class\n"); break;
 		case OBJ_INSTANCE: 			printf("instance\n"); break;
 		case OBJ_BOUND_METHOD:	printf("bound method\n"); break;
-		case OBJ_ARRAY:					printf("array\n"); break;
+		case OBJ_LIST:					printf("list\n"); break;
 	}
 #endif
 
@@ -125,13 +125,13 @@ ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method) {
 	return boundMethod;
 }
 
-ObjArray* newArray(Value* values, int count) {
-	ObjArray* array = ALLOCATE_OBJ(ObjArray, OBJ_ARRAY);
-	initValueArray(&array->entries);
+ObjList* newList(Value* values, int count) {
+	ObjList* list = ALLOCATE_OBJ(ObjList, OBJ_LIST);
+	initValueArray(&list->entries);
 	for (int i = 0; i < count; i++) {
-		writeValueArray(&array->entries, values[i]);
+		writeValueArray(&list->entries, values[i]);
 	}
-	return array;
+	return list;
 }
 
 /** Create a lox string object from a character array and length. The string is only pointed to by this object, so it must be freed by the string. 
@@ -194,13 +194,13 @@ static void printFunction(ObjFunction* function) {
 	printf("<fn %s>", function->name->chars);
 }
 
-static void printArray(ObjArray* array) {
+static void printList(ObjList* list) {
 	printf("[");
-	if (array->entries.count > 0) {
-		printValue(array->entries.values[0]);
-		for (int count = 1; count < array->entries.count; count++) {
+	if (list->entries.count > 0) {
+		printValue(list->entries.values[0]);
+		for (int count = 1; count < list->entries.count; count++) {
 			printf(",");
-			printValue(array->entries.values[count]);
+			printValue(list->entries.values[count]);
 		}
 	}
 	printf("]");
@@ -232,8 +232,8 @@ void printObject(Value value) {
 		case OBJ_BOUND_METHOD:
 			printFunction(AS_BOUND_METHOD(value)->method->function);
 			break;
-		case OBJ_ARRAY:
-			printArray(AS_ARRAY(value));
+		case OBJ_LIST:
+			printList(AS_LIST(value));
 			break;
 	}
 }

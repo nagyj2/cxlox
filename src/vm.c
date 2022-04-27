@@ -397,17 +397,17 @@ static bool invoke(ObjString* name, int argCount, bool safe) {
 	return invokeFromClass(instance->klass, name, argCount, safe);
 }
 
-static inline bool ensureValidArrayAccess(Value array, Value index) {
-	if (!IS_ARRAY(array)) {
-		runtimeError("Only arrays can be indexed.");
+static inline bool ensureValidArrayAccess(Value list, Value index) {
+	if (!IS_LIST(list)) {
+		runtimeError("Only lists can be indexed.");
 		return false;
 	}
 	if (!IS_NUMBER(index) || IS_INTEGER(index)) {
-		runtimeError("Array index must be an integer.");
+		runtimeError("List index must be an integer.");
 		return false;
 	}
-	if (AS_NUMBER(index) >= AS_ARRAY(array)->entries.count || AS_NUMBER(index) < 0) {
-		runtimeError("Array index out of bounds.");
+	if (AS_NUMBER(index) >= AS_LIST(list)->entries.count || AS_NUMBER(index) < 0) {
+		runtimeError("List index out of bounds.");
 		return false;
 	}
 	return true;
@@ -949,33 +949,34 @@ static InterpretResult run() {
 				// createFrame(closure, 1);
 				break;
 			}
-			case OP_CREATE_ARRAY: {
+			case OP_CREATE_LIST: {
 				int count = READ_BYTE();
 				Value* values = vm.stackTop - count;
-				ObjArray* array = newArray(values, count);
+				ObjList* list = newList(values, count);
 				popn(count);
-				push(OBJ_VAL(array));
+				push(OBJ_VAL(list));
 				break;
 			}
-			case OP_GET_ARRAY: {
+			case OP_GET_LIST: {
 				Value index = pop();
-				Value array = pop();
+				Value list = pop();
 				frame->ip = ip;
-				if (!ensureValidArrayAccess(array, index)) {
+				if (!ensureValidArrayAccess(list, index)) {
 					return INTERPRET_RUNTIME_ERROR;
 				}
-				push(AS_ARRAY(array)->entries.values[(int) AS_NUMBER(index)]);
+				push(AS_LIST(list)->entries.values[(int) AS_NUMBER(index)]);
 				break;
 			}
-			case OP_SET_ARRAY: {
+			case OP_SET_LIST: {
 				Value expr = pop();
 				Value index = pop();
-				Value array = pop();
+				Value list = pop();
 				frame->ip = ip;
-				if (!ensureValidArrayAccess(array, index)) {
+				ERROR_IF_CONST(list);
+				if (!ensureValidArrayAccess(list, index)) {
 					return INTERPRET_RUNTIME_ERROR;
 				}
-				AS_ARRAY(array)->entries.values[(int) AS_NUMBER(index)] = expr;
+				AS_LIST(list)->entries.values[(int) AS_NUMBER(index)] = expr;
 				push(expr);
 				break;
 			}

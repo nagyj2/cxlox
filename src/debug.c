@@ -282,12 +282,12 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return invokeInstruction("OP_SUPER_INVOKE", chunk, offset);
 		case OP_IMPORT:
 			return simpleInstruction("OP_IMPORT", offset);
-		case OP_CREATE_ARRAY:
-			return integerInstruction("OP_CREATE_ARRAY", chunk, offset);
-		case OP_GET_ARRAY:
-			return simpleInstruction("OP_GET_ARRAY", offset);
-		case OP_SET_ARRAY:
-			return simpleInstruction("OP_SET_ARRAY", offset);
+		case OP_CREATE_LIST:
+			return integerInstruction("OP_CREATE_LIST", chunk, offset);
+		case OP_GET_LIST:
+			return simpleInstruction("OP_GET_LIST", offset);
+		case OP_SET_LIST:
+			return simpleInstruction("OP_SET_LIST", offset);
 			
 		default:
 			printf("Unknown opcode %d\n", instruction);

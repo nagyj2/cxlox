@@ -61,7 +61,7 @@ static void freeObject(Obj* object) {
 		case OBJ_CLASS: 				printf("class '"); break;
 		case OBJ_INSTANCE: 			printf("instance '"); break;
 		case OBJ_BOUND_METHOD:	printf("bound method '"); break;
-		case OBJ_ARRAY:					printf("array '"); break;
+		case OBJ_LIST:					printf("list '"); break;
 		default: 								printf("unknown '"); break;
 	}
 	printObject(OBJ_VAL(object));
@@ -115,10 +115,10 @@ static void freeObject(Obj* object) {
 			FREE(ObjBoundMethod, object);
 			break;
 		}
-		case OBJ_ARRAY: {
-			ObjArray* array = (ObjArray*) object;
+		case OBJ_LIST: {
+			ObjList* list = (ObjList*) object;
 			// Does not own the method or instance, so it doesn't free them
-			FREE(ObjArray, object);
+			FREE(ObjList, object);
 			break;
 		}
 	}
@@ -259,9 +259,9 @@ static void blackenObject(Obj* object) {
 			markObject((Obj*) bound->method);
 			break;
 		}
-		case OBJ_ARRAY: {
-			ObjArray* array = (ObjArray*) object;
-			markArray(&array->entries);
+		case OBJ_LIST: {
+			ObjList* list = (ObjList*) object;
+			markArray(&list->entries);
 			break;
 		}
 		case OBJ_NATIVE:

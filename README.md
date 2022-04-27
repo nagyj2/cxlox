@@ -100,8 +100,8 @@ propAccess    := IDENT (("." | ".?") IDENT)+
   - If the left operand is an instance and the right operand is a property that instance has, the result will be that property. Otherwise, `nil` will be returned.
 - `include` can be used to run another `.lox` or `.xlox` file and add the results of that file into the current VM
   - A guard system is on the todo list
-- Arrays can be created from literals
-  - Arrays can be indexed and proper bounds checking is performed.
+- Lists can be created from literals
+  - Lists can be indexed and proper bounds checking is performed.
 
 ## Todo
 - Assert statement
