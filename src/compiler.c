@@ -1356,9 +1356,6 @@ static void array(bool canAssign) {
 
 		consume(TOKEN_RIGHT_BRACE, "Expected ']' after list.");
 	}
-
-	if (elements == 0)
-		error("Array must have at least 1 element.");
 	
 	emitBytes(OP_CREATE_ARRAY, (uint8_t) elements);
 }

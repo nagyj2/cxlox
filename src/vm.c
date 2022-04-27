@@ -406,7 +406,7 @@ static inline bool ensureValidArrayAccess(Value array, Value index) {
 		runtimeError("Array index must be an integer.");
 		return false;
 	}
-	if (AS_NUMBER(index) > AS_ARRAY(array)->entries.count || AS_NUMBER(index) < 0) {
+	if (AS_NUMBER(index) >= AS_ARRAY(array)->entries.count || AS_NUMBER(index) < 0) {
 		runtimeError("Array index out of bounds.");
 		return false;
 	}
@@ -1111,7 +1111,9 @@ static InterpretResult run() {
 				Value index = pop();
 				Value array = pop();
 				frame->ip = ip;
-				ensureValidArrayAccess(array, index);
+				if (!ensureValidArrayAccess(array, index)) {
+					return INTERPRET_RUNTIME_ERROR;
+				}
 				push(AS_ARRAY(array)->entries.values[(int) AS_NUMBER(index)]);
 				break;
 			}
