@@ -25,7 +25,7 @@
 #define DEBUG_LOAD_STDLIB
 
 // If defined, the stack based OP_DEL_PROPERTY will be used.
-// #define USE_STACK_PROPERTY_DELETE
+#define USE_STACK_PROPERTY_DELETE
 
 #define UINT8_COUNT (UINT8_MAX + 1)
 
