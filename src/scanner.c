@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -277,16 +278,69 @@ static TokenType identifierType() {
 
 //~ Literal Parsing Functions
 
+static void strReplace(char* str, char* substr, char replacement) {
+	char* found = NULL; // Track if the substr was found
+	int len = strlen(substr);
+	int difflen = len - 1;
+	// Continually replace the substring
+	while ((found = strstr(str, substr)) != NULL) {
+		*found = replacement;
+		if (len != 1) {
+			int left = strlen(str) - (found - str); // Find how much string is left
+			memmove(found + 1, found + 1 + difflen, left - (difflen + 1)); // Move the rest of the string over
+			memset(str + strlen(str) - difflen, 0, difflen);
+		}
+	}
+}
+
+/** Parses a string which allows string interpolation.
+ * @return Token representing the string.
+ */
+static Token doubleString() {
+	// This loop will put the entire string into the buffer between scanner start and current.
+	TokenType type = TOKEN_STRING_INTERP;
+	char escaped[] = "\\ntr\"";
+	while (peek() != '"' && !isAtEnd()) {
+		if (peek() == '\n')
+			scanner.line++;
+		advance();
+	}
+
+	if (isAtEnd())
+		return errorToken("Unertminated string.");
+
+	advance(); // The terminating '"'
+	Token token = makeToken(type);
+
+	// Skip past the \" at start and end
+	token.start++;
+	token.length -= 2;
+
+	char* newStr = (char*) calloc(1, token.length + 1);
+	if (newStr == NULL)
+		return errorToken("Could not assign new string.");
+	newStr[token.length] = '\0'; // Terminate the string
+	strncpy(newStr, token.start, token.length); // Copy the string into the new string
+	strReplace(newStr, "\\\"", '"');
+	strReplace(newStr, "\\n", '\n');
+	strReplace(newStr, "\\t", '\t');
+	strReplace(newStr, "\\r", '\r');
+
+	token.length = strlen(newStr);
+	token.start = newStr;
+	return token;
+}
+
 /** Parses a string and returns a corresponding string token. The token points to the position in the scanner source code memory where the lexeme is.
  * Updates the global scanner state.
  *
  * @return Token representing the string.
  */
-static Token string() {
+static Token singleString() {
 	// This loop will put the entire string into the buffer between scanner start and current.
 	TokenType type = TOKEN_STRING;
 	char escaped[] = "\\ntr\"";
-	while (peek() != '"' && !isAtEnd()) {
+	while (peek() != '\'' && !isAtEnd()) {
 		if (peek() == '\n')
 			scanner.line++;
 		advance();
@@ -368,8 +422,7 @@ Token scanToken() {
 		// case '|': return makeToken(TOKEN_PIPE);
 
 		// Common mistakes
-		case '\'': return errorToken("Strings use double quotes only.");
-		case '`':  return errorToken("Strings use double quotes only.");
+		case '`':  return errorToken("Strings use quotes only.");
 
 		// Multi-character tokens
 		case '?':
@@ -393,7 +446,9 @@ Token scanToken() {
 
 		// Literals
 		case '"':
-			return string();
+			return doubleString();
+		case '\'':
+			return singleString();
 	}
 
 	// printf("Unexpected character> '%c'\n", c);

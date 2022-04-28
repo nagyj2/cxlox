@@ -932,8 +932,12 @@ static void number(bool canAssign) {
  * the heap allocated char array. The value in the constant pool is indexed in the same way as numerical and boolean constants.
  * @param[in] canAssign unused.
  */
-static void string(bool canAssign) {
+static void singleString(bool canAssign) {
 	emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));
+}
+
+static void doubleString(bool canAssign) {
+	emitConstant(OBJ_VAL(takeString(parser.previous.start, parser.previous.length)));
 }
 
 /** Emits a constant literal to the current chunk.
@@ -1410,7 +1414,8 @@ ParseRule rules[] = {  // 	PREFIX				INFIX					PRECIDENCE (INFIX) */
   [TOKEN_LESSER]					= {NULL,				binary,				PREC_COMPARISON},
   [TOKEN_LESSER_EQUAL]		= {NULL,				binary,				PREC_COMPARISON},
   [TOKEN_IDENTIFIER]			= {variable,		NULL,					PREC_NONE},
-	[TOKEN_STRING]					= {string,			NULL,					PREC_NONE},
+	[TOKEN_STRING]					= {singleString,NULL,					PREC_NONE},
+	[TOKEN_STRING_INTERP]		= {doubleString,NULL,					PREC_NONE},
   [TOKEN_NUMBER]					= {number,			NULL,					PREC_NONE}, // Literals also appear as an 'operator
   [TOKEN_AND]							= {NULL,				and_,					PREC_AND},
   [TOKEN_CLASS]						= {NULL,				NULL,					PREC_NONE},
