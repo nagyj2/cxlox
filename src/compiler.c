@@ -908,7 +908,8 @@ static void singleString(bool canAssign) {
  * @param[in] canAssign unused.
  */
 static void doubleString(bool canAssign) {
-	emitConstant(OBJ_VAL(takeString(parser.previous.start, parser.previous.length)));
+	// parser.previous.start was redefined by the double string tokenization process. Cast to get rid of const
+	emitConstant(OBJ_VAL(takeString((char*) parser.previous.start, parser.previous.length)));
 }
 
 /** Emits a constant literal to the current chunk.
