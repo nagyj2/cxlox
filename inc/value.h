@@ -120,8 +120,6 @@ static inline bool isInt(Value value) {
 typedef struct {
 	int count; 				//* Number of elements within the ValueArray.
 	int capacity; 		//* The maximum capacity of the ValueArray.
-	bool constValue;	//* Whether the structure as a whole is constant
-	bool constSize;		//* Whether the size of the structure is constant.
 	Value* values; 		//* Pointer to an array of Values.
 } ValueArray;
 
