@@ -30,6 +30,7 @@ static uint32_t hashString(const char* key, int length) {
 		hash ^= (uint8_t) key[i];	// 'Mix' in the input
 		hash *= 16777619;					// 'Scramble' the bits
 	}
+	return hash;
 }
 
 //~ String Initialization and Setup

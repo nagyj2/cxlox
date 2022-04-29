@@ -42,9 +42,10 @@ static int constantInstruction(const char *name, Chunk *chunk, int offset) {
 
 /* Decodes an instruction which is followed by a long index. */
 static int constantLongInstruction(const char *name, Chunk *chunk, int offset) {
-	int constantIndex = (chunk->code[offset + 1]) |
-											(chunk->code[offset + 2] << 8) |
-											(chunk->code[offset + 3] << 16); // Reassemble number from the 3 parts
+	// Reassemble number from the 3 parts
+	int constantIndex = (chunk->code[offset + 1] << 16)
+										| (chunk->code[offset + 2] << 8)
+										|	(chunk->code[offset + 3]);										
 	printf("%-24s %4d '", name, constantIndex);
 	printValue(chunk->constants.values[constantIndex]);
 	printf("'\n");
@@ -64,12 +65,6 @@ static int jumpInstruction(const char* name, int sign, Chunk* chunk, int offset)
 	return offset + 3;
 }
 
-static int shortInstruction(const char* name, Chunk* chunk, int offset) {
-	uint16_t slot = (uint16_t) ((chunk->code[offset + 1] << 8) | chunk->code[offset + 2]);
-	printf("%-24s %4d\n", name, slot);
-	return offset + 3;
-}
-
 static int invokeInstruction(const char* name, Chunk* chunk, int offset) {
 	uint8_t constant = chunk->code[offset + 1];
 	uint8_t argCount = chunk->code[offset + 2];
@@ -80,28 +75,15 @@ static int invokeInstruction(const char* name, Chunk* chunk, int offset) {
 }
 
 static int invokeLongInstruction(const char* name, Chunk* chunk, int offset) {
-	int constant = 	(chunk->code[offset + 1]) |
-									(chunk->code[offset + 2] << 8) |
-									(chunk->code[offset + 3] << 16);
+	int constant 	= (chunk->code[offset + 1] << 16)
+								|	(chunk->code[offset + 2] << 8)
+								|	(chunk->code[offset + 3]);
+									
 	uint8_t argCount = chunk->code[offset + 4];
 	printf("%-24s %4d'", name, constant);
 	printValue(chunk->constants.values[constant]);
 	printf("\n                                   %4d args'\n", argCount);
 	return offset + 5;
-}
-
-/** Decodes an 8-byte instruction with an 8-byte integer operand immediately following.
- * 
- * @param[in] name Name to give the decoded instruction.
- * @param[in] chunk Chunk to retrieve the operand from.
- * @param[in] offset Offset position of this instruction opcode.
- * @return int index of the next instruction's opcode.
- */
-static int integerInstruction(const char *name, Chunk *chunk, int offset) {
-	int number = chunk->code[offset + 1];
-	printf("%-24s %4d\n", name, number);
-
-	return offset + 2; // Return forward 2 spaces b/c opcode and index need to be skipped
 }
 
 int disassembleInstruction(Chunk *chunk, int offset) {
@@ -144,11 +126,12 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 		case OP_SUPER_INVOKE_LONG:
 			return invokeLongInstruction("OP_SUPER_INVOKE_LONG", chunk, offset);
 		case OP_CLOSURE_LONG: {
-			offset++;
-			uint32_t constant = (chunk->code[offset + 0]) |
-													(chunk->code[offset + 1] << 8) |
-													(chunk->code[offset + 2] << 16); // Reassemble number from the 3 parts
-			offset = offset + 3;
+			// Reassemble number from the 3 parts
+			uint32_t constant = (chunk->code[offset + 1] << 16)
+												| (chunk->code[offset + 2] << 8)
+												| (chunk->code[offset + 3]);
+													
+			offset = offset + 4;
 			printf("%-24s %4d ", "OP_CLOSURE_LONG", constant);
 			printValue(chunk->constants.values[constant]);
 			printf("\n");

@@ -107,44 +107,6 @@ static Value strAfterNative(int argCount, Value* args) {
 	return OBJ_VAL(copyString(newstr, (int) strlen(newstr)));
 }
 
-static Value isNumberNative(int argCount, Value* args) {
-	return BOOL_VAL(IS_NUMBER(args[0]));
-}
-
-static Value isBooleanNative(int argCount, Value* args) {
-	return BOOL_VAL(IS_BOOL(args[0]));
-}
-
-static Value isNilNative(int argCount, Value* args) {
-	return BOOL_VAL(IS_NIL(args[0]));
-}
-
-static Value isStringNative(int argCount, Value* args) {
-	if (!IS_OBJ(args[0])) {
-		return BOOL_VAL(false);
-	}
-	switch (OBJ_TYPE(args[0])) {
-		case OBJ_STRING:
-			return BOOL_VAL(true);
-		default:
-			return BOOL_VAL(false);
-	}
-}
-
-static Value isFunctionNative(int argCount, Value* args) {
-	if (!IS_OBJ(args[0])) {
-		return BOOL_VAL(false);
-	}
-	switch (OBJ_TYPE(args[0])) {
-		case OBJ_NATIVE:
-		case OBJ_FUNCTION:
-		case OBJ_CLOSURE:
-			return BOOL_VAL(true);
-		default:
-			return BOOL_VAL(false);
-	}
-}
-
 /** Reads a string from the standard input.
  * @return String read from standard input without the newline.
  */

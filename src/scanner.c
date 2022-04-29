@@ -93,7 +93,7 @@ static char peekNext() {
 	return scanner.current[1];
 }
 
-/** Parses a block comment. Assumes the '/*' has NOT been consumed.
+/** Parses a block comment. Assumes the '/ *' has NOT been consumed.
  * 
  * @return true if the block comment was closed properly.
  * @return false if the block comment is not closed.
@@ -299,7 +299,6 @@ static void strReplace(char* str, char* substr, char replacement) {
 static Token doubleString() {
 	// This loop will put the entire string into the buffer between scanner start and current.
 	TokenType type = TOKEN_STRING_INTERP;
-	char escaped[] = "\\ntr\"";
 	while (peek() != '"' && !isAtEnd()) {
 		if (peek() == '\n')
 			scanner.line++;
@@ -341,7 +340,6 @@ static Token doubleString() {
 static Token singleString() {
 	// This loop will put the entire string into the buffer between scanner start and current.
 	TokenType type = TOKEN_STRING;
-	char escaped[] = "\\ntr\"";
 	while (peek() != '\'' && !isAtEnd()) {
 		if (peek() == '\n')
 			scanner.line++;

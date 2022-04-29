@@ -4,7 +4,6 @@
 #include "compiler.h"
 #include "memory.h"
 #include "vm.h"
-#include <stdio.h>
 
 #ifdef DEBUG_LOG_GC
 #include "debug.h"
@@ -110,14 +109,14 @@ static void freeObject(Obj* object) {
 			break;
 		}
 		case OBJ_BOUND_METHOD: {
-			ObjBoundMethod* boundMethod = (ObjBoundMethod*) object;
+			// ObjBoundMethod* boundMethod = (ObjBoundMethod*) object;
 			// Does not own the method or instance, so it doesn't free them
 			FREE(ObjBoundMethod, object);
 			break;
 		}
 		case OBJ_LIST: {
 			ObjList* list = (ObjList*) object;
-			// Does not own the method or instance, so it doesn't free them
+			freeValueArray(&list->entries); // fix owns entries? -> No aliasing
 			FREE(ObjList, object);
 			break;
 		}

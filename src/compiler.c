@@ -281,10 +281,6 @@ static bool check(TokenType type) {
 	return parser.current.type == type;
 }
 
-static bool checkNext(TokenType type) {
-	
-}
-
 /** Returns whether or not the current token matches the input type.
  * @details
  * If a match is encountered, the token is consumed.
@@ -319,13 +315,13 @@ static void emitBytes(uint8_t byte1, uint8_t byte2) {
 	emitByte(byte2);
 }
 
-/** Emits 4 sequential bytes to the current chunk.
+/** Emits an opcode and a 3 byte address in a big endian encoding.
  * @param[in] opcode_long The opcode to emit.
  * @param[in] index The index to emit as 3 bytes
  */
 static void emitLongBytes(uint8_t opcode_long, index_t index) {
-	emitBytes(opcode_long, (uint8_t) (index & 0xff));
-	emitBytes((uint8_t) ((index >> 8) & 0xff), (uint8_t) ((index >> 16) & 0xff));
+	emitBytes(opcode_long, (uint8_t) ((index >> 16) & 0xff));
+	emitBytes((uint8_t) ((index >> 8) & 0xff), (uint8_t) (index & 0xff));
 }
 
 /** Emits 2-4 bytes depending on the size of the index.
@@ -341,7 +337,7 @@ static void emitLongable(opcode_t opcode, opcode_t opcode_long, index_t index) {
 	}
 }
 
-/** Replaces the jump placeholder bytes at the given offset to jump to the current byte.
+/** Replaces the jump placeholder bytes at the given offset to jump to the current byte as big endian.
  * @details
  * Assumes a 16 bit jump placeholder starts at the code chunk at index @p offset.
  * @param[in] offset The position of the jump placeholder to replace.
@@ -438,6 +434,8 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 	current = compiler;
 
 	switch (type) {
+		case TYPE_METHOD:
+		case TYPE_INITIALIZER:
 		case TYPE_FUNCTION:
 			current->function->name = copyString(parser.previous.start, parser.previous.length);
 			break;
@@ -635,22 +633,6 @@ static int resolveLocal(Compiler* compiler, Token* name) {
 	return -1;
 }
 
-/** Emits bytes to save or load a indexed variable.
- * @details
- * If the index is over the maximum for for a single byte, the index is split into three bytes.
- *
- * @param[in] index The index of the variable.
- * @param[in] opcode The opcode to perform on the variable.
- */
-static void emitLocalIndexed(uint8_t opcode, int index) {
-	if (index > CONST_TO_LONG_CONST) {
-		emitBytes(opcode, (uint8_t) (index & 0xff));
-		emitBytes((uint8_t) ((index >> 8) & 0xff), (uint8_t) ((index >> 16) & 0xff));
-	} else {
-		emitBytes(opcode, (uint8_t) index);
-	}
-}
-
 /** Create a new upvalue in the array and return its index in the upvalue array.
  * @details
  * To prevent the compiler from creating multiple upvalues for the same variable, we iterate through the existing upvalues looking for ours. 
@@ -749,7 +731,7 @@ static void namedVariable(Token name, bool canAssign) {
 	}
 
 	if (canAssign && (match(TOKEN_EQUAL) || match(TOKEN_MINUS_EQUAL) || match(TOKEN_PLUS_EQUAL) || match(TOKEN_STAR_EQUAL) || match(TOKEN_SLASH_EQUAL))) { // Check if it should be a setter right before we emit the opcode
-		TokenType operator = parser.previous.type;
+		// TokenType operator = parser.previous.type; // accessed directly
 		switch (parser.previous.type) {
 			case TOKEN_MINUS_EQUAL: {
 				emitLongable(getOp, getOpLong, index);
@@ -1126,7 +1108,7 @@ static void comma(bool canAssign) {
  * @param[in] canAssign unused.
  */
 static void conditional(bool canAssign) {
-	TokenType operatorType = parser.previous.type;
+	// TokenType operatorType = parser.previous.type;
 
 	parsePrecidence(PREC_CONDITIONAL + 1);
 
@@ -1143,7 +1125,7 @@ static void conditional(bool canAssign) {
  * @param[in] canAssign unused.
  */
 static void optional(bool canAssign) {
-	TokenType operatorType = parser.previous.type;
+	// TokenType operatorType = parser.previous.type;
 
 	parsePrecidence(PREC_OPTIONAL); // Same precidence so it is right associative
 	emitByte(OP_OPTIONAL);
@@ -1839,7 +1821,6 @@ static void switchStatement() {
 	int caseEnds[MAX_CASES];
 	int caseCount = 0;
 	int previousCaseSkip = -1;
-	int previousSkipForward = -1;
 	int oldBreak = current->numBreak;
 	int oldLoop = current->recentLoop;
 	current->recentLoop = currentChunk()->count;

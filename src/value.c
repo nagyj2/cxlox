@@ -49,6 +49,7 @@ uint32_t hashValue(Value value) {
 			return AS_STRING(value)->hash;
 	}
 #endif
+	return 0; // Prevent NAN_BOXING from complaining about reaching the bottom
 }
 
 void initValueArray(ValueArray *array) {

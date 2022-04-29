@@ -104,7 +104,7 @@ static void runtimeError(const char* format, ...) {
 		CallFrame* frame = &vm.frames[i];
 		ObjFunction* function = frame->closure->function;
 		size_t instruction = frame->ip - function->chunk.code - 1;
-		fprintf(stderr, "[line %d] in ", function->chunk.lines[instruction]);
+		fprintf(stderr, "[line %d] in ", function->chunk.lines[instruction].line);
 		if (function->name == NULL) {
 			fprintf(stderr, "script\n");
 		} else {
@@ -419,17 +419,17 @@ static InterpretResult run() {
 	CallFrame* frame = &vm.frames[vm.frameCount - 1];
 	register uint8_t* ip = frame->ip; // Load the instruction pointer into a register-preferred variable
 	// Define returns the next byte while incrementing the counter
-#define READ_BYTE() (*ip++)
+#define READ_BYTE() 	(*ip++)
+#define READ_SHORT() 	(ip += 2, (uint16_t) ((ip[-2] << 8) | ip[-1]))
+#define READ_LONG() 	(ip += 3, (uint32_t) ((ip[-3] << 16) | (ip[-2] << 8) | ip[-1]))
 	// Read a constant from the bytecode by taking the index and then looking it up in the constant pool
 #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
 	// Reads a constant which has a 24 bit address
-#define READ_CONSTANT_LONG() (frame->closure->function->chunk.constants.values[(READ_BYTE()) | (READ_BYTE() << 8) | (READ_BYTE() << 16)])
+#define READ_CONSTANT_LONG() (frame->closure->function->chunk.constants.values[READ_LONG()])
 	// Read a constant from the bytecode and convert it to a string
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 	// Read a constant from the bytecode and convert it to a string using a 24 bit address
 #define READ_STRING_LONG() AS_STRING(READ_CONSTANT_LONG())
-	// Read a 2 byte chunk of code
-#define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
 	// Pop two elements from the stack, add them and then place the result back. Remember, left arg is placed first
 	// Uses a do loop to allow multiple lines AND a culminating semicolon
 	// Note: Safe to pop mathematical values from the stack b/c non-string primitives dont have heap data
@@ -594,7 +594,7 @@ static InterpretResult run() {
 			}
 			case OP_GET_GLOBAL: 
 			case OP_GET_GLOBAL_LONG: {
-				Value name = (instruction == OP_GET_GLOBAL) ? READ_CONSTANT() : READ_CONSTANT_LONG(); // Will always be a string
+				Value name = ((instruction == OP_GET_GLOBAL) ? READ_CONSTANT() : READ_CONSTANT_LONG()); // Will always be a string
 				Value value; // Output value
 				if (!(tableGet(&vm.globals, name, &value) || tableGet(&vm.constants, name, &value))) { // Unlike string internment, globals is simply indexed by strings.
 					frame->ip = ip;
@@ -720,12 +720,9 @@ static InterpretResult run() {
 				pop(); // Remove the value from the stack
 				break;
 			}
-			case OP_CLASS: {
-				push(OBJ_VAL(newClass(READ_STRING())));
-				break;
-			}
+			case OP_CLASS:
 			case OP_CLASS_LONG: {
-				push(OBJ_VAL(newClass(READ_STRING_LONG())));
+				push(OBJ_VAL(newClass((instruction == OP_CLASS) ? READ_STRING() : READ_STRING_LONG())));
 				break;
 			}
 #ifdef USE_STACK_PROPERTY_DELETE
