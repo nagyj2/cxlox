@@ -303,11 +303,13 @@ static Token doubleString() {
 	while (peek() != '"' && !isAtEnd()) {
 		if (peek() == '\n')
 			scanner.line++;
+		if (peek() == '\\' && peekNext('"'))
+			advance();
 		advance();
 	}
 
 	if (isAtEnd())
-		return errorToken("Unertminated string.");
+		return errorToken("Unterminated string.");
 
 	advance(); // The terminating '"'
 	Token token = makeToken(type);
