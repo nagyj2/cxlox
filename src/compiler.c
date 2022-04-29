@@ -936,6 +936,9 @@ static void singleString(bool canAssign) {
 	emitConstant(OBJ_VAL(copyString(parser.previous.start + 1, parser.previous.length - 2)));
 }
 
+/** Emit an interpolated string constant.
+ * @param[in] canAssign unused.
+ */
 static void doubleString(bool canAssign) {
 	emitConstant(OBJ_VAL(takeString(parser.previous.start, parser.previous.length)));
 }
