@@ -285,7 +285,7 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 		case OP_NIL_LIST:
 			return simpleInstruction("OP_NIL_LIST", offset);
 		case OP_CREATE_LIST:
-			return integerInstruction("OP_CREATE_LIST", chunk, offset);
+			return simpleInstruction("OP_CREATE_LIST", offset);
 		case OP_GET_LIST:
 			return simpleInstruction("OP_GET_LIST", offset);
 		case OP_SET_LIST:
