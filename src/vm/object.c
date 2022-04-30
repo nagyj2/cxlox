@@ -13,8 +13,8 @@
 #define MAX_INT_STRLEN 50
 
 // Allocates a new object with the given object prototype. Allows to type as input instead of raw size to support additions to the struct easily.
-#define ALLOCATE_OBJ(type, objectType) \
-	(type*) allocateObject(sizeof(type), objectType)
+#define ALLOCATE_OBJ(vm, type, objectType) \
+	(type*) allocateObject(vm,sizeof(type), objectType)
 
 //~ Helper
 
@@ -42,14 +42,14 @@ static uint32_t hashString(const char* key, int length) {
  * @param[in] type The type to assign to the new object.
  * @return Obj pointer to the newly allocated object.
  */
-static Obj* allocateObject(size_t size, ObjType type) {
-	Obj* object = (Obj*) reallocate(NULL, 0, size);
+static Obj* allocateObject(VM* vm, size_t size, ObjType type) {
+	Obj* object = (Obj*) reallocate(vm, NULL, 0, size);
 	object->type = type;
 
 	// Set the new object list head to the new object
-	object->next = vm.objects;
+	object->next = vm->objects;
 	object->isMarked = false;
-	vm.objects = object;
+	vm->objects = object;
 
 #ifdef DEBUG_LOG_GC
 	printf("%p allocate %zu for ", (void*) object, size);
@@ -63,76 +63,108 @@ static Obj* allocateObject(size_t size, ObjType type) {
 		case OBJ_INSTANCE: 			printf("instance\n"); break;
 		case OBJ_BOUND_METHOD:	printf("bound method\n"); break;
 		case OBJ_LIST:					printf("list\n"); break;
+		case OBJ_MODULE:				printf("module\n"); break;
 	}
 #endif
 
 	return object;
 }
 
-ObjFunction* newFunction() {
-	ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
+ObjFunction* newFunction(VM* vm, ObjModule* module, FunctionType type) {
+	ObjFunction* function = ALLOCATE_OBJ(vm, ObjFunction, OBJ_FUNCTION);
 	function->arity = 0;
 	function->upvalueCount = 0;
 	function->name = NULL;
-	initChunk(&function->chunk);
+	function->type = type;
+	function->module = module;
+	initChunk(vm, &function->chunk);
 	return function;
 }
 
-ObjNative* newNative(NativeFn function, int arity) {
-	ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
+ObjNative* newNative(VM* vm, NativeFn function, int arity) {
+	ObjNative* native = ALLOCATE_OBJ(vm, ObjNative, OBJ_NATIVE);
 	native->function = function;
 	native->arity = arity;
 	return native;
 }
 
-ObjClosure* newClosure(ObjFunction* function) {
-	ObjUpvalue** upvalues = ALLOCATE(ObjUpvalue*, function->upvalueCount);
+ObjClosure* newClosure(VM* vm, ObjFunction* function) {
+	ObjUpvalue** upvalues = ALLOCATE(vm, ObjUpvalue*, function->upvalueCount);
 	for (int i = 0; i < function->upvalueCount; i++) {
 		upvalues[i] = NULL;
 	}
-	ObjClosure* closure = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE);
+	ObjClosure* closure = ALLOCATE_OBJ(vm, ObjClosure, OBJ_CLOSURE);
 	closure->function = function;
 	closure->upvalues = upvalues;
 	closure->upvalueCount = function->upvalueCount;
 	return closure;
 }
 
-ObjUpvalue* newUpvalue(Value* slot) {
-	ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE);
+ObjUpvalue* newUpvalue(VM* vm, Value* slot) {
+	ObjUpvalue* upvalue = ALLOCATE_OBJ(vm, ObjUpvalue, OBJ_UPVALUE);
 	upvalue->location = slot;
 	upvalue->closed = NIL_VAL;
 	upvalue->next = NULL;
 	return upvalue;
 }
 
-ObjClass* newClass(ObjString* name) {
-	ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+ObjClass* newClass(VM* vm, ObjString* name) {
+	ObjClass* klass = ALLOCATE_OBJ(vm, ObjClass, OBJ_CLASS);
 	klass->name = name;
 	initTable(&klass->methods);
 	return klass;
 }
 
-ObjInstance* newInstance(ObjClass* klass) {
-	ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
+ObjInstance* newInstance(VM* vm, ObjClass* klass) {
+	ObjInstance* instance = ALLOCATE_OBJ(vm, ObjInstance, OBJ_INSTANCE);
 	instance->klass = klass;
 	initTable(&instance->fields);
 	return instance;
 }
 
-ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method) {
-	ObjBoundMethod* boundMethod = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
+ObjBoundMethod* newBoundMethod(VM* vm, Value receiver, ObjClosure* method) {
+	ObjBoundMethod* boundMethod = ALLOCATE_OBJ(vm, ObjBoundMethod, OBJ_BOUND_METHOD);
 	boundMethod->receiver = receiver;
 	boundMethod->method = method;
 	return boundMethod;
 }
 
-ObjList* newList(Value* values, int count) {
-	ObjList* list = ALLOCATE_OBJ(ObjList, OBJ_LIST);
+ObjList* newList(VM* vm, Value* values, int count) {
+	ObjList* list = ALLOCATE_OBJ(vm, ObjList, OBJ_LIST);
 	initValueArray(&list->entries);
 	for (int i = 0; i < count; i++) {
-		writeValueArray(&list->entries, values[i]);
+		writeValueArray(vm, &list->entries, values[i]);
 	}
 	return list;
+}
+
+ObjModule* newModule(VM* vm, ObjString* name) {
+	Value moduleVal;
+	// See if module aready is created. If so, return that
+	if (tableGet(&vm->modules, OBJ_VAL(name), &moduleVal)) {
+		return AS_MODULE(moduleVal);
+	}
+
+	// Create a new module object by allocating, initializing values and path and set name
+	ObjModule* module = ALLOCATE_OBJ(vm, ObjModule, OBJ_MODULE);
+	initTable(&module->values);
+	module->name = name;
+	module->path = NULL;
+
+	push(vm, OBJ_VAL(module));
+	ObjString* __file__ = copyString(vm, "__file__", 8);
+	push(vm, OBJ_VAL(__file__));
+
+	// Modules should have a reference to their own name under "__file__"
+	tableSet(vm, &module->values, OBJ_VAL(__file__), OBJ_VAL(name));
+	// Register module with the active VM
+	tableSet(vm, &vm->modules, OBJ_VAL(name), OBJ_VAL(name));
+
+	pop(vm);
+	pop(vm);
+
+	return module;
+
 }
 
 /** Create a lox string object from a character array and length. The string is only pointed to by this object, so it must be freed by the string. 
@@ -142,47 +174,47 @@ ObjList* newList(Value* values, int count) {
  * @param[in] length The length of the string.
  * @return ObjString* representing the lox string.
  */
-static ObjString* allocateString(char* chars, int length, uint32_t hash) {
+static ObjString* allocateString(VM* vm, char* chars, int length, uint32_t hash) {
 	// Allocate a single string object. The char array input has been previously allocated.
-	ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
+	ObjString* string = ALLOCATE_OBJ(vm, ObjString, OBJ_STRING);
 	string->length = length;
 	string->chars = chars;
 	string->hash = hash;
 	
-	push(OBJ_VAL(string)); // Push for GC
-	tableSet(&vm.strings, OBJ_VAL(string), NIL_VAL); // Intern the string for future lookups
-	pop();
+	push(vm, OBJ_VAL(string)); // Push for GC
+	tableSet(vm, &vm->strings, OBJ_VAL(string), NIL_VAL); // Intern the string for future lookups
+	pop(vm);
 	
 	return string;
 }
 
-ObjString* takeString(char* chars, int length) {
+ObjString* takeString(VM* vm, char* chars, int length) {
 	// Find the hash of the string
 	uint32_t hash = hashString(chars, length);
 	// Check to see if the string has been interned. If so, free the given string and return the existing pointer
-	ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
+	ObjString* interned = tableFindString(&vm->strings, chars, length, hash);
 	if (interned != NULL) {
-		FREE_ARRAY(char, chars, length + 1);
+		FREE_ARRAY(vm, char, chars, length + 1);
 		return interned;
 	}
 	// Create and return the new string with the input char array
-	return allocateString(chars, length, hash);
+	return allocateString(vm, chars, length, hash);
 }
 
-ObjString* copyString(const char* chars, int length) {
+ObjString* copyString(VM* vm, const char* chars, int length) {
 	// Calculate the string hash
 	uint32_t hash = hashString(chars, length);
 	// 'Cheat' by returning interned strings before allocating if possible
-	ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
+	ObjString* interned = tableFindString(&vm->strings, chars, length, hash);
 	if (interned != NULL) return interned;
 	// Allocate space for the copy of the chars plus the terminator. This will give the string object sole ownership of the string
-	char* heapChars = ALLOCATE(char, length + 1);
+	char* heapChars = ALLOCATE(vm, char, length + 1);
 	// Copy the source string lexeme into the new buffer
 	memcpy(heapChars, chars, length);
 	// Add the terminator
 	heapChars[length] = '\0';
 	// Create new ObjString object
-	return allocateString(heapChars, length, hash);
+	return allocateString(vm, heapChars, length, hash);
 }
 
 //~ Utility Functions
@@ -236,10 +268,13 @@ void printObject(Value value) {
 		case OBJ_LIST:
 			printList(AS_LIST(value));
 			break;
+		case OBJ_MODULE:
+			printf("%s module", AS_MODULE(value)->name->chars);
+			break;
 	}
 }
 
-ObjString* toObjString(Value value) {
+ObjString* toObjString(VM* vm, Value value) {
 #ifdef NAN_BOXING
 	if (IS_NUMBER(value)) {
 		int nchars = 1; // Default to 1 character for 0
@@ -253,21 +288,21 @@ ObjString* toObjString(Value value) {
 		// todo : memory leak?
 		int size = snprintf(buffer, nchars, "%g", AS_NUMBER(value)); // copy over number text
 
-		return takeString(buffer, size); //take b/c we are allocating the string here
+		return takeString(vm, buffer, size); //take b/c we are allocating the string here
 	} else if (IS_BOOL(value)) {
 		if (AS_BOOL(value))
-			return copyString("true", 4);
+			return copyString(vm, "true", 4);
 		else
-			return copyString("false", 5);
+			return copyString(vm, "false", 5);
 	} else if (IS_NIL(value)) {
-		return copyString("nil", 3);
+		return copyString(vm, "nil", 3);
 	} else if (IS_OBJ(value)) {
 		switch (OBJ_TYPE(value)) {
 			case OBJ_STRING:
 				return AS_STRING(value);
 			default: // Impossible
 				printf("Cannot convert to a string: %d\n'", OBJ_TYPE(value));
-				return copyString("<not stringable>", 16);
+				return copyString(vm, "<not stringable>", 16);
 		}
 	} else {
 			printf("Expected a string, but got ");

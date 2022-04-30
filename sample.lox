@@ -229,15 +229,15 @@ print fib(6);
 
 // Expanded Native Functions
 
-print type(8) == "num";
-print type(8.0) == "num";
-print type("8") != "num";
+// print type(8) == "num";
+// print type(8.0) == "num";
+// print type("8") != "num";
 
-print type("8") == "str" and type(8) != "str" and type(true) == "bool";
-ticks();
-print "Date is now " + date();
+// print type("8") == "str" and type(8) != "str" and type(true) == "bool";
+// ticks();
+// print "Date is now " + date();
 
-print ticks();
+// print ticks();
 
 fun makeVector(x,y){
   var z = 9;
@@ -353,16 +353,16 @@ print p?.b?.c?.f?.g?.h?.j == nil;
 
 print 4?.a == nil;
 
-// Type hints
+// // Type comments
 
-fun max(a: int, b:int) -> int {
-  return a > b ? a : b;
-}
+// fun max(a: int, b:int) -> int {
+//   return a > b ? a : b;
+// }
 
-print max(1,2);
+// print max(1,2);
 
-var a : int = 8;
-let b : bool = true;
+// var a : int = 8;
+// let b : bool = true;
 
 // Multiple property deletions
 
@@ -417,7 +417,7 @@ print p?.c == nil;
 // print sum;
 
 // Importing Files
-
+/*
 include "lib.lox";
 
 one = "one";
@@ -425,6 +425,7 @@ string = "string";
 function;
 // function();
 Class;
+*/
 
 // Lists
 

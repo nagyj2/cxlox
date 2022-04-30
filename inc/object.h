@@ -4,6 +4,7 @@
 #include "common.h"
 #include "value.h"
 #include "chunk.h"
+#include "vm.h"
 #include "table.h"
 
 /*
@@ -36,6 +37,8 @@
 #define IS_BOUND_METHOD(value) isObjType(value, OBJ_BOUND_METHOD)
 // Returns whether the object is a value array.
 #define IS_LIST(value) isObjType(value, OBJ_LIST)
+// Returns whether the object module.
+#define IS_MODULE(value) isObjType(value, OBJ_MODULE)
 
 // Convert a lox value to a lox string. Returns ObjString pointer.
 #define AS_STRING(value) ((ObjString*) AS_OBJ(value))
@@ -65,6 +68,8 @@
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod*) AS_OBJ(value))
 // Convert a lox value to a value array
 #define AS_LIST(value) ((ObjList*) AS_OBJ(value))
+// Convert a lox value to a module object
+#define AS_MODULE(value) ((ObjModule*) AS_OBJ(value))
 
 /* Available types for lox objects. */
 typedef enum {
@@ -77,47 +82,59 @@ typedef enum {
 	OBJ_INSTANCE,
 	OBJ_BOUND_METHOD,
 	OBJ_LIST,
+	OBJ_MODULE,
 } ObjType;
 
 /* Heap allocated lox object. Base 'class' for lox values. Typedef-ed in 'value.h'. */
-struct Obj {
+struct _Obj {
 	ObjType type; 		// Type of the object.
 	bool isMarked; 		// Whether the object is marked for GC.
-	struct Obj* next; // Next object in the linked list.
+	Obj* next; // Next object in the linked list.
+};
+
+/** Represents an imported module.
+ */
+struct _ObjModule {
+	Obj obj;
+	ObjString* name;
+	ObjString* path;
+	Table values;
 };
 
 /* Internal representation of a Lox function. Functions are first class (can be passed around), so they are objects. */
-typedef struct {
-	Obj obj;					//* Holds type of object and pointer to the next/
-	int arity;				//* Number of arguments the function accepts.
-	int upvalueCount;	//* Number of upvalues the function has.
-	Chunk chunk;			//* The function body.
-	ObjString* name;	//* Name of the function.
-} ObjFunction;
+struct _ObjFunction {
+	Obj obj;						//* Holds type of object and pointer to the next/
+	int arity;					//* Number of arguments the function accepts.
+	int upvalueCount;		//* Number of upvalues the function has.
+	Chunk chunk;				//* The function body.
+	ObjString* name;		//* Name of the function.
+	ObjModule* module;	//* Module the function belongs to.
+	FunctionType type;	//* Type of the function.
+};
 
 /* Function signature for all native functions. */
 typedef Value(*NativeFn)(int argCount, Value* args);
 
 /* Native C function executable from within lox. */
-typedef struct {
+struct _ObjNative {
 	Obj obj;
 	int arity; 					//* Number of arguments the function accepts.
 	NativeFn function;	//* The C function to execute.
-} ObjNative;
+};
+
 
 /* Lox, heap allocated string. */
-struct ObjString {
+struct _ObjString {
 	Obj obj;				//* State inherited from Obj. Allows safe casting and calling of its type.
 	int length;			//* Length of the string.
 	char* chars;		//* Pointer to the string's characters.
 	uint32_t hash;	//* Hash of the string.
 };
 
-typedef struct ObjUpvalue ObjUpvalue;
 /** Represents an upvalue at runtime. Points to a variable which may or may not be on the stack so that it can be
  * accessed even when off the stack.
  */
-struct ObjUpvalue {
+struct _ObjUpvalue {
 	Obj obj;
 	Value* location;	//* Points to the closed over variable. Uses a pointer to refer to the value, resulting in aliasing (useful for closing).
 	Value closed;			//* The memory location the value occupies AFTER it has been closed (removed from the stack). After closing, this value is aliased by 'location'.
@@ -127,44 +144,44 @@ struct ObjUpvalue {
 /** Representation of a function closure. Stores variables which the function accesses which arent within its own scope.
  * To the user, they are exactly the same as functions. Runtime construct representing the environment of a called function.
  */
-typedef struct {
+struct _ObjClosure {
 	Obj obj;
 	ObjFunction* function;	//* The function the closure wraps over.
 	ObjUpvalue** upvalues;	//* An array of upvalue pointers the closure maintains.
 	int upvalueCount;				//* The number of upvalues the closure maintains.
-} ObjClosure;
+};
 
 /** Representation of a class. Used as factories to produce instances which are then used in the runtime of lox
  * The user defines classes.
  */
-typedef struct {
+struct _ObjClass {
 	Obj obj;
 	ObjString* name;				//* User visible name of the class.
 	Table methods;					//* Methods available to the class.
-} ObjClass;
+};
 
 /** Representation of a class instance at runtime.
  */
-typedef struct {
+struct _ObjInstance {
 	Obj obj;
 	ObjClass* klass;				//* The class which the instance represents.
 	Table fields;						//* A hashmap containing the attributes of the instance.
-} ObjInstance;
+};
 
 /** Represents a method on an existing lox instance. Used to bind a method closure to a particular instance.
  */
-typedef struct {
+struct _ObjBoundMethod {
 	Obj obj;
 	Value receiver;				//* Instance which the method was taken from. This is where 'this' will bind to.
 	ObjClosure* method;		//* The method closure.
-} ObjBoundMethod;
+};
 
 /** Represents a dynamic array.
  */
-typedef struct {
+struct _ObjList {
 	Obj obj;
 	ValueArray entries;		//* The map of values in the array.
-} ObjList;
+};
 
 //~ Semantics
 
@@ -187,57 +204,71 @@ static inline bool isObjType(Value value, ObjType type) {
  * @param[in] value The value to convert.
  * @return ObjString* pointer to a newly allocated lox string.
  */
-ObjString* toObjString(Value value);
+ObjString* toObjString(VM* vm, Value value);
 
 /** Creates and returns a new Lox function struct pointer.
- * 
+ * @param[in] vm Where to place the object when created.
  * @return ObjFunction* of the newly compiled function.
  */
-ObjFunction* newFunction();
+ObjFunction* newFunction(VM* vm, ObjModule* module, FunctionType type);
 
 /** Wraps a native C function into a object value wrapper for lox.
+ * @param[in] vm Where to place the object when created.
  * @param[in] function 
  * @return ObjNative* pointer to a object which encapsulates the native function.
  */
-ObjNative* newNative(NativeFn function, int arity);
+ObjNative* newNative(VM* vm, NativeFn function, int arity);
 
 /** Creates a new function closure.
+ * @param[in] vm Where to place the object when created.
  * @param[in] function The function the closure will emcompass.
  * @return ObjClosure* pointer to the newly created closure structure.
  */
-ObjClosure* newClosure(ObjFunction* function);
+ObjClosure* newClosure(VM* vm, ObjFunction* function);
 
 /** Creates a new runtime upvalue object. 
+ * @param[in] vm Where to place the object when created.
  * @param[] slot 
  * @return ObjUpvalue* 
  */
-ObjUpvalue* newUpvalue(Value* slot);
+ObjUpvalue* newUpvalue(VM* vm, Value* slot);
 
 /** Creates a new class object.
+ * @param[in] vm Where to place the object when created.
  * @param[in] name The name to call the class
  * @return ObjClass* pointer to a newly created class struct.
  */
-ObjClass* newClass(ObjString* name);
+ObjClass* newClass(VM* vm, ObjString* name);
 
 /** Creates a new class instance.
+ * @param[in] vm Where to place the object when created.
  * @param[in] class The class to create an instance of
  * @return ObjInstance* pointer to a newly created class instance.
  */
-ObjInstance* newInstance(ObjClass* klass);
+ObjInstance* newInstance(VM* vm, ObjClass* klass);
 
 /** Creates a new bounded method.
+ * @param[in] vm Where to place the object when created.
  * @param[in] receiver The instance to bind to the method
  * @param[in] ObjClosure* The method to extract
  * @return ObjBoundMethod* pointer to a newly created bound method.
  */
-ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method);
+ObjBoundMethod* newBoundMethod(VM* vm, Value receiver, ObjClosure* method);
 
 /** Creates a xlox list.
+ * @param[in] vm Where to place the object when created.
  * @param[in] receiver The instance to bind to the method
  * @param[in] ObjClosure* The method to extract
  * @return ObjBoundMethod* pointer to a newly created bound method.
  */
-ObjList* newList(Value* values, int count);
+ObjList* newList(VM* vm, Value* values, int count);
+
+/** Initialize a new module object.
+ * @param[in] vm Where to place the object when created.
+ * @param[in] name The name of the module
+ * @return ObjModule* to the new module.
+ */
+ObjModule* newModule(VM* vm, ObjString* name);
 
 /** Create a new lox string value by 'taking ownership' of the input character array.
  * @details
@@ -248,7 +279,7 @@ ObjList* newList(Value* values, int count);
  * @param[in] length The number of characters in @p chars.
  * @return ObjString* representing a lox string.
  */
-ObjString* takeString(char* chars, int length);
+ObjString* takeString(VM* vm, char* chars, int length);
 
 /** Copies a string from the input source and places them into a lox value object.
  * @details
@@ -258,7 +289,7 @@ ObjString* takeString(char* chars, int length);
  * @param[in] length The number of characters to copy from @p chars.
  * @return ObjString* representing a lox string.
  */
-ObjString* copyString(const char* chars, int length);
+ObjString* copyString(VM* vm, const char* chars, int length);
 
 /** Prints an input object value to stdout.
  * 

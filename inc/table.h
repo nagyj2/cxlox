@@ -23,35 +23,18 @@ typedef struct {
 /** Initializes a hash table with metadata corresponding to an empty table
  * @details
  * Initializes to a count and capacity of 0. Does NOT allocate memory.
- *
  * @param[out] table Pointer to a table to be initialized.
  */
 void initTable(Table* table);
 
 /** Frees the memory allocated for a hash table.
- * 
  * @param[out] table Pointer to the table to be freed.
  */
-void freeTable(Table* table);
-
-/** Place a value into a hash table. May enlarge the table.
- * @details
- * If the table's max load factor is reached, the table will be resized and allocate new memory.
- * This table enlarging is checked before the value is placed into the table
- * This function assumes that the key is a string which contains the hash of the string.
- *
- * @param[in,out] table The table to place the value into.
- * @param[in] key The key to place at.
- * @param[in] value The value to place.
- * @return true If the insertion placed the value into the table.
- * @return false If the insertion did not actually insert an element.
- */
-bool tableSet(Table* table, Value key, Value value);
+void freeTable(VM* vm, Table* table);
 
 /** Retrieves a value from a given table by key.
  * @details
  * This function assumes that the key is a string which contains the hash of the string.
- *
  * @param[in] table The table to search through.
  * @param[in] key The key to find.
  * @param[out] value A pointer to the found value.
@@ -60,27 +43,37 @@ bool tableSet(Table* table, Value key, Value value);
  */
 bool tableGet(Table* table, Value key, Value* value);
 
+/** Place a value into a hash table. May enlarge the table.
+ * @details
+ * If the table's max load factor is reached, the table will be resized and allocate new memory.
+ * This table enlarging is checked before the value is placed into the table
+ * This function assumes that the key is a string which contains the hash of the string.
+ * @param[in,out] table The table to place the value into.
+ * @param[in] key The key to place at.
+ * @param[in] value The value to place.
+ * @return true If the insertion placed the value into the table.
+ * @return false If the insertion did not actually insert an element.
+ */
+bool tableSet(VM* vm, Table* table, Value key, Value value);
+
 /** Deletes a value from a table by key.
  * @details
  * Removes the entry by nullifying the key and value location in the table.
  * Performs extra logic to ensure no probe chains were broken.
- *
  * @param[in,out] table The table to remove the key from.
  * @param[in] key The key to the element to remove.
  * @return true if the removal occured.
  * @return false if there was no actual removal.
  */
-bool tableDelete(Table* table, Value key);
+bool tableDelete(VM* vm, Table* table, Value key);
 
 /** Copies over all contents of one table to another.
- * 
  * @param[in] from The table to copy contents from.
  * @param[out] to The table to copy contents to.
  */
-void tableAddAll(Table* from, Table* to);
+void tableAddAll(VM* vm, Table* from, Table* to);
 
 /** Searches the interned strings and returns a reference to the existing string if it exists.
- * 
  * @param[in] table Table to find the string key in
  * @param[in] chars The characters of the string to find.
  * @param[in] length The length of the input string.
@@ -92,7 +85,7 @@ ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t
 /** Mark all elements of a table as reachable. Marks the table contents and keys.
  * @param[out] table Table to mark as reachable.
  */
-void markTable(Table* table);
+void markTable(VM* vm, Table* table);
 
 /** Traverse the table and free all elements and keys which have not been marked.
  * @details
@@ -100,6 +93,6 @@ void markTable(Table* table);
  * if there a white key, the value can be safely freed.
  * @param[out] table The table to traverse.
  */
-void tableRemoveWhite(Table* table);
+void tableRemoveWhite(VM* vm, Table* table);
 
 #endif /* clox_table_h */

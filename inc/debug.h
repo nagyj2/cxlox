@@ -1,6 +1,7 @@
 #ifndef cloc_debug_h
 #define clox_debug_h
 
+#include "common.h"
 #include "chunk.h"
 
 /** Prints the bytecode contents of a chunk to stdout. Does not print metadata.

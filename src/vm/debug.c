@@ -107,16 +107,10 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return constantLongInstruction("OP_GET_PROPERTY_LONG", chunk, offset);
 		case OP_SET_PROPERTY_LONG:
 			return constantLongInstruction("OP_SET_PROPERTY_LONG", chunk, offset);
-		case OP_GET_PROP_SAFE_LONG:
-			return constantLongInstruction("OP_GET_PROP_SAFE_LONG", chunk, offset);
-		// case OP_SET_PROP_SAFE_LONG:
-		// 	return constantLongInstruction("OP_SET_PROP_SAFE_LONG", chunk, offset);
 		case OP_DEFINE_CONST_LONG:
 			return constantLongInstruction("OP_DEFINE_CONST_LONG", chunk, offset);
 		case OP_CONSTANT_LONG:
 			return constantLongInstruction("OP_CONSTANT_LONG", chunk, offset);
-		case OP_GET_PROP_SAFE:
-			return constantInstruction("OP_GET_PROP_SAFE", chunk, offset);
 		case OP_CLASS_LONG:
 			return constantLongInstruction("OP_CLASS_LONG", chunk, offset);
 		case OP_METHOD_LONG:
@@ -168,12 +162,8 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return simpleInstruction("OP_DUP", offset);
 		case OP_DEFINE_CONST:
 			return constantInstruction("OP_DEFINE_CONST", chunk, offset);
-		case OP_INVOKE_SAFE:
-			return invokeInstruction("OP_INVOKE_SAFE", chunk, offset);
 		case OP_INVOKE_LONG:
 			return invokeLongInstruction("OP_INVOKE_LONG", chunk, offset);
-		case OP_INVOKE_SAFE_LONG:
-			return invokeLongInstruction("OP_INVOKE_SAFE_LONG", chunk, offset);
 			
 		case OP_RETURN:
 			return simpleInstruction("OP_RETURN", offset);
@@ -221,6 +211,8 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return jumpInstruction("OP_JUMP", 1, chunk, offset);
 		case OP_JUMP_IF_FALSE:
 			return jumpInstruction("OP_JUMP_IF_FALSE", 1, chunk, offset);
+		case OP_JUMP_IF_NIL:
+			return jumpInstruction("OP_JUMP_IF_NIL", 1, chunk, offset);
 		case OP_LOOP:
 			return jumpInstruction("OP_LOOP", -1, chunk, offset);
 		case OP_CALL:
@@ -263,6 +255,8 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return constantInstruction("OP_GET_SUPER", chunk, offset);
 		case OP_SUPER_INVOKE:
 			return invokeInstruction("OP_SUPER_INVOKE", chunk, offset);
+		case OP_INCLUDE:
+			return simpleInstruction("OP_INCLUDE", offset);
 		case OP_IMPORT:
 			return simpleInstruction("OP_IMPORT", offset);
 		case OP_NIL_LIST:
@@ -273,7 +267,7 @@ int disassembleInstruction(Chunk *chunk, int offset) {
 			return simpleInstruction("OP_GET_LIST", offset);
 		case OP_SET_LIST:
 			return simpleInstruction("OP_SET_LIST", offset);
-			
+
 		default:
 			printf("Unknown opcode %d\n", instruction);
 			return offset + 1;

@@ -11,6 +11,7 @@ declaration   := varDecl
                | letDecl
                | classDecl
                | importDecl
+               | enumDecl
                | statement
 
 varDecl       := "var" IDENTIFIER typehint? ["=" expr | "[" expr "]"] ";"
@@ -19,6 +20,7 @@ letDecl       := "let" IDENTIFIER typehint? "=" (expr | "[" expr "]") ";"
 classDecl     := "class" IDENTIFIER ["<-" IDENTIFIER] "{" methodDecl "}"
 methodDecl    := IDENT "(" [IDENTIFIER typehint? ("," IDENTIFIER typehint?)*] ")" "{" declaration* "}"
 importDecl    := "include" IDENTIFIER ";"
+enumDecl      := "enum" IDENTIFIER "{" IDENTIFIER ("," IDENTIFIER)* "}"
 
 statement     := exprStmt
                | printStmt
@@ -104,10 +106,40 @@ propAccess    := IDENT (("." | ".?") IDENT)+
   - Lists can be indexed and proper bounds checking is performed.
 
 ## Todo
+- List Operations
+  - List ranges instead of nil-filling: `var foo = [0, 2, .. 24]` instead of `var foo[25]`.
+  - List popping and pushing (Likely need a init, head and tail pointer in the Value* malloc)
+    - Head will wrap around modulo style on prepend
+    - On array growth, all present elements will be put at pos 0 (use init pointer for reassignment)
+    - Append to back: `lst ++ 5`, Append to front: `5 ++ lst` (Low precidence - places list on the stack -> `1 ++ [0] ++ 1 + 2 ++ 2 == [1,0,3,2]`)
+      - Unary `lst ++` will append `nil`?
+    - Pop from back: `lst --`, Pop from front: `-- lst` (High precidence - places value on the stack)
 - Assert statement
   - `assert EXPR : 'MSG'`
 - Guard system from including the same file multiple times
   - Ideally not a statement if possible
+- Static methods for classes
+- Modify switch:
+```
+switch expr {
+  1 => "one";
+  2 => "two";
+  3 | 4 => "three or four";
+  _ => "other";
+}
+```
+- Enums
+  - Follow ObjClass structure, storing fields in a table or array
+  - When parsing, make note of name => parse options (place on stack) => emit OP_ENUM w/ name
+  - Name.Option looks in method table for the value
+  - In VM, have hidden iota function to count unique int values -> intern randomly generated strings?
+```
+enum Number {
+  One,
+  Two,
+  Three
+}
+```
 
 ## Build
 

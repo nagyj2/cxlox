@@ -47,16 +47,27 @@ typedef struct {
 	int line; 					//* The line the token appeared in.
 } Token;
 
+/* Stores the state of the scanner. Scanner is a global singleton */
+typedef struct {
+	const char* start; 		//* The beginning position of the current lexeme.
+	const char* current; 	//* The current char being examined.
+	int line; 						//* The source line being read.
+} Scanner;
+
 /** Initialize the scanner's state, including the starting position, current position and line number. Resets the global scanner state.
  * 
  * @param[in] source The source code for the scanner to initialize with.
  */
-void initScanner(const char* source);
+void initScanner(Scanner* scanner, const char* source);
 
 /** Scans the currently set input source and returns the next token in that text stream. Reads the global scanner state.
  * 
  * @return Token The token which was read.
  */
-Token scanToken();
+Token scanToken(Scanner* scanner);
+
+/** Goes one position back in the scanner
+ */
+void backTrack(Scanner* scanner);
 
 #endif /* clox_scanner_h */

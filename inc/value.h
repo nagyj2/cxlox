@@ -1,5 +1,3 @@
-/* How lox values are represented. */
-
 #ifndef clox_value_h
 #define clox_value_h
 
@@ -7,9 +5,6 @@
 #include <math.h> // floorf
 
 #include "common.h"
-
-typedef struct Obj Obj;
-typedef struct ObjString ObjString;
 
 #ifdef NAN_BOXING
 
@@ -47,6 +42,9 @@ typedef uint64_t Value;
 #define IS_NUMBER(value) (((value) & QNAN) != QNAN)
 #define IS_OBJ(value) \
 	(((value) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT)) // Need to check qnan bits too b/c negative numbers will have sign bit set
+
+typedef struct _Obj Obj;
+typedef struct _ObjString ObjString;
 
 static inline Value numToValue(double num) {
 	Value value;
@@ -124,47 +122,43 @@ typedef struct {
 } ValueArray;
 
 /** Computes the hash value of a Value.
- * 
  * @param[in] value The value to take in.
  * @return uint32_t The hash value of the input.
  */
 uint32_t hashValue(Value value);
 
 /** Initialize an empty ValueArray pointer and its corresponding metadata. Allocates memory.
- * 
  * @param[out] array The pointer to be initialized.
  */
 void initValueArray(ValueArray *array);
 
 /** Writes a value to the last element in the input ValueArray pointer. May enlarge @p array.
- * 
  * @param[in,out] array The ValueArray to be written to.
  * @param[in] value The value to write into @p array.
  */
-void writeValueArray(ValueArray *array, Value value);
+void writeValueArray(VM* vm, ValueArray *array, Value value);
 
 /** Releases the memory held by a ValueArray and all corresponding elements. Also resets metadata and nullifies pointer.
- *
  * @param[out] array The ValueArray to be freed.
  */
-void freeValueArray(ValueArray *array);
+void freeValueArray(VM* vm, ValueArray *array);
 
-/** Displays a Value to stdout.
- * 
- * @param[in] value The value to be displayed.
- */
-void printValue(Value value);
+
 
 //~ Lox Semantics
 
 /** Checks whether two values are equal. If the types are not equal, returns false. Otherwise, check the value contents.
- * 
  * @param[in] a The first value to check.
  * @param[in] b The second value to check
  * @return true if the two inputs are the same.
  * @return false if the two outputs are not the same.
  */
 bool valuesEqual(Value a, Value b);
+
+/** Displays a Value to stdout.
+ * @param[in] value The value to be displayed.
+ */
+void printValue(Value value);
 
 
 

@@ -5,11 +5,59 @@
 #include <stddef.h> // NULL, size_t
 #include <stdint.h> // uint8_t
 
+// Typedef so everyone has access
+typedef struct _vm VM;
+ 
+typedef struct _Obj Obj;
+typedef struct _ObjString ObjString;
+typedef struct _ObjModule ObjModule;
+typedef struct _ObjFunction ObjFunction;
+typedef struct _ObjNative ObjNative;
+typedef struct _ObjUpvalue ObjUpvalue;
+typedef struct _ObjClosure ObjClosure;
+typedef struct _ObjClass ObjClass;
+typedef struct _ObjInstance ObjInstance;
+typedef struct _ObjBoundMethod ObjBoundMethod;
+typedef struct _ObjList ObjList;
+
+typedef struct _Compiler Compiler;
+// typedef enum _FunctionType FunctionType;
+
+//! 'Unknown' or 'incomplete' type errors when placed inside object.h
+/** The type of code which is being compiled. */
+typedef enum {
+	TYPE_FUNCTION,			//* A function body is being compiled.
+	TYPE_LAMBDA,				//* An anonymous function is being compiled.
+	TYPE_SCRIPT,				//* The top-level (global) code is being compiled.
+	TYPE_METHOD,				//* A method is being compiled.
+	TYPE_INITIALIZER,		//* Initializer method is being compiled.
+} FunctionType;
+
+/** Initialize state of the VM.
+ * @details
+ * Resets the stack, initializes internal hash tables and GC metadata.
+ */
+VM* initVM();
+
+/** Cleanup and free the state of the VM.
+ * @details
+ * Frees all memory allocated to objects and contents of state hash tables.
+ */
+void freeVM(VM* vm);
+
+/* Result of the VM's interpretation. */
+typedef enum {
+	INTERPRET_OK,							//* VM completed interpretation successfully.
+	INTERPRET_COMPILE_ERROR,	//* VM encountered a compile-time error.
+	INTERPRET_RUNTIME_ERROR		//* VM encountered a runtime-error.
+} InterpretResult;
+
+// ---- OPTIONS ----
 // Enable NaN boxing -> Using 64 bit floats to contain either a float, nil, true, false or pointer to a Obj
 #define NAN_BOXING
 
 // Enables chunk dumping when the compiler finishes with the chunk.
-// #define DEBUG_PRINT_CODE
+#define DEBUG_PRINT_CODE
 
 // Debug define to allow easier viewing of VM internals
 // #define DEBUG_TRACE_EXECUTION
@@ -31,6 +79,9 @@
 
 // Maximum length for a input string
 #define MAX_STRING_LEN 256
+
+// Whether code comments should be permitted
+#define USE_TYPE_COMMENT
 
 /* --- PRINTF_BYTE_TO_BINARY macro's --- */
 #define PRINTF_BINARY_PATTERN_INT8 "%c%c%c%c%c%c%c%c"

@@ -14,8 +14,8 @@ void initTable(Table* table) {
 	table->entries = NULL;
 }
 
-void freeTable(Table* table) {
-	FREE_ARRAY(Entry, table->entries, table->capacity);
+void freeTable(VM* vm, Table* table) {
+	FREE_ARRAY(vm, Entry, table->entries, table->capacity);
 	initTable(table); // Invalidates metadata
 }
 
@@ -27,7 +27,6 @@ void freeTable(Table* table) {
  * Assumes there is always an empty entry somewhere in the table.
  * Takes an Entry array instead of a table because this function is called when tables are being resized and therefore dont fully exist yet.
  * Uses tombstones to mark deleted entries and are only visible internally. Tombstones are denoted by a NULL key and lox non-NULL value. Returned empty vs tombstone entries are indistinguishable from the key.
- *
  * @param[in] entries The table's Entry allocation array.
  * @param[in] capacity The capacity of the input @p entries Entry array.
  * @param[in] key Pointer to the lox string object to search for.
@@ -59,9 +58,26 @@ static Entry* findEntry(Entry* entries, int capacity, Value key) {
 	}
 }
 
-static void adjustCapacity(Table* table, int capacity) {
+bool tableGet(Table* table, Value key, Value* value) {
+	// If there is nothing in the table, return false
+	// Also prevents insertion of a NULL array
+	if (table->count == 0)
+		return false;
+
+	// Find where the key is in the table (either present with some value, or empty; awaiting insertion)
+	Entry* entry = findEntry(table->entries, table->capacity, key);
+	// If the found slot is empty, return false
+	if (IS_EMPTY(entry->key)) // ! Why NIL and not EMPTY?
+		return false;
+
+	// Set output pointer to the found entry
+	*value = entry->value;
+	return true;
+}
+
+static void adjustCapacity(VM* vm, Table* table, int capacity) {
 	// Allocate new memory for the table for a given size
-	Entry* entries = ALLOCATE(Entry, capacity);
+	Entry* entries = ALLOCATE(vm, Entry, capacity);
 	// Nullify the new memory locations to set them to a valid state
 	for (int i = 0; i < capacity; i++) {
 		entries[i].key = EMPTY_VAL; // EMPTY represents a truly blank entry
@@ -86,18 +102,18 @@ static void adjustCapacity(Table* table, int capacity) {
 	}
 
 	// Free the old table
-	FREE_ARRAY(Entry, table->entries, table->capacity);
+	FREE_ARRAY(vm, Entry, table->entries, table->capacity);
 	// Assign the new table allocation and capacity to the table
 	table->entries = entries;
 	table->capacity = capacity;
 }
 
-bool tableSet(Table* table, Value key, Value value) {
+bool tableSet(VM* vm, Table* table, Value key, Value value) {
 	// If the the table gets too full, increase capacity
 	if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
 		int capacity = GROW_CAPACITY(table->capacity); // Get the next size
 		// Need to copy over the old elements to the new allocation, so wrap that logic in a function
-		adjustCapacity(table, capacity);
+		adjustCapacity(vm, table, capacity);
 	}
 	
 	// Get entry from table
@@ -114,24 +130,7 @@ bool tableSet(Table* table, Value key, Value value) {
 	return isNewKey;
 }
 
-bool tableGet(Table* table, Value key, Value* value) {
-	// If there is nothing in the table, return false
-	// Also prevents insertion of a NULL array
-	if (table->count == 0)
-		return false;
-
-	// Find where the key is in the table (either present with some value, or empty; awaiting insertion)
-	Entry* entry = findEntry(table->entries, table->capacity, key);
-	// If the found slot is empty, return false
-	if (IS_EMPTY(entry->key)) // ! Why NIL and not EMPTY?
-		return false;
-
-	// Set output pointer to the found entry
-	*value = entry->value;
-	return true;
-}
-
-bool tableDelete(Table* table, Value key) {
+bool tableDelete(VM* vm, Table* table, Value key) {
 	// Shortcut if the table is empty
 	if (table->count == 0)
 		return false;
@@ -147,11 +146,11 @@ bool tableDelete(Table* table, Value key) {
 	return true;
 }
 
-void tableAddAll(Table* from, Table* to) {
+void tableAddAll(VM* vm, Table* from, Table* to) {
 	for (int i = 0; i < from->capacity; i++) {
 		Entry* entry = &from->entries[i];
 		if (!IS_EMPTY(entry->key))
-			tableSet(to, entry->key, entry->value);
+			tableSet(vm, to, entry->key, entry->value);
 		
 	}
 }
@@ -179,19 +178,19 @@ ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t
 	}
 }
 
-void markTable(Table* table) {
+void markTable(VM* vm, Table* table) {
 	for (int i = 0; i < table->capacity; i++) {
 		Entry* entry = &table->entries[i];
-		markObject(AS_OBJ(entry->key));
-		markValue(entry->value);
+		markObject(vm, AS_OBJ(entry->key));
+		markValue(vm, entry->value);
 	}
 }
 
-void tableRemoveWhite(Table* table) {
+void tableRemoveWhite(VM* vm, Table* table) {
 	for (int i = 0; i < table->capacity; i++) {
 		Entry* entry = &table->entries[i];
 		if (!IS_EMPTY(entry->key) && IS_OBJ(entry->key) && !AS_STRING(entry->key)->obj.isMarked) {
-			tableDelete(table, entry->key);
+			tableDelete(vm, table, entry->key);
 		}
 	}
 }

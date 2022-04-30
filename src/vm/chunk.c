@@ -4,7 +4,7 @@
 #include "memory.h"
 #include "vm.h"
 
-void initChunk(Chunk *chunk) {
+void initChunk(VM* vm, Chunk *chunk) {
 	chunk->count = 0;
 	chunk->capacity = 0;
 	chunk->code = NULL;
@@ -14,18 +14,24 @@ void initChunk(Chunk *chunk) {
 	initValueArray(&chunk->constants); // Takes pointer in and directly allocates memory
 }
 
-void writeChunk(Chunk *chunk, uint8_t byte, int line) {
+void freeChunk(VM* vm, Chunk *chunk) {
+	FREE_ARRAY(vm, uint8_t, chunk->code, chunk->capacity);
+	FREE_ARRAY(vm, LineStart, chunk->lines, chunk->lineCapacity);
+	freeValueArray(vm, &chunk->constants); // Need to call to also free ValueArray's metadata
+	initChunk(vm, chunk); // Zeros out the chunk's count and capacity fields and nullifies the pointer
+}
+
+
+void writeChunk(VM* vm, Chunk *chunk, uint8_t byte, int line) {
 	// Check to see if there is capacity. If not, grow the chunk
 	if (chunk->capacity < chunk->count + 1) {
 		int oldCapacity = chunk->capacity;
 		// Set capacity to desired size
 		chunk->capacity = GROW_CAPACITY(oldCapacity);
 		// Move old data to the new chunk
-		chunk->code = GROW_ARRAY(uint8_t, chunk->code, oldCapacity, chunk->capacity);
-
+		chunk->code = GROW_ARRAY(vm, uint8_t, chunk->code, oldCapacity, chunk->capacity);
 		// Dont grow lines automatically b/c its size is separate from the chunk size.
 	}
-
 	// Add byte to chunk
 	chunk->code[chunk->count] = byte;
 	chunk->count++;
@@ -39,7 +45,7 @@ void writeChunk(Chunk *chunk, uint8_t byte, int line) {
 	if (chunk->lineCapacity < chunk->lineCount + 1) {
 		int oldCapacity = chunk->lineCapacity;
 		chunk->lineCapacity = GROW_CAPACITY(oldCapacity);
-		chunk->lines = GROW_ARRAY(LineStart, chunk->lines, oldCapacity, chunk->lineCapacity);
+		chunk->lines = GROW_ARRAY(vm, LineStart, chunk->lines, oldCapacity, chunk->lineCapacity);
 	}
 
 	// B/c we are creating a new line counter, grab the reference and initialize its values
@@ -70,17 +76,10 @@ int getLine(Chunk *chunk, int instruction) {
 	}
 }
 
-index_t addConstant(Chunk* chunk, Value value) {
-	push(value); // Push for GC
-	writeValueArray(&chunk->constants, value);
-	pop();
+index_t addConstant(VM* vm, Chunk* chunk, Value value) {
+	push(vm, value); // Push for GC
+	writeValueArray(vm, &chunk->constants, value);
+	pop(vm);
 	// 'chunk->constant' dereferences to the exact location in memory where the constant pool is. Therefore, use '.' to get data
 	return chunk->constants.count - 1; // Return location to new constant
-}
-
-void freeChunk(Chunk *chunk) {
-	FREE_ARRAY(uint8_t, chunk->code, chunk->capacity);
-	FREE_ARRAY(LineStart, chunk->lines, chunk->lineCapacity);
-	freeValueArray(&chunk->constants); // Need to call to also free ValueArray's metadata
-	initChunk(chunk); // Zeros out the chunk's count and capacity fields and nullifies the pointer
 }
