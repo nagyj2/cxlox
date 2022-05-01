@@ -30,7 +30,7 @@ void resetStack(VM* vm) {
 }
 
 VM* initVM() {
-	VM* vm = malloc(sizeof(vm));
+	VM* vm = malloc(sizeof(*vm));
 	if (!vm) {
 		printf("Error: Could not allocate memory for VM.\n");
 		exit(1);
@@ -59,12 +59,12 @@ VM* initVM() {
 	vm->usedRainyDay = false;
 
 #ifdef DEBUG_LOG_GC
-	printf("%p allocate %zu for rainy day\n", vm->rainyDay, sizeof(RAINY_DAY_MEMORY));
+	printf("%p allocate %d for rainy day\n", vm->rainyDay, RAINY_DAY_MEMORY);
 #endif
 	
 	vm->initString = NULL; // copyString() can allocate, thus causing GC which will read uninitializer vm->initString. For safety, NULL it
 	vm->initString = copyString(vm, "init", 4);
-	
+
 	// Create all native functions
 #ifdef DEBUG_LOAD_STDLIB
 	// createStdlibModule();
@@ -77,11 +77,12 @@ void freeVM(VM* vm) {
 	printf("== Freeing VM ==\n");
 #endif
 	
-	vm->initString = NULL;
 	freeTable(vm, &vm->modules);
 	freeTable(vm, &vm->globals);
 	freeTable(vm, &vm->constants);
 	freeTable(vm, &vm->strings);
+
+	vm->initString = NULL;
 	freeObjects(vm);
 #ifdef DEBUG_LOG_GC
 	printf("%p freed rainy day\n", vm->rainyDay);
@@ -443,10 +444,9 @@ static InterpretResult run(VM* vm) {
 		} \
 	} while (false)
 	// Store the frame for proper error reporting
-#define STORE_FRAME frame->ip = ip
 #define RUNTIME_ERROR(...) \
 	do { \
-		STORE_FRAME; \
+		frame->ip = ip; \
 		runtimeError(vm, __VA_ARGS__); \
 		return INTERPRET_RUNTIME_ERROR; \
 	} while (false)
@@ -660,6 +660,12 @@ static InterpretResult run(VM* vm) {
 			case OP_JUMP_IF_FALSE: {
 				uint16_t offset = READ_SHORT();
 				if (isFalsey(peek(vm, 0)))
+					ip += offset;
+				break;
+			}
+			case OP_JUMP_IF_NIL: {
+				uint16_t offset = READ_SHORT();
+				if (IS_NIL(peek(vm, 0)))
 					ip += offset;
 				break;
 			}

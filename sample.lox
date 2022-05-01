@@ -248,8 +248,8 @@ fun makeVector(x,y){
       case "y":     return y; // return {->y};
       case "set-x": return newx => x = newx;
       case "set-y": return newy => y = newy;
-      case "add":   return (other => makeVector(x + other("x"), y + other("y")));
-      // case "mult":  return other => makeVector(x * other("x"), y * other("y"));
+      case "add":   return other => makeVector(x + other("x"), y + other("y"));
+      case "mult":  return other => makeVector(x * other("x"), y * other("y"));
       default:      return nil;
     }
   }

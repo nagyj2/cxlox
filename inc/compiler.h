@@ -114,7 +114,7 @@ struct _Compiler {
 	int numBreak;										//* The number of break positions
 	int recentBreak[MAX_BREAKS];		//* The most recent break position
 
-	bool inCall;										//* Whether or not the compiler is parsing a function call
+	bool inListing;										//* Whether or not the compiler is parsing a function call
 };
 
 // Function type which takes one argument and no return. Used to store the desired function in ParseRule struct.

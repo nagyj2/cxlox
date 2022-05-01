@@ -69,20 +69,23 @@ static void freeObject(VM* vm, Obj* object) {
 #endif
 	
 	switch (object->type) {
-		case OBJ_STRING: {
-			ObjString* string = (ObjString*) object;
-			FREE_ARRAY(vm, char, string->chars, string->length + 1);
-			FREE(vm, ObjString, object);
+		case OBJ_MODULE: {
+			ObjModule* module = (ObjModule*) object;
+			freeTable(vm, &module->values); // module owns its values
+			FREE(vm, ObjModule, object);
 			break;
 		}
-		case OBJ_FUNCTION: {
-			ObjFunction* function = (ObjFunction*) object;
-			freeChunk(vm, &function->chunk);
-			FREE(vm, ObjFunction, object);
+		case OBJ_BOUND_METHOD: {
+			// ObjBoundMethod* boundMethod = (ObjBoundMethod*) object;
+			// Does not own the method or instance, so it doesn't free them
+			FREE(vm, ObjBoundMethod, object);
 			break;
 		}
-		case OBJ_NATIVE: {
-			FREE(vm, ObjNative, object);
+		case OBJ_CLASS: {
+			ObjClass* klass = (ObjClass*) object;
+			freeTable(vm, &klass->methods);
+			// Name is in internment table
+			FREE(vm, ObjClass, object);
 			break;
 		}
 		case OBJ_CLOSURE: {
@@ -92,15 +95,10 @@ static void freeObject(VM* vm, Obj* object) {
 			FREE(vm, ObjClosure, object);
 			break;
 		}
-		case OBJ_UPVALUE: {
-			// doesnt own the variable, so it isnt released
-			FREE(vm, ObjUpvalue, object);
-			break;
-		}
-		case OBJ_CLASS: {
-			ObjClass* klass = (ObjClass*) object;
-			freeTable(vm, &klass->methods);
-			FREE(vm, ObjClass, object);
+		case OBJ_FUNCTION: {
+			ObjFunction* function = (ObjFunction*) object;
+			freeChunk(vm, &function->chunk);
+			FREE(vm, ObjFunction, object);
 			break;
 		}
 		case OBJ_INSTANCE: {
@@ -109,10 +107,14 @@ static void freeObject(VM* vm, Obj* object) {
 			FREE(vm, ObjInstance, object);
 			break;
 		}
-		case OBJ_BOUND_METHOD: {
-			// ObjBoundMethod* boundMethod = (ObjBoundMethod*) object;
-			// Does not own the method or instance, so it doesn't free them
-			FREE(vm, ObjBoundMethod, object);
+		case OBJ_NATIVE: {
+			FREE(vm, ObjNative, object);
+			break;
+		}
+		case OBJ_STRING: {
+			ObjString* string = (ObjString*) object;
+			FREE_ARRAY(vm, char, string->chars, string->length + 1);
+			FREE(vm, ObjString, object);
 			break;
 		}
 		case OBJ_LIST: {
@@ -121,11 +123,14 @@ static void freeObject(VM* vm, Obj* object) {
 			FREE(vm, ObjList, object);
 			break;
 		}
-		case OBJ_MODULE: {
-			ObjModule* module = (ObjModule*) object;
-			freeTable(vm, &module->values); // module owns its values
+		case OBJ_UPVALUE: {
+			// doesnt own the variable, so it isnt released
+			FREE(vm, ObjUpvalue, object);
 			break;
 		}
+		
+		
+		
 	}
 }
 
@@ -236,7 +241,8 @@ static void blackenObject(VM* vm, Obj* object) {
 			break;
 		case OBJ_FUNCTION: {
 			ObjFunction* function = (ObjFunction*) object;
-			markObject(vm, (Obj*) function->name); // Mark the name
+			markObject(vm, (Obj*) function->name);
+			markObject(vm, (Obj*) function->module);
 			markArray(vm, &function->chunk.constants); // Mark all stored constants
 			break;
 		}

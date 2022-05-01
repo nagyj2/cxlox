@@ -296,7 +296,7 @@ static void initCompiler(Parser *parser, Compiler* compiler, Compiler* parent, F
 	compiler->scopeDepth = 0; 	// Current scope depth for locals
 	compiler->recentLoop = -1; 	// The most recent loop position for break/continue
 	compiler->numBreak = 0; 		// Number of breaks in the current scope
-	compiler->inCall = false; 	// Whether the compiler is currently in a function call. Controls lambda functions
+	compiler->inListing = false; 	// Whether the compiler is currently in a function call. Controls lambda functions
 
 	parser->vm->compiler = compiler; // Link compiler to the parser
 	compiler->function = newFunction(parser->vm, parser->module, type);
@@ -317,7 +317,7 @@ static void initCompiler(Parser *parser, Compiler* compiler, Compiler* parent, F
 
 	// Reserve a position in the stack for the compiler's use
 	Local* local = &compiler->locals[compiler->localCount++];
-	local->depth = 0; // Save as a top level scoped local. Prevents it from getting removed from endScope
+	local->depth = compiler->scopeDepth; // Save as a top level scoped local. Prevents it from getting removed from endScope
 	local->isCaptured = false;
 	local->constant = false;
 	if (type == TYPE_METHOD || type == TYPE_INITIALIZER) {
@@ -343,7 +343,7 @@ static ObjFunction* endCompiler(Compiler* compiler, bool appendReturn) {
 	// If debug is enabled, print the completed bytecode if there was no error
 #ifdef DEBUG_PRINT_CODE
 	if (!compiler->parser->hadError) {
-		disassembleChunk(currentChunk(compiler), function->name != NULL ? function->name->chars : "<script>");
+		disassembleChunk(currentChunk(compiler), function->name != NULL ? function->name->chars : function->module->name->chars);
 	}
 #endif
 
@@ -353,13 +353,12 @@ static ObjFunction* endCompiler(Compiler* compiler, bool appendReturn) {
 		emitLongable(compiler->enclosing, OP_CLOSURE, OP_CLOSURE_LONG, makeConstant(compiler->enclosing, OBJ_VAL(function)));
 		// For every upvalue captured, emit its locality and index
 		for (int i = 0; i < function->upvalueCount; i++) {
-			emitByte(compiler, compiler->upvalues[i].isLocal ? 1 : 0); // Flag on whether the variable is a local or not
-			emitByte(compiler, compiler->upvalues[i].index); // index of the variable in the stack
+			emitByte(compiler->enclosing, compiler->upvalues[i].isLocal ? 1 : 0); // Flag on whether the variable is a local or not
+			emitByte(compiler->enclosing, compiler->upvalues[i].index); // index of the variable in the stack
 		}
 		
 	}
-
-
+	
 	// todo if string constants, free here
 	compiler->parser->vm->compiler = compiler->enclosing; // Restore the previous compiler
 	return function;
@@ -493,11 +492,11 @@ static Token syntheticToken(Compiler* compiler, const char* text) {
  * @param[in] name The variable to try and resolve.
  * @return int representing the index of the variable in the locals array or a sentinel value of -1.
  */
-static int resolveLocal(Compiler* compiler, Token* name) {
+static int resolveLocal(Compiler* compiler, Token* name, bool inFunction) {
 	for (int i = compiler->localCount - 1; i >= 0; i--) {
 		Local* local = &compiler->locals[i];
 		if (identifiersEqual(name, &local->name)) {
-			if (local->depth == -1) {
+			if (!inFunction && local->depth == -1) {
 				error(compiler->parser, "Cannot read local variable in its own initializer.");
 			}
 			return i;
@@ -523,7 +522,7 @@ static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal, bool isCo
 	// Locality matters because the origin of the upvalue call can refer to different variables
 	for (int i = 0; i < upvalueCount; i++) {
 		Upvalue* upvalue = &compiler->upvalues[i];
-		if (upvalue->index == index && upvalue->isLocal == isLocal && upvalue->constant == isConstant) { // ensure we find what we are looking for
+		if (upvalue->index == index && upvalue->isLocal == isLocal) { // ensure we find what we are looking for
 			return i; // Return the index in the array
 		}
 	}
@@ -558,7 +557,7 @@ static int resolveUpvalue(Compiler* compiler, Token* name) {
 
 	// See if the variable can be resolved locally.
 	// Note: we check for locality of the 'current' compiler before calling this function, so this 'resolveLocal' is first called for the enclosing compiler
-	int local = resolveLocal(compiler->enclosing, name);
+	int local = resolveLocal(compiler->enclosing, name, true);
 	if (local != -1) { // If found as a local, create a local upvalue in the below compiler.
 		compiler->enclosing->locals[local].isCaptured = true; // Mark the local as captured. Used to instruct VM how to dispose of it
 		// Variable was found in the enclosing compiler, so mark it as local.
@@ -587,8 +586,11 @@ static void addLocal(Compiler* compiler, Token name, bool isConstant) {
 	
 	Local* local = &compiler->locals[compiler->localCount++];
 	local->name = name;
-	local->constant = isConstant;
 	local->depth = -1;
+	local->isCaptured = false;
+	local->constant = isConstant;
+
+	// compiler->localCount++;
 }
 
 /** Converts the (simulated) top stack element into a local variable if it isn't global.
@@ -669,18 +671,18 @@ static index_t parseVariable(Compiler* compiler, const char* errorMessage, bool 
 	return identifierConstant(compiler, &compiler->parser->previous);
 }
 
-//// Parses a variable which has just been passed over.
-////  @return index_t index of the variable in the constant pool
-////
-////static index_t parseVariablePast(Compiler* compiler, bool isConstant) {
-////	// declare the var. If a local, the locals array must be updated. If a global, nothing needs to be done
-////	declareVariable(compiler, isConstant);
-////	// If local, var will be placed on stack, so dont give the global location
-////	if (compiler->scopeDepth > 0)
-////		return 0;
-////
-////	return identifierConstant(compiler, &compiler->parser->previous);
-////}
+/** Parses a variable which has just been passed over.
+ * @return index_t index of the variable in the constant pool
+ */
+static index_t parseVariablePast(Compiler* compiler, bool isConstant) {
+	// declare the var. If a local, the locals array must be updated. If a global, nothing needs to be done
+	declareVariable(compiler, isConstant);
+	// If local, var will be placed on stack, so dont give the global location
+	if (compiler->scopeDepth > 0)
+		return 0;
+
+	return identifierConstant(compiler, &compiler->parser->previous);
+}
 
 //~ Grammar evaluation functions
 
@@ -690,8 +692,8 @@ static index_t parseVariable(Compiler* compiler, const char* errorMessage, bool 
  */
 static int argumentList(Compiler* compiler) {
 	int argCount = 0;
-	bool oldCallStatus = compiler->inCall; // Track the old status so we can restore it. Used for nested calls
-	compiler->inCall = true;
+	bool oldCallStatus = compiler->inListing; // Track the old status so we can restore it. Used for nested calls
+	compiler->inListing = true;
 	if (!check(compiler, TOKEN_RIGHT_PAREN)) {
 		do {
 			// Disallow comma expressions
@@ -704,7 +706,7 @@ static int argumentList(Compiler* compiler) {
 		} while (match(compiler, TOKEN_COMMA));
 	}
 	consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')'.");
-	compiler->inCall = oldCallStatus;
+	compiler->inListing = oldCallStatus;
 	return argCount;
 }
 
@@ -755,7 +757,8 @@ static void singleString(Compiler* compiler, bool canAssign) {
  */
 static void doubleString(Compiler* compiler, bool canAssign) {
 	// parser.previous.start was redefined by the double string tokenization process. Cast to get rid of const
-	emitConstant(compiler, OBJ_VAL(takeString(compiler->parser->vm, (char*) compiler->parser->previous.start, compiler->parser->previous.length)));
+	// emitConstant(compiler, OBJ_VAL(takeString(compiler->parser->vm, (char*) compiler->parser->previous.start, compiler->parser->previous.length)));
+	emitConstant(compiler, OBJ_VAL(copyString(compiler->parser->vm, (char*) compiler->parser->previous.start, compiler->parser->previous.length)));
 }
 
 /** Emits bytes to retrieve or set a global variable's value.
@@ -766,7 +769,7 @@ static void doubleString(Compiler* compiler, bool canAssign) {
 static void namedVariable(Compiler* compiler, Token name, bool canAssign) {
 	opcode_t getOp, setOp, getOpLong, setOpLong;
 	// Attempt to find local with name. 
-	index_t index = resolveLocal(compiler, &name); // RETURNS INTEGER; POSITION OF VAR IN LOCALS. IF -1, then it will be converted to index_t below
+	index_t index = resolveLocal(compiler, &name, false); // RETURNS INTEGER; POSITION OF VAR IN LOCALS. IF -1, then it will be converted to index_t below
 	
 	if (index != -1) {
 		getOp = OP_GET_LOCAL; getOpLong = OP_GET_LOCAL;
@@ -872,7 +875,7 @@ static void subscript(Compiler* compiler, bool canAssign) {
  * @param[in] canAssign unused.
  */
 static void variable(Compiler* compiler, bool canAssign) {
-	if (!compiler->inCall && (check(compiler, TOKEN_COMMA) || check(compiler, TOKEN_EQUAL_GREATER))) {
+	if (!compiler->inListing && (check(compiler, TOKEN_COMMA) || check(compiler, TOKEN_EQUAL_GREATER))) {
 		lambda(compiler);
 	} else {
 		namedVariable(compiler, compiler->parser->previous, canAssign);
@@ -1079,36 +1082,6 @@ static void beginFunction(Compiler* compiler, Compiler* fnCompiler, FunctionType
 	consume(fnCompiler, TOKEN_RIGHT_PAREN, "Expected ')' after parameters.");
 }
 
-static void beginLambda(Compiler* compiler, Compiler* fnCompiler, FunctionType type) {
-	// Keep compiling from the current parser but set fnCompiler to the 'current' and 'current' to the parent
-	initCompiler(compiler->parser, fnCompiler, compiler, type);
-	beginScope(fnCompiler); // Begin scope for the function compiler
-	const bool constParams = false; // set parameters as consts for now
-	
-	if (!check(fnCompiler, TOKEN_EQUAL_GREATER)) {
-		// to implement optional args, track arity + optional arity with a bool 'topional args started' flag
-		// each optiona should take an expression as well as a default value
-		do {
-
-			index_t constant = parseVariable(fnCompiler, "Expected parameter name.", constParams);
-			// Type comment
-#ifdef USE_CODE_COMMENT
-			if (match(fnCompiler, TOKEN_COLON))
-				consume(fnCompiler, TOKEN_IDENTIFIER, "Expected a type name.");
-#endif
-			defineVariable(fnCompiler, constant, constParams); // Do not initialize. Initialization will occur when passing functions
-
-			fnCompiler->function->arity++;
-			if (fnCompiler->function->arity > 255) {
-				error(fnCompiler->parser, "Cannot have more than 255 parameters.");
-			}
-			
-		} while (match(fnCompiler, TOKEN_COMMA));
-	}
-	
-	consume(fnCompiler, TOKEN_EQUAL_GREATER, "Expected '=>' after parameters.");
-}
-
 /** Parse a function (argument list and body) and emit bytecode to place a closure on the stack.
  * @param[in] type The type of function to parse.
  */
@@ -1135,17 +1108,46 @@ static void function(Compiler* compiler, FunctionType type) {
 	//! Old version took the ObjFunction that was ejected and did the last half of endCompiler
 }
 
+static void beginLambda1Parsed(Compiler* compiler, Compiler* fnCompiler, FunctionType type) {
+	// Keep compiling from the current parser but set fnCompiler to the 'current' and 'current' to the parent
+	initCompiler(compiler->parser, fnCompiler, compiler, type);
+	beginScope(fnCompiler); // Begin scope for the function compiler
+	const bool constParams = false; // set parameters as consts for now
+
+	index_t constant = parseVariablePast(fnCompiler, constParams);
+	defineVariable(fnCompiler, constant, constParams);
+	fnCompiler->function->arity = 1;
+
+	match(fnCompiler, TOKEN_COMMA); // Eat comma if it exists
+
+	if (!check(fnCompiler, TOKEN_EQUAL_GREATER) && !check(compiler, TOKEN_EOF)) {
+		// to implement optional args, track arity + optional arity with a bool 'topional args started' flag
+		// each optiona should take an expression as well as a default value
+		do {
+			index_t constant = parseVariable(fnCompiler, "Expected parameter name.", constParams);
+			defineVariable(fnCompiler, constant, constParams);
+			// Type comment
+#ifdef USE_CODE_COMMENT
+			if (match(fnCompiler, TOKEN_COLON))
+				consume(fnCompiler, TOKEN_IDENTIFIER, "Expected a type name.");
+#endif
+
+			fnCompiler->function->arity++;
+			if (fnCompiler->function->arity > 255) {
+				error(fnCompiler->parser, "Cannot have more than 255 parameters.");
+			}
+		} while (match(fnCompiler, TOKEN_COMMA));
+	}
+	
+	consume(fnCompiler, TOKEN_EQUAL_GREATER, "Expected '=>' after parameters.");
+}
+
 /** Parses an anonymous function.
  * @pre Assumes the initial argument has been parsed and new scope has been initialized. parser.current = ','
  */
 static void lambda(Compiler* compiler) {
-	for (int i = 0; i < compiler->parser->previous.length+1; i++) {
-		backTrack(&compiler->parser->scanner); // Backtrack to the first param
-	}
-	advance(compiler->parser);
-
 	Compiler fnCompiler;
-	beginLambda(compiler, &fnCompiler, TYPE_LAMBDA);
+	beginLambda1Parsed(compiler, &fnCompiler, TYPE_LAMBDA);
 	
 	if (match(&fnCompiler, TOKEN_LEFT_CURLY)) {
 		//~ Parse Traditional Functions
@@ -1178,10 +1180,10 @@ static void lambda(Compiler* compiler) {
  * @param[in] canAssign unused.
  */
 static void grouping(Compiler* compiler, bool canAssign) {
-	bool oldCallStatus = compiler->inCall;
-	compiler->inCall = false; // Reset in call status b/c it allows lambdas to be directly put in as args
+	bool oldCallStatus = compiler->inListing;
+	compiler->inListing = false; // Reset in call status b/c it allows lambdas to be directly put in as args
 	expression(compiler);
-	compiler->inCall = oldCallStatus;
+	compiler->inListing = oldCallStatus;
 	consume(compiler, TOKEN_RIGHT_PAREN, "Expected ')' after expression.");
 }
 
@@ -1191,8 +1193,8 @@ static void grouping(Compiler* compiler, bool canAssign) {
  */
 static void list(Compiler* compiler, bool canAssign) {
 	
-	bool oldCallStatus = compiler->inCall;
-	compiler->inCall = true; // Disallow lambdas in array literals
+	bool oldCallStatus = compiler->inListing;
+	compiler->inListing = true; // Disallow lambdas in array literals
 
 	int elements = 0;
 	if (!match(compiler, TOKEN_RIGHT_BRACE)) {
@@ -1205,7 +1207,7 @@ static void list(Compiler* compiler, bool canAssign) {
 
 		consume(compiler, TOKEN_RIGHT_BRACE, "Expected ']' after list.");
 	}
-	compiler->inCall = oldCallStatus;
+	compiler->inListing = oldCallStatus;
 
 	emitConstant(compiler, NUMBER_VAL(elements)); // so it works like OP_NIL_LIST
 	emitByte(compiler, OP_CREATE_LIST);

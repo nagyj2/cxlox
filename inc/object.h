@@ -297,4 +297,9 @@ ObjString* copyString(VM* vm, const char* chars, int length);
  */
 void printObject(Value value);
 
+/** Prints an object's type to stdout.
+ * @param[in] value The object to display.
+ */
+void printObjectType(Value type);
+
 #endif /* clox_object_h */

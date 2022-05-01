@@ -158,7 +158,7 @@ ObjModule* newModule(VM* vm, ObjString* name) {
 	// Modules should have a reference to their own name under "__file__"
 	tableSet(vm, &module->values, OBJ_VAL(__file__), OBJ_VAL(name));
 	// Register module with the active VM
-	tableSet(vm, &vm->modules, OBJ_VAL(name), OBJ_VAL(name));
+	tableSet(vm, &vm->modules, OBJ_VAL(name), OBJ_VAL(module));
 
 	pop(vm);
 	pop(vm);
@@ -180,7 +180,7 @@ static ObjString* allocateString(VM* vm, char* chars, int length, uint32_t hash)
 	string->length = length;
 	string->chars = chars;
 	string->hash = hash;
-	
+
 	push(vm, OBJ_VAL(string)); // Push for GC
 	tableSet(vm, &vm->strings, OBJ_VAL(string), NIL_VAL); // Intern the string for future lookups
 	pop(vm);
@@ -274,6 +274,41 @@ void printObject(Value value) {
 	}
 }
 
+void printObjectType(Value value) {
+	switch (OBJ_TYPE(value)) {
+		case OBJ_FUNCTION:
+			printf("function");
+			break;
+		case OBJ_STRING:
+			printf("string");
+			break;
+		case OBJ_NATIVE:
+			printf("native function");
+			break;
+		case OBJ_CLOSURE:
+			printf("closure");
+			break;
+		case OBJ_UPVALUE: // Not possible b/c upvalues arent user accessible
+			printf("upvalue");
+			break;
+		case OBJ_CLASS:
+			printf("class");
+			break;
+		case OBJ_INSTANCE:
+			printf("instance");
+			break;
+		case OBJ_BOUND_METHOD:
+			printf("bound method");
+			break;
+		case OBJ_LIST:
+			printf("list");
+			break;
+		case OBJ_MODULE:
+			printf("module");
+			break;
+	}
+}
+
 ObjString* toObjString(VM* vm, Value value) {
 #ifdef NAN_BOXING
 	if (IS_NUMBER(value)) {
@@ -324,23 +359,23 @@ ObjString* toObjString(VM* vm, Value value) {
 			// todo : memory leak?
 			int size = snprintf(buffer, nchars, "%g", AS_NUMBER(value)); // copy over number text
 
-			return takeString(buffer, size); //take b/c we are allocating the string here
+			return takeString(vm, buffer, size); //take b/c we are allocating the string here
 		}
 		case VAL_BOOL: {
 			if (AS_BOOL(value))
-				return copyString("true", 4);
+				return copyString(vm, "true", 4);
 			else
-				return copyString("false", 5);
+				return copyString(vm, "false", 5);
 		}
 		case VAL_NIL:
-			return copyString("nil", 3);
+			return copyString(vm, "nil", 3);
 		case VAL_OBJ: {
 			switch (OBJ_TYPE(value)) {
 				case OBJ_STRING:
 					return AS_STRING(value);
 				default: // Impossible
 					printf("Cannot convert to a string: %d\n'", OBJ_TYPE(value));
-					return copyString("<not stringable>", 16);
+					return copyString(vm, "<not stringable>", 16);
 			}
 		}
 		default:
