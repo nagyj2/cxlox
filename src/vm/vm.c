@@ -369,21 +369,39 @@ static bool invokeFromClass(VM* vm, ObjClass* klass, ObjString* name, int argCou
  */
 static bool invoke(VM* vm,  ObjString* name, int argCount) {
 	Value receiver = peek(vm, argCount); // instance we are calling on
-	if (!IS_INSTANCE(receiver)) {
-		runtimeError(vm, "Only instances have methods.");
-		return false;
+	if (!IS_OBJ(receiver)) {
+		
+	} else {
+		switch (OBJ_TYPE(receiver)) {
+			case OBJ_INSTANCE: {
+				ObjInstance* instance = AS_INSTANCE(receiver);
+
+				// Check if there is a callable field first
+				Value value;
+				if (tableGet(&instance->fields, OBJ_VAL(name), &value)) {
+					vm->stackTop[-argCount - 1] = value; // Replace same spot as OP_GET_PROPERTY
+					return callValue(vm, value, argCount);
+				}
+							
+				return invokeFromClass(vm, instance->klass, name, argCount);
+			}
+			case OBJ_MODULE: {
+				ObjModule *module = AS_MODULE(receiver);
+
+				Value value;
+				if (!tableGet(&module->values, OBJ_VAL(name), &value)) {
+						runtimeError(vm, "Undefined property '%s'.", name->chars);
+						return false;
+				}
+				return callValue(vm, value, argCount);
+			}
+			default:
+				break;
+		}
 	}
 	
-	ObjInstance* instance = AS_INSTANCE(receiver);
-
-	// Check if there is a callable field first
-	Value value;
-	if (tableGet(&instance->fields, OBJ_VAL(name), &value)) {
-		vm->stackTop[-argCount - 1] = value; // Replace same spot as OP_GET_PROPERTY
-		return callValue(vm, value, argCount);
-	}
-				
-	return invokeFromClass(vm, instance->klass, name, argCount);
+	runtimeError(vm, "Only instances have methods.");
+		return false;
 }
 
 static inline bool ensureValidArrayAccess(VM *vm, Value list, Value index) {
@@ -905,13 +923,21 @@ static InterpretResult run(VM* vm) {
 					break;
 				}
 
+				//fix assume found
 				// Find the file
-				char path[PATH_MAX];
-				if (!resolvePath(frame->closure->function->module->path->chars, fileName->chars, path)) {
-					RUNTIME_ERROR("Could not find module file.");
-				}
+				char* path = fileName->chars;
+				// if (!resolvePath(frame->closure->function->module->path->chars, fileName->chars, path)) {
+				// 	printf("%s\n", frame->closure->function->module->path->chars);
+				// 	printf("%s\n", fileName->chars);
+				// 	printf("%s\n", path);
+				// 	RUNTIME_ERROR("Could not find module file.");
+				// }
 
-				char* source = readFile(vm, path);
+				char* source = readFile(vm, fileName->chars);
+
+				if (source == NULL) {
+					RUNTIME_ERROR("Could not open file '%s'.", fileName->chars);
+				}
 
 				ObjString* pathObj = copyString(vm, path, strlen(path));
 				push(vm, OBJ_VAL(pathObj));

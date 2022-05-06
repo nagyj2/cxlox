@@ -1554,23 +1554,47 @@ static void method(Compiler* compiler) {
  * @param[in] canAssign unused.
  */
 static void importDeclaration(Compiler* compiler) {
+	index_t importConstant;
 	if (match(compiler, TOKEN_STRING)) {
-		index_t importConstant = makeConstant(compiler, OBJ_VAL(copyString(
+		importConstant = makeConstant(compiler, OBJ_VAL(copyString(
 			compiler->parser->vm,
 			compiler->parser->previous.start + 1,
 			compiler->parser->previous.length - 2
 		)));
-
-		emitLongable(compiler, OP_CONSTANT, OP_CONSTANT_LONG, importConstant);
-		emitBytes(compiler, OP_IMPORT, OP_POP);
-	} else {
-		error(compiler->parser, "Builtin imports not implemented yet");
+	} else if (match(compiler, TOKEN_STRING_INTERP)) {
+		importConstant = makeConstant(compiler, OBJ_VAL(copyString(
+			compiler->parser->vm,
+			compiler->parser->previous.start,
+			compiler->parser->previous.length
+		)));
 	}
+	
+	emitLongable(compiler, OP_CONSTANT, OP_CONSTANT_LONG, importConstant);
+	emitBytes(compiler, OP_IMPORT, OP_POP);
+	
+	// else {
+	// 	consume(compiler, TOKEN_IDENTIFIER, "Expected import identifier.");
+	// 	index_t importName = identifierConstant(compiler, &compiler->parser->previous);
+	// 	declareVariable(compiler, &compiler->parser->previous);
 
-	// Old method
-	//// expression(compiler);
-	//// emitBytes(compiler, OP_INCLUDE, OP_POP); // Function has implicit return due to endCompiler. include is a declaration, so we dont care about the output
+	// 	bool cSource = false;
+	// 	int index = findBuiltinModule(
+	// 		(char*) compiler->parser->previous.start,
+	// 		compiler->parser->previous.length - compiler->parser->current.length,
+	// 		&cSource
+	// 	);
 
+	// 	if (index == -1) {
+	// 		error(compiler->parser, "Unknown module.");
+	// 	}
+
+	// 	emitLongable(compiler, OP_CONSTANT, OP_CONSTANT_LONG, importName);
+	// 	emitBytes(compiler, OP_IMPORT_BUILTIN, index);
+
+	// 	defineVariable(compiler, importName, false);
+	// }
+
+	// consume(compiler, TOKEN_SEMICOLON, "Expect ';' after import statement.");
 	REPLSemicolon(compiler);
 }
 
